@@ -16,7 +16,7 @@ Todo:
 - [ ] Global Replace
 - [ ] Weapon Loadouts
 
-itemsDef.js works similarly to the original items.def.
+itemsDef.js works similarly to the original items.def.  
 otheritems.js lists all the items that aren’t in items.def by default and also uses new variables to indicate which 3D .glb file will be used for the item.
 
 ## Feedback
