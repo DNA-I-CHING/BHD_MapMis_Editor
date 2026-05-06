@@ -19,6 +19,8 @@ Todo:
 itemsDef.js works similarly to the original items.def.  
 otheritems.js lists all the items that aren’t in items.def by default and also uses new variables to indicate which 3D .glb file will be used for the item.
 
+All 3D .glb items should be in the resources/3d_items folder, and you should download the items here: https://drive.google.com/file/d/1Ra4pI8aTDwG5vO3h0fLZYzqPM6YveKQH/view?usp=sharing
+
 ## Keep working on it.
 Feel free to continue what’s already been done. 
 
