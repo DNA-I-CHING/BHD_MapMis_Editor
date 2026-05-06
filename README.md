@@ -16,10 +16,8 @@ Todo:
 - [ ] Global Replace
 - [ ] Weapon Loadouts
 
-
-I couldn’t get it implemented:
-- Fog: I tried implementing “Fullscreen Depth Fog” using 3 points (near, mid, far, which I think is how BHD uses it). But since I don’t technically know how fog works in games, I couldn’t guide the AI in a way that avoided issues like fog color mismatch when applying it to each thing on the canvas, object silhouettes showing through the fog, etc. Every time I fixed one problem, another one showed up. So I decided to remove it and wait for help from other collaborators in the future. I left the Debug Fog button in the canvas, it can be reused in the future to refine the near, mid, and far values, trying to more accurately simulate each fog preset in the .env files used by the game.
-
+itemsDef.js works similarly to the original items.def.
+otheritems.js lists all the items that aren’t in items.def by default and also uses new variables to indicate which 3D .glb file will be used for the item.
 
 ## Feedback
 If you’ve got any feedback, hit me up on Discord, username duz1ht.
