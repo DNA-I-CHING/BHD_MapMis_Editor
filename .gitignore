@@ -10,5 +10,3 @@ resource.pff
 _FILES.PFF
 localres.pff
 med.pff
-resources/*
-resources/.gitkeep
