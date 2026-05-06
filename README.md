@@ -23,24 +23,24 @@ Today, when loading a map, the editor moves the camera to a spot near the center
 All 3D .glb items should be in the resources/3d_items folder, and you should download the items here: https://drive.google.com/file/d/1Ra4pI8aTDwG5vO3h0fLZYzqPM6YveKQH/view?usp=sharing
 
 ## Shortcuts and menu options
-WASD = Camera movement
-Q/E = Move the camera up and down
-Mouse scroll = Increases camera speed, like in a traditional map editor such as Unreal Engine
-Speed Scalar = Changes the speed scale controlled by the mouse scroll
-Ground Clamp = Prevents the camera from going below the terrain
-Clearance = Adjusts the camera’s minimum height
-Draw Radius = Maximum terrain render distance (helps improve FPS)
-Main Area = Shows the main map area before it starts repeating infinitely
-Show Sectors = Shows each terrain subdivision
-Go To = Lets you jump directly to a coordinate
-R = Switches the view mode between colormap, heightmap, and depth map
-T = Switches to top view (like the original MED view)
-E = Changes the item gizmo to rotation mode (yaw and pitch)
-W = Changes the item gizmo to standard XYZ movement mode
-F = Toggles item wireframe view
-G = Toggles grid lines
-H = Toggles item anchor points
-I = Toggles the map info box on the canvas
+WASD = Camera movement  
+Q/E = Move the camera up and down  
+Mouse scroll = Increases camera speed, like in a traditional map editor such as Unreal Engine  
+Speed Scalar = Changes the speed scale controlled by the mouse scroll  
+Ground Clamp = Prevents the camera from going below the terrain  
+Clearance = Adjusts the camera’s minimum height  
+Draw Radius = Maximum terrain render distance (helps improve FPS)  
+Main Area = Shows the main map area before it starts repeating infinitely  
+Show Sectors = Shows each terrain subdivision  
+Go To = Lets you jump directly to a coordinate  
+R = Switches the view mode between colormap, heightmap, and depth map  
+T = Switches to top view (like the original MED view)  
+E = Changes the item gizmo to rotation mode (yaw and pitch)  
+W = Changes the item gizmo to standard XYZ movement mode  
+F = Toggles item wireframe view  
+G = Toggles grid lines  
+H = Toggles item anchor points  
+I = Toggles the map info box on the canvas  
 
 ## Keep working on it.
 Feel free to continue what’s already been done. 
