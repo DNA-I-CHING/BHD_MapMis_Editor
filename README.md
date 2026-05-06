@@ -46,6 +46,6 @@ I = Toggles the map info box on the canvas
 ## Keep working on it.
 Feel free to continue what’s already been done.  
 If you have any questions, feel free to contact me on Discord at @duz1ht.
-
+Use AI to better understand the index.html file since it’s a simple file, to see what is and isn’t implemented.
 ## Contributors so far
 biggy, Demonic, dataspiller, Scott (NovaHQ), AngelExalted
