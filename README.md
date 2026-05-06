@@ -20,7 +20,8 @@ Todo:
 * otheritems.js lists all the items that aren’t in items.def by default and also uses new variables to indicate which 3D .glb file will be used for the item.
 * Today, when loading a map, the editor moves the camera to a spot near the center of the inserted items. This could be optimized to keep the camera from being positioned so high up in the sky.
 
-All 3D .glb items should be in the resources/3d_items folder, and you should download the items here: https://drive.google.com/file/d/1Ra4pI8aTDwG5vO3h0fLZYzqPM6YveKQH/view?usp=sharing
+All 3D .glb items should be in the resources/3d_items folder, and you should download the items here: https://drive.google.com/file/d/1Ra4pI8aTDwG5vO3h0fLZYzqPM6YveKQH/view?usp=sharing  
+How to load a map: https://youtu.be/opW0PqfdUr4
 
 ## Shortcuts and menu options
 WASD = Camera movement  
