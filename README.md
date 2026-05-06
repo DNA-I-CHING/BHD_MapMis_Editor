@@ -43,7 +43,8 @@ H = Toggles item anchor points
 I = Toggles the map info box on the canvas  
 
 ## Keep working on it.
-Feel free to continue what’s already been done. 
+Feel free to continue what’s already been done.  
+If you have any questions, feel free to contact me on Discord at @duz1ht.
 
 ## Contributors so far
 biggy, Demonic, dataspiller, Scott (NovaHQ), AngelExalted
