@@ -1963,6 +1963,11 @@
       scratchViewMatrix: null,
       raycaster: null,
       pointerNdc: null,
+      gizmoScene: null,
+      gizmoGroup: null,
+      gizmoHandles: new Map(),
+      gizmoRaycaster: null,
+      gizmoPointerNdc: null,
       ready: false,
     },
     debugFog: {
@@ -2020,6 +2025,8 @@
     drawOverlaysThree(P, V, forward);
     drawItemsThree(P, V);
     drawGlbItems(P, V);
+    updateItemGizmo();
+    drawThreeGizmo();
     return result;
   }
 
@@ -8162,8 +8169,8 @@
   }
 
   const GIZMO_STYLE = {
-    colors: { x:'#ef5350', y:'#66d47a', z:'#4f8df7', xy:'#f4df58', xz:'#b184f5', yz:'#62d6e8', hover:'#fff176', active:'#ffffff' },
-    axisWidth: 5, hitTolerance: 11, axisLength: 86, planeSize: 25, ringWidth: 3.5
+    colors: { x:0xef5350, y:0x66d47a, z:0x4f8df7, xy:0xf4df58, xz:0xb184f5, yz:0x62d6e8, hover:0xfff176, active:0xffffff },
+    screenSizePx: 92
   };
 
   function rotateAroundAxis(v, axis, angle){
@@ -8188,52 +8195,58 @@
     for(const it of items) out=vec3Add(out,vec3(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)));
     return vec3Scale(out,1/items.length);
   }
+  function makeGizmoMaterial(THREE,color,opacity=1){
+    return new THREE.MeshBasicMaterial({color,transparent:opacity<1,opacity,depthTest:false,depthWrite:false,side:THREE.DoubleSide,toneMapped:false});
+  }
+  function registerGizmoHandle(object,name,baseColor){
+    object.traverse(child=>{if(!child.isMesh)return;child.userData.gizmoHandle=name;child.userData.gizmoBaseColor=baseColor;child.renderOrder=10000;});
+    state.glb.gizmoHandles.set(name,object);
+  }
+  function ensureThreeGizmo(){
+    if(!state.glb.ready||!state.glb.THREE)return false;
+    if(state.glb.gizmoGroup)return true;
+    const THREE=state.glb.THREE,scene=new THREE.Scene(),group=new THREE.Group();scene.add(group);
+    const axisGeom=new THREE.CylinderGeometry(.035,.035,.78,12),coneGeom=new THREE.ConeGeometry(.09,.22,16),unitY=new THREE.Vector3(0,1,0);
+    function axis(name,key,dir){
+      const root=new THREE.Group(),mat=makeGizmoMaterial(THREE,GIZMO_STYLE.colors[key]);
+      const shaft=new THREE.Mesh(axisGeom,mat),tip=new THREE.Mesh(coneGeom,mat),q=new THREE.Quaternion().setFromUnitVectors(unitY,dir.clone().normalize());
+      shaft.position.copy(dir).multiplyScalar(.39);shaft.quaternion.copy(q);tip.position.copy(dir).multiplyScalar(.89);tip.quaternion.copy(q);root.add(shaft,tip);group.add(root);registerGizmoHandle(root,name,GIZMO_STYLE.colors[key]);
+    }
+    axis('moveX','x',new THREE.Vector3(1,0,0));axis('moveY','y',new THREE.Vector3(0,1,0));axis('moveZ','z',new THREE.Vector3(0,0,1));
+    function plane(name,key,pos,rotation){
+      const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.25,.25),makeGizmoMaterial(THREE,GIZMO_STYLE.colors[key],.42));mesh.position.set(...pos);mesh.rotation.set(...rotation);group.add(mesh);registerGizmoHandle(mesh,name,GIZMO_STYLE.colors[key]);
+    }
+    plane('moveXY','xy',[.34,.34,0],[0,0,0]);plane('moveXZ','xz',[.34,0,.34],[Math.PI/2,0,0]);plane('moveYZ','yz',[0,.34,.34],[0,Math.PI/2,0]);
+    function ring(name,key,rotation,radius){
+      const mesh=new THREE.Mesh(new THREE.TorusGeometry(radius,.025,10,96),makeGizmoMaterial(THREE,GIZMO_STYLE.colors[key],.95));mesh.rotation.set(...rotation);group.add(mesh);registerGizmoHandle(mesh,name,GIZMO_STYLE.colors[key]);
+    }
+    ring('rotX','x',[0,Math.PI/2,0],.68);ring('rotZ','z',[0,0,0],.82);
+    state.glb.gizmoScene=scene;state.glb.gizmoGroup=group;state.glb.gizmoRaycaster=new THREE.Raycaster();state.glb.gizmoPointerNdc=new THREE.Vector2();
+    return true;
+  }
+  function updateGizmoMaterials(){
+    for(const [name,root] of state.glb.gizmoHandles){
+      const color=state.gizmoDrag?.mode===name?GIZMO_STYLE.colors.active:(state.hoveredGizmoHandle===name?GIZMO_STYLE.colors.hover:null);
+      root.traverse(child=>{if(child.isMesh)child.material.color.setHex(color??child.userData.gizmoBaseColor);});
+    }
+  }
   function updateItemGizmo(){
-    if (!gizmoCtx || !gizmoCanvasEl) return;
-    const rect=cv.getBoundingClientRect(), dpr=Math.max(1,Math.min(window.devicePixelRatio||1,2));
-    gizmoCtx.setTransform(dpr,0,0,dpr,0,0); gizmoCtx.clearRect(0,0,rect.width,rect.height);
-    const it=getSelected(), items=selectedTransformItems(), center=gizmoPivot(items);
-    if(!it||!center||state.modalOpen){ state.gizmoVisual=null; return; }
-    const c=worldToScreen(center.x,center.y,center.z); if(!c.visible){state.gizmoVisual=null;return;}
-    const basis=itemTransformBasis(it), dirs={};
-    for(const [key,axis] of Object.entries(basis)){
-      const probe=worldToScreen(center.x+axis.x*20,center.y+axis.y*20,center.z+axis.z*20);
-      const dx=probe.sx-c.sx,dy=probe.sy-c.sy,l=Math.hypot(dx,dy);
-      dirs[key]=l>1e-3?{x:dx/l,y:dy/l}:{x:0,y:0};
-    }
-    const active=state.gizmoDrag?.mode, hover=state.hoveredGizmoHandle;
-    const colorFor=(name,base)=>active===name?GIZMO_STYLE.active:(hover===name?GIZMO_STYLE.hover:base);
-    const handles={};
-    function arrow(name,key){
-      const d=dirs[key], len=GIZMO_STYLE.axisLength, tip={x:c.sx+d.x*len,y:c.sy+d.y*len}, col=colorFor(name,GIZMO_STYLE.colors[key]);
-      gizmoCtx.strokeStyle='#111';gizmoCtx.lineWidth=GIZMO_STYLE.axisWidth+3;gizmoCtx.beginPath();gizmoCtx.moveTo(c.sx,c.sy);gizmoCtx.lineTo(tip.x,tip.y);gizmoCtx.stroke();
-      gizmoCtx.strokeStyle=col;gizmoCtx.fillStyle=col;gizmoCtx.lineWidth=GIZMO_STYLE.axisWidth;gizmoCtx.beginPath();gizmoCtx.moveTo(c.sx,c.sy);gizmoCtx.lineTo(tip.x,tip.y);gizmoCtx.stroke();
-      const nx=-d.y,ny=d.x;gizmoCtx.beginPath();gizmoCtx.moveTo(tip.x,tip.y);gizmoCtx.lineTo(tip.x-d.x*13+nx*6,tip.y-d.y*13+ny*6);gizmoCtx.lineTo(tip.x-d.x*13-nx*6,tip.y-d.y*13-ny*6);gizmoCtx.closePath();gizmoCtx.fill();
-      gizmoCtx.font='bold 12px sans-serif';gizmoCtx.fillText(key.toUpperCase(),tip.x+d.x*10-4,tip.y+d.y*10+4);
-      handles[name]={kind:'axis',axis:basis[key],points:[{sx:c.sx,sy:c.sy},{sx:tip.x,sy:tip.y}],depth:0};
-    }
-    function plane(name,aKey,bKey){
-      const a=dirs[aKey],b=dirs[bKey], inner=18,size=GIZMO_STYLE.planeSize;
-      const pts=[{sx:c.sx+a.x*inner+b.x*inner,sy:c.sy+a.y*inner+b.y*inner},{sx:c.sx+a.x*(inner+size)+b.x*inner,sy:c.sy+a.y*(inner+size)+b.y*inner},{sx:c.sx+a.x*(inner+size)+b.x*(inner+size),sy:c.sy+a.y*(inner+size)+b.y*(inner+size)},{sx:c.sx+a.x*inner+b.x*(inner+size),sy:c.sy+a.y*inner+b.y*(inner+size)}];
-      gizmoCtx.fillStyle=colorFor(name,GIZMO_STYLE.colors[name.slice(4).toLowerCase()]);gizmoCtx.globalAlpha=.38;gizmoCtx.beginPath();pts.forEach((p,i)=>i?gizmoCtx.lineTo(p.sx,p.sy):gizmoCtx.moveTo(p.sx,p.sy));gizmoCtx.closePath();gizmoCtx.fill();gizmoCtx.globalAlpha=1;
-      handles[name]={kind:'plane',axisA:basis[aKey],axisB:basis[bKey],points:pts,depth:1};
-    }
-    if(state.transformMode==='translate'){
-      plane('moveXY','x','y');plane('moveXZ','x','z');plane('moveYZ','y','z');arrow('moveX','x');arrow('moveY','y');arrow('moveZ','z');
-    }else{
-      const ray=screenRay(c.sx,c.sy), view=vec3Norm(vec3Scale(ray.dir,-1));
-      function ring(name,key,radius){
-        const axis=basis[key], u=vec3Norm(Math.abs(axis.z)<.9?vec3Cross(axis,vec3(0,0,1)):vec3Cross(axis,vec3(0,1,0))),v=vec3Norm(vec3Cross(axis,u)),pts=[];
-        const sample=worldToScreen(center.x+u.x*20,center.y+u.y*20,center.z+u.z*20), pxPerWorld=Math.max(.01,Math.hypot(sample.sx-c.sx,sample.sy-c.sy)/20),rw=radius/pxPerWorld;
-        for(let i=0;i<=96;i++){const a=i/96*Math.PI*2,p=vec3Add(center,vec3Scale(vec3Add(vec3Scale(u,Math.cos(a)),vec3Scale(v,Math.sin(a))),rw)),q=worldToScreen(p.x,p.y,p.z);pts.push({...q,front:vec3Dot(vec3Sub(p,center),view)>=0});}
-        for(const front of [false,true]){gizmoCtx.strokeStyle=front?colorFor(name,GIZMO_STYLE.colors[key]):'#596273';gizmoCtx.globalAlpha=front?1:.38;gizmoCtx.lineWidth=front?GIZMO_STYLE.ringWidth:2;gizmoCtx.beginPath();let open=false;for(let i=1;i<pts.length;i++){if(pts[i].front!==front||pts[i-1].front!==front){open=false;continue;}if(!open){gizmoCtx.moveTo(pts[i-1].sx,pts[i-1].sy);open=true;}gizmoCtx.lineTo(pts[i].sx,pts[i].sy);}gizmoCtx.stroke();}gizmoCtx.globalAlpha=1;
-        handles[name]={kind:'ring',axis,planeU:u,planeV:v,points:pts,depth:0};
-      }
-      ring('rotX','x',48);ring('rotZ','z',62);
-    }
-    gizmoCtx.fillStyle=GIZMO_STYLE.active;gizmoCtx.beginPath();gizmoCtx.arc(c.sx,c.sy,4,0,Math.PI*2);gizmoCtx.fill();
-    if(state.gizmoDrag?.label){gizmoCtx.font='12px sans-serif';gizmoCtx.fillStyle='#fff';gizmoCtx.fillText(state.gizmoDrag.label,c.sx+14,c.sy-14);}
-    state.gizmoVisual={mode:state.transformMode,center:{sx:c.sx,sy:c.sy,world:center},basis,handles};
+    const rect=cv.getBoundingClientRect(),dpr=Math.max(1,Math.min(window.devicePixelRatio||1,2));
+    if(gizmoCtx){gizmoCtx.setTransform(dpr,0,0,dpr,0,0);gizmoCtx.clearRect(0,0,rect.width,rect.height);}
+    if(!ensureThreeGizmo()){state.gizmoVisual=null;return;}
+    const group=state.glb.gizmoGroup,it=getSelected(),items=selectedTransformItems(),center=gizmoPivot(items);
+    if(!it||!center||state.modalOpen){group.visible=false;state.gizmoVisual=null;return;}
+    group.visible=true;group.position.set(center.x,center.y,center.z);
+    const basis=itemTransformBasis(it),THREE=state.glb.THREE,m=new THREE.Matrix4().makeBasis(new THREE.Vector3(basis.x.x,basis.x.y,basis.x.z),new THREE.Vector3(basis.y.x,basis.y.y,basis.y.z),new THREE.Vector3(basis.z.x,basis.z.y,basis.z.z));group.quaternion.setFromRotationMatrix(m);
+    const distance=Math.max(.01,Math.hypot(center.x-cam.pos.x,center.y-cam.pos.y,center.z-cam.pos.z)),viewportH=Math.max(1,rect.height),worldPerPixel=2*distance*Math.tan(Math.PI/6)/viewportH,scale=worldPerPixel*GIZMO_STYLE.screenSizePx;group.scale.setScalar(scale);
+    for(const [name,root] of state.glb.gizmoHandles)root.visible=state.transformMode==='translate'?name.startsWith('move'):name.startsWith('rot');
+    updateGizmoMaterials();
+    state.gizmoVisual={mode:state.transformMode,center:{world:center},basis,handles:{moveX:{kind:'axis',axis:basis.x},moveY:{kind:'axis',axis:basis.y},moveZ:{kind:'axis',axis:basis.z},moveXY:{kind:'plane',axisA:basis.x,axisB:basis.y},moveXZ:{kind:'plane',axisA:basis.x,axisB:basis.z},moveYZ:{kind:'plane',axisA:basis.y,axisB:basis.z},rotX:{kind:'ring',axis:basis.x},rotZ:{kind:'ring',axis:basis.z}}};
+    if(state.gizmoDrag?.label&&gizmoCtx){const c=worldToScreen(center.x,center.y,center.z);gizmoCtx.font='12px sans-serif';gizmoCtx.fillStyle='#fff';gizmoCtx.fillText(state.gizmoDrag.label,c.sx+14,c.sy-14);}
+  }
+  function drawThreeGizmo(){
+    if(!state.glb.ready||!state.glb.gizmoScene||!state.glb.gizmoGroup?.visible)return;
+    const renderer=state.glb.renderer;renderer.clearDepth();renderer.resetState();renderer.render(state.glb.gizmoScene,state.glb.camera);renderer.resetState();
   }
 
   function commitGizmoUpdate(it){
@@ -8743,7 +8756,6 @@
     }
     const {P,V,PV}=currentPV(); const renderStats=renderLayersByBackend(P, V, PV, forward); const drawCalls=renderStats.drawCalls;
     logRenderDiagnostics(drawCalls);
-    updateItemGizmo();
     const waterRender = getRenderWaterHeightRaw();
     const waterHeightLabel = (waterRender.raw===0 || waterRender.raw) ? waterRender.raw : '-';
     const waterZUsedLabel = (waterRender.raw===0 || waterRender.raw) ? (waterRender.raw*0.5) : '-';
@@ -8901,30 +8913,16 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     move.w=0; move.a=0; move.s=0; move.d=0; move.q=0; move.e=0;
   });
 
-  function pointInPolygon(x,y,points){
-    let inside=false;
-    for(let i=0,j=points.length-1;i<points.length;j=i++){
-      const a=points[i],b=points[j];
-      if(((a.sy>y)!==(b.sy>y)) && x<(b.sx-a.sx)*(y-a.sy)/((b.sy-a.sy)||1e-9)+a.sx) inside=!inside;
-    }
-    return inside;
-  }
-  function distanceToSegment(px,py,a,b){
-    const dx=b.sx-a.sx,dy=b.sy-a.sy,l2=dx*dx+dy*dy,t=l2?Math.max(0,Math.min(1,((px-a.sx)*dx+(py-a.sy)*dy)/l2)):0;
-    return Math.hypot(px-(a.sx+t*dx),py-(a.sy+t*dy));
-  }
   function pickGizmoModeAt(clientX,clientY){
-    if(!state.gizmoVisual)return null;
-    const rect=cv.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top,candidates=[];
-    for(const [name,h] of Object.entries(state.gizmoVisual.handles||{})){
-      let distance=Infinity;
-      if(h.kind==='plane'&&pointInPolygon(x,y,h.points))distance=0;
-      else for(let i=1;i<(h.points||[]).length;i++)distance=Math.min(distance,distanceToSegment(x,y,h.points[i-1],h.points[i]));
-      if(distance<=GIZMO_STYLE.hitTolerance)candidates.push({name,distance,depth:h.depth||0});
-    }
-    candidates.sort((a,b)=>a.distance-b.distance||b.depth-a.depth);
-    return candidates[0]?.name||null;
+    if(!state.gizmoVisual||!state.glb.gizmoGroup?.visible||!state.glb.gizmoRaycaster)return null;
+    const rect=cv.getBoundingClientRect(),nx=((clientX-rect.left)/rect.width)*2-1,ny=1-((clientY-rect.top)/rect.height)*2;
+    state.glb.gizmoPointerNdc.set(nx,ny);state.glb.gizmoGroup.updateMatrixWorld(true);
+    state.glb.gizmoRaycaster.setFromCamera(state.glb.gizmoPointerNdc,state.glb.camera);
+    const hits=state.glb.gizmoRaycaster.intersectObject(state.glb.gizmoGroup,true);
+    for(const hit of hits){let node=hit.object;while(node&&node!==state.glb.gizmoGroup){if(node.userData?.gizmoHandle)return node.userData.gizmoHandle;node=node.parent;}}
+    return null;
   }
+
   cv.addEventListener('mousemove',e=>{
     if(state.gizmoDrag||state.modalOpen)return;
     const next=pickGizmoModeAt(e.clientX,e.clientY);
