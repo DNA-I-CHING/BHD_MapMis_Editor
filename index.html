@@ -296,6 +296,9 @@
       height:100%;
       background:transparent;
     }
+    .gizmoCtl{ display:flex; align-items:center; gap:4px; white-space:nowrap; }
+    .gizmoCtl select,.gizmoCtl input{ height:24px; padding:2px 4px; }
+    .gizmoCtl input[type="number"]{ width:58px; }
 
     .hint{
       color:var(--text-muted);
@@ -1209,6 +1212,14 @@
       <button id="modeC" class="modeBtn active" title="Colormap (R)">C</button>
       <button id="modeH" class="modeBtn" title="Heightmap (R)">H</button>
       <button id="modeD" class="modeBtn" title="Delta/Variation (R)">D</button>
+      <label class="gizmoCtl">Gizmo
+        <select id="transformSpace" title="Transformation space"><option value="global">Global</option><option value="local">Local</option></select>
+        <select id="transformPivot" title="Selection pivot"><option value="center">Selection center</option><option value="active">Active item</option><option value="individual">Individual origins</option></select>
+      </label>
+      <label class="gizmoCtl"><input id="transformSnapEnabled" type="checkbox"> Snap
+        <input id="translationSnap" type="number" min="0.01" step="0.25" value="1" title="Translation snap, world units">
+        <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees">
+      </label>
       <label class="tbCtl">Camera Speed <input id="speedLevel" type="range" min="1" max="8" step="1" value="4"></label>
       <label class="tbCtl">Speed Scalar <input id="speedScalar" type="range" min="0.1" max="4.0" step="0.1" value="1.0"></label>
       <label class="tbCtl"><input id="ground" type="checkbox" checked> Ground clamp</label>
@@ -1844,6 +1855,12 @@
     gizmoVisual: null,
     gizmoAxisScreenDirs: null,
     transformMode: "translate",
+    transformSpace: "global",
+    transformPivot: "center",
+    transformSnapEnabled: false,
+    translationSnap: 1,
+    rotationSnap: 15,
+    hoveredGizmoHandle: null,
 
     gameStrings: new Map(),
     weaponDefs: new Map(),
@@ -8144,198 +8161,79 @@
     } else it.kv.rot = String(it.heading);
   }
 
+  const GIZMO_STYLE = {
+    colors: { x:'#ef5350', y:'#66d47a', z:'#4f8df7', xy:'#f4df58', xz:'#b184f5', yz:'#62d6e8', hover:'#fff176', active:'#ffffff' },
+    axisWidth: 5, hitTolerance: 11, axisLength: 86, planeSize: 25, ringWidth: 3.5
+  };
+
+  function rotateAroundAxis(v, axis, angle){
+    const c=Math.cos(angle), s=Math.sin(angle), d=vec3Dot(axis,v);
+    return vec3Add(vec3Add(vec3Scale(v,c),vec3Scale(vec3Cross(axis,v),s)),vec3Scale(axis,d*(1-c)));
+  }
+  function itemTransformBasis(it){
+    if (state.transformSpace !== 'local') return { x:vec3(1,0,0), y:vec3(0,1,0), z:vec3(0,0,1) };
+    const yaw=(Number(it?.heading)||0)*Math.PI/180, pitch=(Number(it?.pitch)||0)*Math.PI/180;
+    const z=vec3(0,0,1), x0=vec3(Math.cos(yaw),Math.sin(yaw),0), y0=vec3(-Math.sin(yaw),Math.cos(yaw),0);
+    return { x:vec3Norm(x0), y:vec3Norm(rotateAroundAxis(y0,x0,pitch)), z:vec3Norm(rotateAroundAxis(z,x0,pitch)) };
+  }
+  function selectedTransformItems(){
+    const ids=state.multiSelectedIds.size?Array.from(state.multiSelectedIds):[state.selectedId];
+    return ids.map(id=>getItemByIdFast(id)).filter(Boolean);
+  }
+  function gizmoPivot(items=selectedTransformItems()){
+    const active=getSelected();
+    if (!items.length || !active) return null;
+    if (state.transformPivot === 'active' || state.transformPivot === 'individual') return vec3(rawToWorld(active.x,'x'),rawToWorld(active.y,'y'),getItemWorldZ(active));
+    let out=vec3(0,0,0);
+    for(const it of items) out=vec3Add(out,vec3(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)));
+    return vec3Scale(out,1/items.length);
+  }
   function updateItemGizmo(){
     if (!gizmoCtx || !gizmoCanvasEl) return;
-    const rect = cv.getBoundingClientRect();
-    const dpr = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
-    gizmoCtx.setTransform(dpr,0,0,dpr,0,0);
-    gizmoCtx.clearRect(0,0,rect.width,rect.height);
-
-    const it = getSelected();
-    if (!it || state.modalOpen){
-      state.gizmoVisual = null;
-      return;
+    const rect=cv.getBoundingClientRect(), dpr=Math.max(1,Math.min(window.devicePixelRatio||1,2));
+    gizmoCtx.setTransform(dpr,0,0,dpr,0,0); gizmoCtx.clearRect(0,0,rect.width,rect.height);
+    const it=getSelected(), items=selectedTransformItems(), center=gizmoPivot(items);
+    if(!it||!center||state.modalOpen){ state.gizmoVisual=null; return; }
+    const c=worldToScreen(center.x,center.y,center.z); if(!c.visible){state.gizmoVisual=null;return;}
+    const basis=itemTransformBasis(it), dirs={};
+    for(const [key,axis] of Object.entries(basis)){
+      const probe=worldToScreen(center.x+axis.x*20,center.y+axis.y*20,center.z+axis.z*20);
+      const dx=probe.sx-c.sx,dy=probe.sy-c.sy,l=Math.hypot(dx,dy);
+      dirs[key]=l>1e-3?{x:dx/l,y:dy/l}:{x:0,y:0};
     }
-
-    const center = {
-      x: rawToWorld(it.x,'x'),
-      y: rawToWorld(it.y,'y'),
-      z: getItemWorldZ(it)
-    };
-    const gizmoNearDist = 180;
-    const gizmoFarDist = 1800;
-    const camDist = vec3Len(vec3Sub(center, cam.pos));
-    const t = Math.max(0, Math.min(1, (camDist - gizmoNearDist) / Math.max(1, gizmoFarDist - gizmoNearDist)));
-
-    const axisLenPx = 75.6 + (91.6 - 75.6) * t;
-    const yawRadius = 48.384 + (57.12 - 48.384) * t;
-    const pitchRadius = 36.288 + (47.04 - 36.288) * t;
-
-    const c = worldToScreen(center.x, center.y, center.z);
-    if (!c.visible){ state.gizmoVisual = null; return; }
-
-    const axisProbe = 20;
-    const prevDirs = state.gizmoAxisScreenDirs || {};
-    function axisDir(dx, dy, dz, fallback, prev){
-      const pPlus = worldToScreen(center.x + dx, center.y + dy, center.z + dz);
-      if (pPlus.visible){
-        const vx = pPlus.sx - c.sx;
-        const vy = pPlus.sy - c.sy;
-        const l = Math.hypot(vx, vy);
-        if (l > 1e-4) return { x: vx / l, y: vy / l };
-      }
-
-      const pMinus = worldToScreen(center.x - dx, center.y - dy, center.z - dz);
-      if (pMinus.visible){
-        const vx = c.sx - pMinus.sx;
-        const vy = c.sy - pMinus.sy;
-        const l = Math.hypot(vx, vy);
-        if (l > 1e-4) return { x: vx / l, y: vy / l };
-      }
-
-      if (prev && Number.isFinite(prev.x) && Number.isFinite(prev.y)) return prev;
-      return fallback;
+    const active=state.gizmoDrag?.mode, hover=state.hoveredGizmoHandle;
+    const colorFor=(name,base)=>active===name?GIZMO_STYLE.active:(hover===name?GIZMO_STYLE.hover:base);
+    const handles={};
+    function arrow(name,key){
+      const d=dirs[key], len=GIZMO_STYLE.axisLength, tip={x:c.sx+d.x*len,y:c.sy+d.y*len}, col=colorFor(name,GIZMO_STYLE.colors[key]);
+      gizmoCtx.strokeStyle='#111';gizmoCtx.lineWidth=GIZMO_STYLE.axisWidth+3;gizmoCtx.beginPath();gizmoCtx.moveTo(c.sx,c.sy);gizmoCtx.lineTo(tip.x,tip.y);gizmoCtx.stroke();
+      gizmoCtx.strokeStyle=col;gizmoCtx.fillStyle=col;gizmoCtx.lineWidth=GIZMO_STYLE.axisWidth;gizmoCtx.beginPath();gizmoCtx.moveTo(c.sx,c.sy);gizmoCtx.lineTo(tip.x,tip.y);gizmoCtx.stroke();
+      const nx=-d.y,ny=d.x;gizmoCtx.beginPath();gizmoCtx.moveTo(tip.x,tip.y);gizmoCtx.lineTo(tip.x-d.x*13+nx*6,tip.y-d.y*13+ny*6);gizmoCtx.lineTo(tip.x-d.x*13-nx*6,tip.y-d.y*13-ny*6);gizmoCtx.closePath();gizmoCtx.fill();
+      gizmoCtx.font='bold 12px sans-serif';gizmoCtx.fillText(key.toUpperCase(),tip.x+d.x*10-4,tip.y+d.y*10+4);
+      handles[name]={kind:'axis',axis:basis[key],points:[{sx:c.sx,sy:c.sy},{sx:tip.x,sy:tip.y}],depth:0};
     }
-    const xDir = axisDir(axisProbe, 0, 0, { x: 1, y: 0 }, prevDirs.x);
-    const yDir = axisDir(0, axisProbe, 0, { x: 0, y: -1 }, prevDirs.y);
-    const zDir = axisDir(0, 0, axisProbe, { x: 0.6, y: -0.8 }, prevDirs.z);
-    state.gizmoAxisScreenDirs = { x: xDir, y: yDir, z: zDir };
-
-    const xTip = { visible: true, sx: c.sx + xDir.x * axisLenPx, sy: c.sy + xDir.y * axisLenPx };
-    const yTip = { visible: true, sx: c.sx + yDir.x * axisLenPx, sy: c.sy + yDir.y * axisLenPx };
-    const zTip = { visible: true, sx: c.sx + zDir.x * axisLenPx, sy: c.sy + zDir.y * axisLenPx };
-
-    function drawAxis(tip, color){
-      if (!tip.visible) return;
-      gizmoCtx.strokeStyle = color;
-      gizmoCtx.lineWidth = 6;
-      gizmoCtx.beginPath();
-      gizmoCtx.moveTo(c.sx,c.sy);
-      gizmoCtx.lineTo(tip.sx,tip.sy);
-      gizmoCtx.stroke();
-      gizmoCtx.fillStyle = color;
-      gizmoCtx.beginPath();
-      gizmoCtx.arc(tip.sx, tip.sy, 3, 0, Math.PI*2);
-      gizmoCtx.fill();
+    function plane(name,aKey,bKey){
+      const a=dirs[aKey],b=dirs[bKey], inner=18,size=GIZMO_STYLE.planeSize;
+      const pts=[{sx:c.sx+a.x*inner+b.x*inner,sy:c.sy+a.y*inner+b.y*inner},{sx:c.sx+a.x*(inner+size)+b.x*inner,sy:c.sy+a.y*(inner+size)+b.y*inner},{sx:c.sx+a.x*(inner+size)+b.x*(inner+size),sy:c.sy+a.y*(inner+size)+b.y*(inner+size)},{sx:c.sx+a.x*inner+b.x*(inner+size),sy:c.sy+a.y*inner+b.y*(inner+size)}];
+      gizmoCtx.fillStyle=colorFor(name,GIZMO_STYLE.colors[name.slice(4).toLowerCase()]);gizmoCtx.globalAlpha=.38;gizmoCtx.beginPath();pts.forEach((p,i)=>i?gizmoCtx.lineTo(p.sx,p.sy):gizmoCtx.moveTo(p.sx,p.sy));gizmoCtx.closePath();gizmoCtx.fill();gizmoCtx.globalAlpha=1;
+      handles[name]={kind:'plane',axisA:basis[aKey],axisB:basis[bKey],points:pts,depth:1};
     }
-
-    if (state.transformMode === 'translate'){
-      drawAxis(xTip, '#ff6b6b');
-      drawAxis(yTip, '#6bff8f');
-      drawAxis(zTip, '#77a8ff');
-
-      const planeLen = axisLenPx * 0.45;
-      function planeHandle(aDir, bDir, color){
-        const p1 = { sx: c.sx + aDir.x * planeLen, sy: c.sy + aDir.y * planeLen };
-        const p2 = { sx: p1.sx + bDir.x * planeLen, sy: p1.sy + bDir.y * planeLen };
-        const p3 = { sx: c.sx + bDir.x * planeLen, sy: c.sy + bDir.y * planeLen };
-        gizmoCtx.fillStyle = color;
-        gizmoCtx.globalAlpha = 0.25;
-        gizmoCtx.beginPath();
-        gizmoCtx.moveTo(c.sx, c.sy);
-        gizmoCtx.lineTo(p1.sx, p1.sy);
-        gizmoCtx.lineTo(p2.sx, p2.sy);
-        gizmoCtx.lineTo(p3.sx, p3.sy);
-        gizmoCtx.closePath();
-        gizmoCtx.fill();
-        gizmoCtx.globalAlpha = 1;
-        return { sx: (p1.sx+p2.sx+p3.sx+c.sx)/4, sy: (p1.sy+p2.sy+p3.sy+c.sy)/4, r: 11 };
+    if(state.transformMode==='translate'){
+      plane('moveXY','x','y');plane('moveXZ','x','z');plane('moveYZ','y','z');arrow('moveX','x');arrow('moveY','y');arrow('moveZ','z');
+    }else{
+      const ray=screenRay(c.sx,c.sy), view=vec3Norm(vec3Scale(ray.dir,-1));
+      function ring(name,key,radius){
+        const axis=basis[key], u=vec3Norm(Math.abs(axis.z)<.9?vec3Cross(axis,vec3(0,0,1)):vec3Cross(axis,vec3(0,1,0))),v=vec3Norm(vec3Cross(axis,u)),pts=[];
+        const sample=worldToScreen(center.x+u.x*20,center.y+u.y*20,center.z+u.z*20), pxPerWorld=Math.max(.01,Math.hypot(sample.sx-c.sx,sample.sy-c.sy)/20),rw=radius/pxPerWorld;
+        for(let i=0;i<=96;i++){const a=i/96*Math.PI*2,p=vec3Add(center,vec3Scale(vec3Add(vec3Scale(u,Math.cos(a)),vec3Scale(v,Math.sin(a))),rw)),q=worldToScreen(p.x,p.y,p.z);pts.push({...q,front:vec3Dot(vec3Sub(p,center),view)>=0});}
+        for(const front of [false,true]){gizmoCtx.strokeStyle=front?colorFor(name,GIZMO_STYLE.colors[key]):'#596273';gizmoCtx.globalAlpha=front?1:.38;gizmoCtx.lineWidth=front?GIZMO_STYLE.ringWidth:2;gizmoCtx.beginPath();let open=false;for(let i=1;i<pts.length;i++){if(pts[i].front!==front||pts[i-1].front!==front){open=false;continue;}if(!open){gizmoCtx.moveTo(pts[i-1].sx,pts[i-1].sy);open=true;}gizmoCtx.lineTo(pts[i].sx,pts[i].sy);}gizmoCtx.stroke();}gizmoCtx.globalAlpha=1;
+        handles[name]={kind:'ring',axis,planeU:u,planeV:v,points:pts,depth:0};
       }
-      const moveXY = planeHandle(xDir, yDir, '#f6f269');
-      const moveXZ = planeHandle(xDir, zDir, '#b38cff');
-      const moveYZ = planeHandle(yDir, zDir, '#89e7ff');
-
-      state.gizmoVisual = {
-        mode: 'translate',
-        center: { sx: c.sx, sy: c.sy },
-        handles: {
-          moveX: xTip.visible ? { sx: xTip.sx, sy: xTip.sy, r: 6, lx0: c.sx, ly0: c.sy, lx1: xTip.sx, ly1: xTip.sy } : null,
-          moveY: yTip.visible ? { sx: yTip.sx, sy: yTip.sy, r: 6, lx0: c.sx, ly0: c.sy, lx1: yTip.sx, ly1: yTip.sy } : null,
-          moveZ: zTip.visible ? { sx: zTip.sx, sy: zTip.sy, r: 6, lx0: c.sx, ly0: c.sy, lx1: zTip.sx, ly1: zTip.sy } : null,
-          moveXY,
-          moveXZ,
-          moveYZ,
-        }
-      };
-      return;
+      ring('rotX','x',48);ring('rotZ','z',62);
     }
-
-    const w0 = screenToWorld(c.sx, c.sy, center.z);
-    const w1 = screenToWorld(c.sx + 1, c.sy, center.z);
-    const unitsPerPixel = Math.max(0.01, Math.hypot(w1.x - w0.x, w1.y - w0.y));
-
-    const snapStep = Math.PI / 2;
-    const snappedYaw = Math.round(cam.yaw / snapStep) * snapStep;
-    const viewForward = { x: Math.sin(snappedYaw), y: Math.cos(snappedYaw), z: 0 };
-    const viewRight = { x: Math.cos(snappedYaw), y: -Math.sin(snappedYaw), z: 0 };
-    const viewUp = { x: 0, y: 0, z: 1 };
-    const camToItem = vec3Norm(vec3Sub(center, cam.pos));
-
-    function drawRotationArc3D(axisA, axisB, radiusPx, color, startDeg, endDeg, dragSign = 1){
-      const radiusW = radiusPx * unitsPerPixel;
-      const points = [];
-      const steps = 72;
-      const a0 = startDeg * Math.PI / 180;
-      const a1 = endDeg * Math.PI / 180;
-      for (let i=0;i<=steps;i++){
-        const a = a0 + (a1 - a0) * (i / steps);
-        const wx = center.x + (axisA.x * Math.cos(a) + axisB.x * Math.sin(a)) * radiusW;
-        const wy = center.y + (axisA.y * Math.cos(a) + axisB.y * Math.sin(a)) * radiusW;
-        const wz = center.z + (axisA.z * Math.cos(a) + axisB.z * Math.sin(a)) * radiusW;
-        const p = worldToScreen(wx, wy, wz);
-        points.push({ sx: p.sx, sy: p.sy, visible: !!p.visible });
-      }
-
-      gizmoCtx.lineWidth = 5;
-      gizmoCtx.strokeStyle = '#000000';
-      gizmoCtx.globalAlpha = 0.28;
-      let open = false;
-      for (let i=1;i<points.length;i++){
-        const p0 = points[i-1], p1 = points[i];
-        if (!p0.visible || !p1.visible){ if (open){ gizmoCtx.stroke(); open = false; } continue; }
-        if (!open){ gizmoCtx.beginPath(); gizmoCtx.moveTo(p0.sx, p0.sy); open = true; }
-        gizmoCtx.lineTo(p1.sx, p1.sy);
-      }
-      if (open) gizmoCtx.stroke();
-
-      gizmoCtx.lineWidth = 3.4;
-      gizmoCtx.strokeStyle = color;
-      gizmoCtx.globalAlpha = 0.98;
-      open = false;
-      for (let i=1;i<points.length;i++){
-        const p0 = points[i-1], p1 = points[i];
-        if (!p0.visible || !p1.visible){ if (open){ gizmoCtx.stroke(); open = false; } continue; }
-        if (!open){ gizmoCtx.beginPath(); gizmoCtx.moveTo(p0.sx, p0.sy); open = true; }
-        gizmoCtx.lineTo(p1.sx, p1.sy);
-      }
-      if (open) gizmoCtx.stroke();
-      gizmoCtx.globalAlpha = 1;
-
-      return { sx: c.sx, sy: c.sy, t: 10, points, r: radiusPx, dragSign };
-    }
-
-    const rotXNormal = vec3Norm(vec3Cross(viewRight, viewUp));
-    const rotZNormal = vec3Norm(vec3Cross(viewRight, viewForward));
-    const rotXSign = vec3Dot(rotXNormal, camToItem) >= 0 ? 1 : -1;
-    const rotZSign = vec3Dot(rotZNormal, camToItem) >= 0 ? 1 : -1;
-
-    const cameraToObjectSide = vec3Dot(vec3Sub(cam.pos, center), viewRight);
-    const rotXStart = cameraToObjectSide >= 0 ? -90 : 90;
-    const rotXEnd = cameraToObjectSide >= 0 ? 90 : 270;
-
-    const rotX = drawRotationArc3D(viewRight, viewUp, pitchRadius * 0.92, '#ff6b6b', rotXStart, rotXEnd, rotXSign);
-    const rotZ = drawRotationArc3D(viewRight, viewForward, yawRadius * 1.24, '#77a8ff', 210, 390, rotZSign);
-
-    gizmoCtx.fillStyle = '#ffffff';
-    gizmoCtx.beginPath();
-    gizmoCtx.arc(c.sx, c.sy, 2, 0, Math.PI*2);
-    gizmoCtx.fill();
-
-    state.gizmoVisual = {
-      mode: 'rotate',
-      center: { sx: c.sx, sy: c.sy },
-      handles: { rotX, rotZ }
-    };
+    gizmoCtx.fillStyle=GIZMO_STYLE.active;gizmoCtx.beginPath();gizmoCtx.arc(c.sx,c.sy,4,0,Math.PI*2);gizmoCtx.fill();
+    if(state.gizmoDrag?.label){gizmoCtx.font='12px sans-serif';gizmoCtx.fillStyle='#fff';gizmoCtx.fillText(state.gizmoDrag.label,c.sx+14,c.sy-14);}
+    state.gizmoVisual={mode:state.transformMode,center:{sx:c.sx,sy:c.sy,world:center},basis,handles};
   }
 
   function commitGizmoUpdate(it){
@@ -8915,6 +8813,16 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   document.getElementById('modeC')?.addEventListener('click',()=>setRenderMode('C'));
   document.getElementById('modeH')?.addEventListener('click',()=>setRenderMode('H'));
   document.getElementById('modeD')?.addEventListener('click',()=>setRenderMode('D'));
+  const transformSpaceEl=document.getElementById('transformSpace');
+  const transformPivotEl=document.getElementById('transformPivot');
+  const transformSnapEnabledEl=document.getElementById('transformSnapEnabled');
+  const translationSnapEl=document.getElementById('translationSnap');
+  const rotationSnapEl=document.getElementById('rotationSnap');
+  transformSpaceEl?.addEventListener('change',()=>{state.transformSpace=transformSpaceEl.value;updateItemGizmo();});
+  transformPivotEl?.addEventListener('change',()=>{state.transformPivot=transformPivotEl.value;updateItemGizmo();});
+  transformSnapEnabledEl?.addEventListener('change',()=>{state.transformSnapEnabled=transformSnapEnabledEl.checked;updateItemGizmo();});
+  translationSnapEl?.addEventListener('change',()=>{state.translationSnap=Math.max(.01,Number(translationSnapEl.value)||1);translationSnapEl.value=String(state.translationSnap);});
+  rotationSnapEl?.addEventListener('change',()=>{state.rotationSnap=Math.max(.1,Number(rotationSnapEl.value)||15);rotationSnapEl.value=String(state.rotationSnap);});
   document.getElementById('gridPlus')?.addEventListener('click',()=>stepGridExponent(1));
   document.getElementById('gridMinus')?.addEventListener('click',()=>stepGridExponent(-1));
   document.getElementById('step')?.addEventListener('change',()=>rebuildTerrain());
@@ -8954,9 +8862,11 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
           ? Array.from(state.multiSelectedIds)
           : [state.selectedId];
         beginUndoTransaction();
-        state.gizmoDrag = { mode: gizmoMode, lastX: e.clientX, lastY: e.clientY, itemId: state.selectedId, itemIds: dragItemIds };
+        state.gizmoDrag = beginGizmoDrag(gizmoMode, e.clientX, e.clientY, dragItemIds);
+        state.hoveredGizmoHandle = null;
         state.lastMouse = { sx, sy };
-        return;
+        if (state.gizmoDrag) return;
+        endUndoTransaction();
       }
     }
 
@@ -8991,165 +8901,81 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     move.w=0; move.a=0; move.s=0; move.d=0; move.q=0; move.e=0;
   });
 
-  function pickGizmoModeAt(clientX, clientY){
-    if (!state.gizmoVisual) return null;
-    const rect = cv.getBoundingClientRect();
-    const sx = clientX - rect.left;
-    const sy = clientY - rect.top;
-    const h = state.gizmoVisual.handles || {};
-
-    function dist(a,b,c,d){ return Math.hypot(a-c,b-d); }
-    function distToSegment(px, py, x0, y0, x1, y1){
-      const dx = x1 - x0;
-      const dy = y1 - y0;
-      const len2 = dx*dx + dy*dy;
-      if (len2 <= 1e-6) return Math.hypot(px - x0, py - y0);
-      const t = Math.max(0, Math.min(1, ((px - x0)*dx + (py - y0)*dy) / len2));
-      const cx = x0 + t*dx;
-      const cy = y0 + t*dy;
-      return Math.hypot(px - cx, py - cy);
+  function pointInPolygon(x,y,points){
+    let inside=false;
+    for(let i=0,j=points.length-1;i<points.length;j=i++){
+      const a=points[i],b=points[j];
+      if(((a.sy>y)!==(b.sy>y)) && x<(b.sx-a.sx)*(y-a.sy)/((b.sy-a.sy)||1e-9)+a.sx) inside=!inside;
     }
-
-    if (state.gizmoVisual.mode === 'translate'){
-      for (const mode of ["moveX","moveY","moveZ"]){
-        const hh = h[mode];
-        if (!hh) continue;
-        if (dist(sx,sy,hh.sx,hh.sy) <= (hh.r || 10)) return mode;
-        if (Number.isFinite(hh.lx0) && Number.isFinite(hh.ly0) && Number.isFinite(hh.lx1) && Number.isFinite(hh.ly1)){
-          const near = distToSegment(sx, sy, hh.lx0, hh.ly0, hh.lx1, hh.ly1);
-          if (near <= 10) return mode;
-        }
-      }
-      for (const mode of ["moveXY","moveXZ","moveYZ"]){
-        const hh = h[mode];
-        if (hh && dist(sx,sy,hh.sx,hh.sy) <= (hh.r || 11)) return mode;
-      }
-      return null;
-    }
-
-    for (const mode of ["rotX","rotZ"]){
-      const hh = h[mode];
-      if (!hh || !Array.isArray(hh.points) || hh.points.length < 2) continue;
-      let best = Infinity;
-      for (let i=1;i<hh.points.length;i++){
-        const p0 = hh.points[i-1], p1 = hh.points[i];
-        const near = distToSegment(sx, sy, p0.sx, p0.sy, p1.sx, p1.sy);
-        if (near < best) best = near;
-      }
-      if (best <= (hh.t || 9)) return mode;
-    }
-    return null;
+    return inside;
   }
-
-  window.addEventListener("mousemove", (e) => {
-    if (!state.gizmoDrag) return;
-    const dragIds = Array.isArray(state.gizmoDrag.itemIds) && state.gizmoDrag.itemIds.length
-      ? state.gizmoDrag.itemIds
-      : (state.gizmoDrag.itemId != null ? [state.gizmoDrag.itemId] : []);
-    const activeItems = dragIds
-      .map((id) => getItemByIdFast(id))
-      .filter(Boolean);
-    if (!activeItems.length || !activeItems.some((it) => it.id === state.selectedId)){
-      endUndoTransaction();
-      state.gizmoDrag = null;
-      return;
+  function distanceToSegment(px,py,a,b){
+    const dx=b.sx-a.sx,dy=b.sy-a.sy,l2=dx*dx+dy*dy,t=l2?Math.max(0,Math.min(1,((px-a.sx)*dx+(py-a.sy)*dy)/l2)):0;
+    return Math.hypot(px-(a.sx+t*dx),py-(a.sy+t*dy));
+  }
+  function pickGizmoModeAt(clientX,clientY){
+    if(!state.gizmoVisual)return null;
+    const rect=cv.getBoundingClientRect(),x=clientX-rect.left,y=clientY-rect.top,candidates=[];
+    for(const [name,h] of Object.entries(state.gizmoVisual.handles||{})){
+      let distance=Infinity;
+      if(h.kind==='plane'&&pointInPolygon(x,y,h.points))distance=0;
+      else for(let i=1;i<(h.points||[]).length;i++)distance=Math.min(distance,distanceToSegment(x,y,h.points[i-1],h.points[i]));
+      if(distance<=GIZMO_STYLE.hitTolerance)candidates.push({name,distance,depth:h.depth||0});
     }
-
-    const dx = e.clientX - state.gizmoDrag.lastX;
-    const dy = e.clientY - state.gizmoDrag.lastY;
-    state.gizmoDrag.lastX = e.clientX;
-    state.gizmoDrag.lastY = e.clientY;
-
-    const mode = state.gizmoDrag.mode;
-    const rect = cv.getBoundingClientRect();
-    const sx = e.clientX - rect.left;
-    const sy = e.clientY - rect.top;
-
-    if (mode === "moveX" || mode === "moveY" || mode === "moveXY"){
-      const anchor = activeItems[0];
-      const anchorW = { x: rawToWorld(anchor.x,'x'), y: rawToWorld(anchor.y,'y'), z: rawToWorld(anchor.z||0,'z') };
-      const prev = screenToWorld(sx - dx, sy - dy, anchorW.z);
-      const now = screenToWorld(sx, sy, anchorW.z);
-      const moveDx = now.x - prev.x;
-      const moveDy = now.y - prev.y;
-      for (const it of activeItems){
-        const currentW = { x: rawToWorld(it.x,'x'), y: rawToWorld(it.y,'y') };
-        if (mode === "moveX" || mode === "moveXY") it.x = worldToRaw(currentW.x + moveDx, 'x');
-        if (mode === "moveY" || mode === "moveXY") it.y = worldToRaw(currentW.y + moveDy, 'y');
-      }
-    } else if (mode === "moveXZ"){
-      const scale = 1.1;
-      for (const it of activeItems){
-        const currentW = { x: rawToWorld(it.x,'x'), z: rawToWorld(it.z||0,'z') };
-        it.x = worldToRaw(currentW.x + (dx * scale), 'x');
-        it.z = worldToRaw(currentW.z - (dy * scale), 'z');
-      }
-    } else if (mode === "moveYZ"){
-      const scale = 1.1;
-      for (const it of activeItems){
-        const currentW = { y: rawToWorld(it.y,'y'), z: rawToWorld(it.z||0,'z') };
-        it.y = worldToRaw(currentW.y + (dx * scale), 'y');
-        it.z = worldToRaw(currentW.z - (dy * scale), 'z');
-      }
-    } else if (mode === "moveZ"){
-      const anchor = activeItems[0];
-      const anchorZ = rawToWorld(anchor.z||0,'z');
-      const sampleSx = Math.max(1, Math.min(rect.width - 2, state.gizmoVisual?.center?.sx ?? sx));
-      const sampleSy = Math.max(1, Math.min(rect.height - 2, state.gizmoVisual?.center?.sy ?? sy));
-      const p0 = screenToWorld(sampleSx, sampleSy, anchorZ);
-      const p1 = screenToWorld(sampleSx, sampleSy + 1, anchorZ);
-      const rawUnitsPerPixel = Math.hypot(p1.x - p0.x, p1.y - p0.y);
-      const unitsPerPixel = Math.min(3.0, Math.max(0.03, Number.isFinite(rawUnitsPerPixel) ? rawUnitsPerPixel : 0.03));
-      const zSensitivity = 0.25;
-      const safeDy = Math.max(-36, Math.min(36, dy));
-      const maxStep = Math.max(0.5, Math.min(unitsPerPixel * 12, 16));
-      const dz = Math.max(-maxStep, Math.min(maxStep, -safeDy * unitsPerPixel * zSensitivity));
-      for (const it of activeItems){
-        const currentZ = rawToWorld(it.z||0,'z');
-        it.z = worldToRaw(currentZ + dz, 'z');
-      }
-    } else if (mode === "rotX" || mode === "rotZ"){
-      const handle = state.gizmoVisual?.handles?.[mode];
-      const prevSx = sx - dx;
-      const prevSy = sy - dy;
-      const cx = handle?.sx ?? (state.gizmoVisual?.center?.sx || sx);
-      const cy = handle?.sy ?? (state.gizmoVisual?.center?.sy || sy);
-      function ringAngle(px, py){
-        if (handle && Number.isFinite(handle.ux) && Number.isFinite(handle.uy) && Number.isFinite(handle.vx) && Number.isFinite(handle.vy)){
-          const rx = px - cx;
-          const ry = py - cy;
-          const du = rx * handle.ux + ry * handle.uy;
-          const dv = rx * handle.vx + ry * handle.vy;
-          return Math.atan2(dv, du);
-        }
-        return Math.atan2(py - cy, px - cx);
-      }
-      let da = ringAngle(sx, sy) - ringAngle(prevSx, prevSy);
-      if (da > Math.PI) da -= Math.PI * 2;
-      if (da < -Math.PI) da += Math.PI * 2;
-      const dragSign = Number(handle?.dragSign) || 1;
-      const deltaDeg = da * (180 / Math.PI) * dragSign;
-      for (const it of activeItems){
-        if (mode === "rotX") it.pitch = (Number(it.pitch) || 0) + deltaDeg;
-        if (mode === "rotZ") it.heading = (Number(it.heading) || 0) - deltaDeg;
-      }
-    }
-
-    commitGizmoUpdates(activeItems);
+    candidates.sort((a,b)=>a.distance-b.distance||b.depth-a.depth);
+    return candidates[0]?.name||null;
+  }
+  cv.addEventListener('mousemove',e=>{
+    if(state.gizmoDrag||state.modalOpen)return;
+    const next=pickGizmoModeAt(e.clientX,e.clientY);
+    if(next===state.hoveredGizmoHandle)return;
+    state.hoveredGizmoHandle=next;
+    cv.style.cursor=next?'pointer':'';
     updateItemGizmo();
   });
-
-  window.addEventListener("mouseup", () => {
-    state.cameraLookActive = false;
-    state.cameraLookPending = false;
-    state.cameraLookStart = null;
-    state.cameraLookButton = 0;
-    state.pendingLeftClick = null;
-    if (document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock();
-    if (!state.gizmoDrag) return;
-    state.gizmoDrag = null;
-    endUndoTransaction();
+  cv.addEventListener('mouseleave',()=>{state.hoveredGizmoHandle=null;cv.style.cursor='';updateItemGizmo();});
+  function rayPlanePoint(ray,point,normal){
+    const den=vec3Dot(ray.dir,normal);if(Math.abs(den)<1e-6)return null;
+    const t=vec3Dot(vec3Sub(point,ray.origin),normal)/den;return t>=0?vec3Add(ray.origin,vec3Scale(ray.dir,t)):null;
+  }
+  function rayAxisParameter(ray,point,axis){
+    const w0=vec3Sub(ray.origin,point),a=vec3Dot(ray.dir,ray.dir),b=vec3Dot(ray.dir,axis),c=vec3Dot(axis,axis),d=vec3Dot(ray.dir,w0),e=vec3Dot(axis,w0),den=a*c-b*b;
+    if(Math.abs(den)>1e-5)return (a*e-b*d)/den;
+    const {forward}=cameraBasis(),normal=vec3Norm(vec3Cross(axis,vec3Cross(forward,axis))),hit=rayPlanePoint(ray,point,normal);
+    return hit?vec3Dot(vec3Sub(hit,point),axis):0;
+  }
+  function snapValue(value,step){return step>0?Math.round(value/step)*step:value;}
+  function applyTranslationDelta(it,start,delta){
+    if(Math.abs(delta.x)>1e-9)it.x=worldToRaw(start.world.x+delta.x,'x');else it.x=start.x;
+    if(Math.abs(delta.y)>1e-9)it.y=worldToRaw(start.world.y+delta.y,'y');else it.y=start.y;
+    if(Math.abs(delta.z)>1e-9)it.z=worldToRaw(start.world.z+delta.z,'z');else it.z=start.z;
+  }
+  function beginGizmoDrag(mode,clientX,clientY,itemIds){
+    const items=itemIds.map(id=>getItemByIdFast(id)).filter(Boolean),visual=state.gizmoVisual,h=visual?.handles?.[mode],pivot=visual?.center?.world;
+    if(!items.length||!h||!pivot)return null;
+    const ray=screenRay(clientX-cv.getBoundingClientRect().left,clientY-cv.getBoundingClientRect().top),snapshots=items.map(it=>({id:it.id,x:it.x,y:it.y,z:it.z,heading:Number(it.heading)||0,pitch:Number(it.pitch)||0,world:vec3(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it))}));
+    const drag={mode,itemIds,lastX:clientX,lastY:clientY,pivot,basis:visual.basis,handle:h,snapshots,label:''};
+    if(h.kind==='axis')drag.startScalar=rayAxisParameter(ray,pivot,h.axis);
+    if(h.kind==='plane'){const normal=vec3Norm(vec3Cross(h.axisA,h.axisB));drag.startPoint=rayPlanePoint(ray,pivot,normal);drag.planeNormal=normal;}
+    if(h.kind==='ring'){drag.startPoint=rayPlanePoint(ray,pivot,h.axis);if(drag.startPoint)drag.startVector=vec3Norm(vec3Sub(drag.startPoint,pivot));}
+    return drag;
+  }
+  window.addEventListener('mousemove',e=>{
+    if(!state.gizmoDrag)return;
+    const d=state.gizmoDrag,rect=cv.getBoundingClientRect(),ray=screenRay(e.clientX-rect.left,e.clientY-rect.top),snapOn=state.transformSnapEnabled;
+    if(d.handle.kind==='axis'){
+      let delta=rayAxisParameter(ray,d.pivot,d.handle.axis)-d.startScalar;if(snapOn)delta=snapValue(delta,state.translationSnap);d.label=`${delta.toFixed(2)}`;
+      for(const start of d.snapshots){const it=getItemByIdFast(start.id),move=vec3Scale(d.handle.axis,delta);if(!it)continue;applyTranslationDelta(it,start,move);}
+    }else if(d.handle.kind==='plane'){
+      const hit=rayPlanePoint(ray,d.pivot,d.planeNormal);if(!hit||!d.startPoint)return;let delta=vec3Sub(hit,d.startPoint),da=vec3Dot(delta,d.handle.axisA),db=vec3Dot(delta,d.handle.axisB);if(snapOn){da=snapValue(da,state.translationSnap);db=snapValue(db,state.translationSnap);}delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));d.label=`${da.toFixed(2)}, ${db.toFixed(2)}`;
+      for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;applyTranslationDelta(it,start,delta);}
+    }else if(d.handle.kind==='ring'){
+      const hit=rayPlanePoint(ray,d.pivot,d.handle.axis);if(!hit||!d.startVector)return;const cur=vec3Norm(vec3Sub(hit,d.pivot));let angle=Math.atan2(vec3Dot(d.handle.axis,vec3Cross(d.startVector,cur)),vec3Dot(d.startVector,cur)),deg=angle*180/Math.PI;if(snapOn){deg=snapValue(deg,state.rotationSnap);angle=deg*Math.PI/180;}d.label=`${deg.toFixed(1)}°`;
+      for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;if(d.mode==='rotX')it.pitch=start.pitch+deg;else it.heading=start.heading-deg;if(state.transformPivot!=='individual'&&d.snapshots.length>1){const p=vec3Add(d.pivot,rotateAroundAxis(vec3Sub(start.world,d.pivot),d.handle.axis,angle));it.x=worldToRaw(p.x,'x');it.y=worldToRaw(p.y,'y');it.z=worldToRaw(p.z,'z');}}
+    }
+    commitGizmoUpdates(d.snapshots.map(x=>getItemByIdFast(x.id)).filter(Boolean));updateItemGizmo();
   });
+  window.addEventListener('mouseup',()=>{if(!state.gizmoDrag)return;state.gizmoDrag=null;state.hoveredGizmoHandle=null;endUndoTransaction();updateItemGizmo();});
 
   const _origLoadMisFile = loadMisFile;
   loadMisFile = async function(file, fileHandle = null){
