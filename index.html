@@ -5768,6 +5768,16 @@
   okBtn.addEventListener("click", closeModalOk);
 
   document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "c"){
+      e.preventDefault();
+      copySelectedItem();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "v"){
+      e.preventDefault();
+      pasteCopiedItem();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z"){
       e.preventDefault();
       if (e.shiftKey) redoLastChange();
@@ -6474,8 +6484,8 @@
           { label: "Undo", shortcut: "Ctrl + Z", command: "edit.undo" },
           { separator: true },
           { label: "Cut", command: "edit.cut" },
-          { label: "Copy", command: "edit.copy" },
-          { label: "Paste", command: "edit.paste" },
+          { label: "Copy", shortcut: "Ctrl + C", command: "edit.copy" },
+          { label: "Paste", shortcut: "Ctrl + V", command: "edit.paste" },
           { label: "Delete", command: "edit.delete" },
           { separator: true },
           { label: "Insert Mode", command: "edit.insertMode" },
