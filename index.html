@@ -1868,6 +1868,7 @@
     undoCurrentText: "",
     undoCaptureTimer: 0,
     undoRestoring: false,
+    undoTransactionDepth: 0,
     terrainPerf: { draws: 0, culledFrustum: 0, culledBackface: 0 },
     renderBackend: 'three-only',
     renderLayers: {
@@ -4359,6 +4360,7 @@
     state.undoStack = [];
     state.undoCurrentText = text == null ? getCurrentMisText() : text;
     state.undoRestoring = false;
+    state.undoTransactionDepth = 0;
   }
 
   function captureUndoState(){
@@ -4377,10 +4379,21 @@
   }
 
   function scheduleUndoCapture(){
-    if (state.undoRestoring || !state.rawText) return;
+    if (state.undoRestoring || state.undoTransactionDepth || !state.rawText) return;
     if (state.undoCaptureTimer) clearTimeout(state.undoCaptureTimer);
     // Treat a continuous drag or a burst of edits in one control as one action.
     state.undoCaptureTimer = setTimeout(captureUndoState, 250);
+  }
+
+  function beginUndoTransaction(){
+    if (state.undoTransactionDepth === 0) captureUndoState();
+    state.undoTransactionDepth += 1;
+  }
+
+  function endUndoTransaction(){
+    if (state.undoTransactionDepth === 0) return;
+    state.undoTransactionDepth -= 1;
+    if (state.undoTransactionDepth === 0) captureUndoState();
   }
 
   function undoLastChange(){
@@ -8852,6 +8865,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
         const dragItemIds = state.multiSelectedIds.size
           ? Array.from(state.multiSelectedIds)
           : [state.selectedId];
+        beginUndoTransaction();
         state.gizmoDrag = { mode: gizmoMode, lastX: e.clientX, lastY: e.clientY, itemId: state.selectedId, itemIds: dragItemIds };
         state.lastMouse = { sx, sy };
         return;
@@ -8948,6 +8962,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
       .map((id) => getItemByIdFast(id))
       .filter(Boolean);
     if (!activeItems.length || !activeItems.some((it) => it.id === state.selectedId)){
+      endUndoTransaction();
       state.gizmoDrag = null;
       return;
     }
@@ -9045,6 +9060,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     if (document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock();
     if (!state.gizmoDrag) return;
     state.gizmoDrag = null;
+    endUndoTransaction();
   });
 
   const _origLoadMisFile = loadMisFile;
