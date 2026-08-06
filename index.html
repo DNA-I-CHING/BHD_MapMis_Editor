@@ -8941,13 +8941,21 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     move.w=0; move.a=0; move.s=0; move.d=0; move.q=0; move.e=0;
   });
 
+  function isGizmoHandleInteractive(name){
+    if(!name||!state.gizmoVisual||!state.glb.gizmoGroup?.visible)return false;
+    if(state.gizmoVisual.mode!==state.transformMode)return false;
+    const expectedPrefix=state.transformMode==='translate'?'move':'rot';
+    return name.startsWith(expectedPrefix)&&state.glb.gizmoHandles.get(name)?.visible===true;
+  }
+
   function pickGizmoModeAt(clientX,clientY){
     if(!state.gizmoVisual||!state.glb.gizmoGroup?.visible||!state.glb.gizmoRaycaster)return null;
     const rect=cv.getBoundingClientRect(),nx=((clientX-rect.left)/rect.width)*2-1,ny=1-((clientY-rect.top)/rect.height)*2;
     state.glb.gizmoPointerNdc.set(nx,ny);state.glb.gizmoGroup.updateMatrixWorld(true);
     state.glb.gizmoRaycaster.setFromCamera(state.glb.gizmoPointerNdc,state.glb.camera);
-    const hits=state.glb.gizmoRaycaster.intersectObject(state.glb.gizmoGroup,true);
-    for(const hit of hits){let node=hit.object;while(node&&node!==state.glb.gizmoGroup){if(node.userData?.gizmoHandle)return node.userData.gizmoHandle;node=node.parent;}}
+    const activeRoots=Array.from(state.glb.gizmoHandles.entries()).filter(([name])=>isGizmoHandleInteractive(name)).map(([,root])=>root);
+    const hits=state.glb.gizmoRaycaster.intersectObjects(activeRoots,true);
+    for(const hit of hits){let node=hit.object;while(node&&node!==state.glb.gizmoGroup){const name=node.userData?.gizmoHandle;if(isGizmoHandleInteractive(name))return name;node=node.parent;}}
     return null;
   }
 
@@ -8977,6 +8985,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     if(Math.abs(delta.z)>1e-9)it.z=worldToRaw(start.world.z+delta.z,'z');else it.z=start.z;
   }
   function beginGizmoDrag(mode,clientX,clientY,itemIds){
+    if(!isGizmoHandleInteractive(mode))return null;
     const items=itemIds.map(id=>getItemByIdFast(id)).filter(Boolean),visual=state.gizmoVisual,h=visual?.handles?.[mode],pivot=visual?.center?.world;
     if(!items.length||!h||!pivot)return null;
     const ray=screenRay(clientX-cv.getBoundingClientRect().left,clientY-cv.getBoundingClientRect().top),snapshots=items.map(it=>({id:it.id,x:it.x,y:it.y,z:it.z,heading:Number(it.heading)||0,pitch:Number(it.pitch)||0,world:vec3(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it))}));
