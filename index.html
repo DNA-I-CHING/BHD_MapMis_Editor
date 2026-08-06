@@ -841,6 +841,10 @@
     }
     .menuSubmenu:hover > .menuDropdown{ display:block; }
     .menuItemBtn{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:20px;
       width:100%;
       border:0;
       border-radius:0;
@@ -849,6 +853,7 @@
       padding:6px 10px;
       font-size:12px;
     }
+    .menuShortcut{ color:var(--muted); white-space:nowrap; }
     .menuItemBtn:hover{ background:var(--accent-soft); }
     .menuItemBtn:active:not(:disabled){ background:var(--control-active-bg); }
     .menuItemBtn.attention{
@@ -1865,6 +1870,7 @@
     pendingUiRenderRaf: 0,
     pendingLiveMisRaf: 0,
     undoStack: [],
+    redoStack: [],
     undoCurrentText: "",
     undoCaptureTimer: 0,
     undoRestoring: false,
@@ -2405,6 +2411,10 @@
     if (state.pendingLiveMisRaf) return;
     state.pendingLiveMisRaf = requestAnimationFrame(() => {
       state.pendingLiveMisRaf = 0;
+      if (state.undoTransactionDepth){
+        state.liveMisDirty = true;
+        return;
+      }
       refreshLiveMisWindow();
     });
   }
@@ -4358,6 +4368,7 @@
     if (state.undoCaptureTimer) clearTimeout(state.undoCaptureTimer);
     state.undoCaptureTimer = 0;
     state.undoStack = [];
+    state.redoStack = [];
     state.undoCurrentText = text == null ? getCurrentMisText() : text;
     state.undoRestoring = false;
     state.undoTransactionDepth = 0;
@@ -4375,6 +4386,7 @@
     if (currentText === state.undoCurrentText) return;
     state.undoStack.push(state.undoCurrentText);
     if (state.undoStack.length > UNDO_HISTORY_LIMIT) state.undoStack.shift();
+    state.redoStack = [];
     state.undoCurrentText = currentText;
   }
 
@@ -4393,23 +4405,19 @@
   function endUndoTransaction(){
     if (state.undoTransactionDepth === 0) return;
     state.undoTransactionDepth -= 1;
-    if (state.undoTransactionDepth === 0) captureUndoState();
+    if (state.undoTransactionDepth === 0){
+      captureUndoState();
+      scheduleLiveMisRefresh();
+    }
   }
 
-  function undoLastChange(){
-    captureUndoState();
-    const previousText = state.undoStack.pop();
-    if (previousText == null){
-      statusEl.textContent = "Nothing to undo.";
-      return;
-    }
-
+  function restoreHistoryText(text){
     state.undoRestoring = true;
-    state.rawText = previousText;
-    const parsed = parseMIS(previousText);
+    state.rawText = text;
+    const parsed = parseMIS(text);
     state.items = parsed.items;
     state.sectionBlocks = parsed.sectionBlocks;
-    state.undoCurrentText = previousText;
+    state.undoCurrentText = text;
     state.selectedId = null;
     state.multiSelectedIds.clear();
     state.selectedWaypointMarkerIds.clear();
@@ -4428,7 +4436,31 @@
     requestRender();
     refreshLiveMisWindow(true, { force: true });
     state.undoRestoring = false;
+  }
+
+  function undoLastChange(){
+    captureUndoState();
+    const previousText = state.undoStack.pop();
+    if (previousText == null){
+      statusEl.textContent = "Nothing to undo.";
+      return;
+    }
+    state.redoStack.push(state.undoCurrentText);
+    restoreHistoryText(previousText);
     statusEl.textContent = `Undo complete. ${state.undoStack.length} earlier change${state.undoStack.length === 1 ? "" : "s"} available.`;
+  }
+
+  function redoLastChange(){
+    captureUndoState();
+    const nextText = state.redoStack.pop();
+    if (nextText == null){
+      statusEl.textContent = "Nothing to redo.";
+      return;
+    }
+    state.undoStack.push(state.undoCurrentText);
+    if (state.undoStack.length > UNDO_HISTORY_LIMIT) state.undoStack.shift();
+    restoreHistoryText(nextText);
+    statusEl.textContent = `Redo complete. ${state.redoStack.length} later change${state.redoStack.length === 1 ? "" : "s"} available.`;
   }
 
 
@@ -5738,7 +5770,8 @@
   document.addEventListener("keydown", (e) => {
     if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z"){
       e.preventDefault();
-      undoLastChange();
+      if (e.shiftKey) redoLastChange();
+      else undoLastChange();
       return;
     }
     if (e.key === "Escape" && state.modalOpen) closeModalCancel();
@@ -6404,6 +6437,7 @@
     "edit.paste": pasteCopiedItem,
     "edit.delete": deleteSelectedItem,
     "edit.undo": undoLastChange,
+    "edit.redo": redoLastChange,
     "edit.globalReplace": runGlobalReplace,
     "edit.weaponLoadouts": () => openSectionEditor("weapon_availability"),
     "mis.liveChanges": openLiveMisWindow,
@@ -6436,8 +6470,8 @@
       {
         label: "Edit",
         children: [
-          { label: "Redo", command: "edit.redo" },
-          { label: "Undo", command: "edit.undo" },
+          { label: "Redo", shortcut: "Ctrl + Shift + Z", command: "edit.redo" },
+          { label: "Undo", shortcut: "Ctrl + Z", command: "edit.undo" },
           { separator: true },
           { label: "Cut", command: "edit.cut" },
           { label: "Copy", command: "edit.copy" },
@@ -6564,7 +6598,15 @@
 
           const itemBtn = document.createElement("button");
           itemBtn.className = `menuItemBtn${child.attention ? " attention" : ""}`;
-          itemBtn.textContent = child.label;
+          const labelEl = document.createElement("span");
+          labelEl.textContent = child.label;
+          itemBtn.appendChild(labelEl);
+          if (child.shortcut){
+            const shortcutEl = document.createElement("span");
+            shortcutEl.className = "menuShortcut";
+            shortcutEl.textContent = child.shortcut;
+            itemBtn.appendChild(shortcutEl);
+          }
           const handler = menuHandlers[child.command];
           itemBtn.addEventListener("click", () => {
             closeMenus();
