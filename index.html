@@ -5778,6 +5778,11 @@
       pasteCopiedItem();
       return;
     }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "x"){
+      e.preventDefault();
+      cutSelectedItems();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z"){
       e.preventDefault();
       if (e.shiftKey) redoLastChange();
@@ -5849,7 +5854,7 @@
   function createPastedItemFrom(sourceItem, sourceSection = null, options = {}){
     const { offset = true, worldPosition = null, selectCreated = true, refresh = true } = options;
     const copy = structuredClone(sourceItem);
-    copy.id = Math.max(...state.items.map(x => x.id)) + 1;
+    copy.id = state.items.length ? Math.max(...state.items.map(x => x.id)) + 1 : 1;
     const beginItemNumber = getNextBeginItemNumber();
     const nextMisItemId = getNextMisItemId();
     copy.beginLine = `begin item ${beginItemNumber}`;
@@ -5912,6 +5917,36 @@
     statusEl.textContent = entries.length === 1
       ? `Copiado: #${anchor.id}`
       : `Copiados: ${entries.length} itens`;
+    return true;
+  }
+
+  function cutSelectedItems(){
+    if (!copySelectedItem()) return false;
+
+    const cutIds = new Set(state.itemClipboardItems.map(entry => entry.item.id));
+    const cutStarts = new Set(state.items.filter(it => cutIds.has(it.id)).map(it => it.start));
+    for (const id of cutIds) removeItemFromSpatialIndex(id);
+    state.items = state.items.filter(it => !cutIds.has(it.id));
+    state.sectionBlocks = state.sectionBlocks.filter(sec => !(sec.kind === "item" && cutStarts.has(sec.start)));
+    normalizeItemBeginLineSequence();
+    markItemsChanged({ structure: true });
+
+    state.selectedId = null;
+    state.multiSelectedIds.clear();
+    state.selectedWaypointMarkerIds.clear();
+    updateWaypointMarkerCount(0);
+    closeItemContextMenu();
+    if (state.modalOpen){
+      state.modalSnapshot = null;
+      state.modalOpen = false;
+      modalOverlay.classList.remove("open");
+      modalOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    renderList();
+    requestRender();
+    scheduleLiveMisRefresh();
+    statusEl.textContent = cutIds.size === 1 ? "1 item recortado." : `${cutIds.size} itens recortados.`;
     return true;
   }
 
@@ -6249,7 +6284,7 @@
     const itemsToRender = menuItems || [
       { label: "Edit Item Attributes", action: () => openModal() },
       { separator: true },
-      { label: "Cut", action: () => showNotImplemented("Cut") },
+      { label: "Cut", action: () => cutSelectedItems() },
       { label: "Copy", action: () => copySelectedItem() },
       { label: "Paste", action: () => pasteCopiedItem() },
       { separator: true },
@@ -6445,6 +6480,7 @@
     "edit.layerNames": () => openSectionEditor("layer"),
     "edit.copy": copySelectedItem,
     "edit.paste": pasteCopiedItem,
+    "edit.cut": cutSelectedItems,
     "edit.delete": deleteSelectedItem,
     "edit.undo": undoLastChange,
     "edit.redo": redoLastChange,
@@ -6483,7 +6519,7 @@
           { label: "Redo", shortcut: "Ctrl + Shift + Z", command: "edit.redo" },
           { label: "Undo", shortcut: "Ctrl + Z", command: "edit.undo" },
           { separator: true },
-          { label: "Cut", command: "edit.cut" },
+          { label: "Cut", shortcut: "Ctrl + X", command: "edit.cut" },
           { label: "Copy", shortcut: "Ctrl + C", command: "edit.copy" },
           { label: "Paste", shortcut: "Ctrl + V", command: "edit.paste" },
           { label: "Delete", command: "edit.delete" },
