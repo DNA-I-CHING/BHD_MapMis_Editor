@@ -1864,6 +1864,10 @@
     },
     pendingUiRenderRaf: 0,
     pendingLiveMisRaf: 0,
+    undoStack: [],
+    undoCurrentText: "",
+    undoCaptureTimer: 0,
+    undoRestoring: false,
     terrainPerf: { draws: 0, culledFrustum: 0, culledBackface: 0 },
     renderBackend: 'three-only',
     renderLayers: {
@@ -2396,6 +2400,7 @@
   }
 
   function scheduleLiveMisRefresh(){
+    scheduleUndoCapture();
     if (state.pendingLiveMisRaf) return;
     state.pendingLiveMisRaf = requestAnimationFrame(() => {
       state.pendingLiveMisRaf = 0;
@@ -4342,6 +4347,77 @@
     return out.join("\n");
   }
 
+  const UNDO_HISTORY_LIMIT = 100;
+
+  function getCurrentMisText(){
+    return rebuildMIS(state.rawText, state.items, state.sectionBlocks);
+  }
+
+  function resetUndoHistory(text = null){
+    if (state.undoCaptureTimer) clearTimeout(state.undoCaptureTimer);
+    state.undoCaptureTimer = 0;
+    state.undoStack = [];
+    state.undoCurrentText = text == null ? getCurrentMisText() : text;
+    state.undoRestoring = false;
+  }
+
+  function captureUndoState(){
+    if (state.undoCaptureTimer) clearTimeout(state.undoCaptureTimer);
+    state.undoCaptureTimer = 0;
+    if (state.undoRestoring || !state.rawText) return;
+    const currentText = getCurrentMisText();
+    if (!state.undoCurrentText){
+      state.undoCurrentText = currentText;
+      return;
+    }
+    if (currentText === state.undoCurrentText) return;
+    state.undoStack.push(state.undoCurrentText);
+    if (state.undoStack.length > UNDO_HISTORY_LIMIT) state.undoStack.shift();
+    state.undoCurrentText = currentText;
+  }
+
+  function scheduleUndoCapture(){
+    if (state.undoRestoring || !state.rawText) return;
+    if (state.undoCaptureTimer) clearTimeout(state.undoCaptureTimer);
+    // Treat a continuous drag or a burst of edits in one control as one action.
+    state.undoCaptureTimer = setTimeout(captureUndoState, 250);
+  }
+
+  function undoLastChange(){
+    captureUndoState();
+    const previousText = state.undoStack.pop();
+    if (previousText == null){
+      statusEl.textContent = "Nothing to undo.";
+      return;
+    }
+
+    state.undoRestoring = true;
+    state.rawText = previousText;
+    const parsed = parseMIS(previousText);
+    state.items = parsed.items;
+    state.sectionBlocks = parsed.sectionBlocks;
+    state.undoCurrentText = previousText;
+    state.selectedId = null;
+    state.multiSelectedIds.clear();
+    state.selectedWaypointMarkerIds.clear();
+    state.modalSnapshot = null;
+    if (state.modalOpen){
+      state.modalOpen = false;
+      modalOverlay.classList.remove("open");
+      modalOverlay.setAttribute("aria-hidden", "true");
+    }
+    markItemsChanged({ structure: true });
+    buildLayerOptions();
+    buildWaypointList();
+    buildGroupOptions();
+    updateWaypointMarkerCount(0);
+    renderList();
+    requestRender();
+    refreshLiveMisWindow(true, { force: true });
+    state.undoRestoring = false;
+    statusEl.textContent = `Undo complete. ${state.undoStack.length} earlier change${state.undoStack.length === 1 ? "" : "s"} available.`;
+  }
+
 
   function getSectionsByKind(kind){
     return state.sectionBlocks.filter(s => s.kind === kind);
@@ -5647,6 +5723,11 @@
   okBtn.addEventListener("click", closeModalOk);
 
   document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z"){
+      e.preventDefault();
+      undoLastChange();
+      return;
+    }
     if (e.key === "Escape" && state.modalOpen) closeModalCancel();
     if (e.key === "Escape" && state.sectionEditorOpen) closeSectionEditor();
     if (e.key === "Escape" && state.liveMisOpen) closeLiveMisWindow();
@@ -6182,6 +6263,7 @@
 
   function clearEditorMap(){
     state.rawText = "";
+    resetUndoHistory("");
     state.items = [];
     state.sectionBlocks = [];
     markItemsChanged({ structure: true });
@@ -6308,6 +6390,7 @@
     "edit.copy": copySelectedItem,
     "edit.paste": pasteCopiedItem,
     "edit.delete": deleteSelectedItem,
+    "edit.undo": undoLastChange,
     "edit.globalReplace": runGlobalReplace,
     "edit.weaponLoadouts": () => openSectionEditor("weapon_availability"),
     "mis.liveChanges": openLiveMisWindow,
@@ -6538,6 +6621,7 @@
     const parsed = parseMIS(text);
     state.items = parsed.items;
     state.sectionBlocks = parsed.sectionBlocks;
+    resetUndoHistory(text);
     markItemsChanged({ structure: true });
     state.selectedId = null;
     state.multiSelectedIds.clear();
