@@ -8199,7 +8199,7 @@
     return new THREE.MeshBasicMaterial({color,transparent:opacity<1,opacity,depthTest:false,depthWrite:false,side:THREE.DoubleSide,toneMapped:false});
   }
   function registerGizmoHandle(object,name,baseColor){
-    object.traverse(child=>{if(!child.isMesh)return;child.userData.gizmoHandle=name;child.userData.gizmoBaseColor=baseColor;child.renderOrder=10000;});
+    object.traverse(child=>{if(!child.isMesh)return;child.userData.gizmoHandle=name;child.userData.gizmoBaseColor=baseColor;child.userData.gizmoBaseOpacity=child.material.opacity;child.userData.gizmoRole??='visual';child.renderOrder=10000;});
     state.glb.gizmoHandles.set(name,object);
   }
   function ensureThreeGizmo(){
@@ -8218,17 +8218,27 @@
     }
     plane('moveXY','xy',[.34,.34,0],[0,0,0]);plane('moveXZ','xz',[.34,0,.34],[Math.PI/2,0,0]);plane('moveYZ','yz',[0,.34,.34],[0,Math.PI/2,0]);
     function ring(name,key,rotation,radius){
-      const mesh=new THREE.Mesh(new THREE.TorusGeometry(radius,.025,10,96),makeGizmoMaterial(THREE,GIZMO_STYLE.colors[key],.95));mesh.rotation.set(...rotation);group.add(mesh);registerGizmoHandle(mesh,name,GIZMO_STYLE.colors[key]);
+      const root=new THREE.Group(),visual=new THREE.Mesh(new THREE.TorusGeometry(radius,.026,12,128),makeGizmoMaterial(THREE,GIZMO_STYLE.colors[key],.96));
+      const pickMaterial=makeGizmoMaterial(THREE,GIZMO_STYLE.colors[key],0);pickMaterial.colorWrite=false;
+      const pick=new THREE.Mesh(new THREE.TorusGeometry(radius,.09,8,96),pickMaterial);
+      visual.userData.gizmoRole='visual';pick.userData.gizmoRole='pick';root.add(visual,pick);root.rotation.set(...rotation);root.userData.gizmoPickMeshes=[pick];group.add(root);registerGizmoHandle(root,name,GIZMO_STYLE.colors[key]);
     }
-    ring('rotX','x',[0,Math.PI/2,0],.68);ring('rotZ','z',[0,0,0],.82);
+    ring('rotX','x',[0,Math.PI/2,0],.76);ring('rotZ','z',[0,0,0],.9);
     state.glb.gizmoScene=scene;state.glb.gizmoGroup=group;state.glb.gizmoRaycaster=new THREE.Raycaster();state.glb.gizmoPointerNdc=new THREE.Vector2();
     return true;
   }
   function updateGizmoMaterials(){
     for(const [name,root] of state.glb.gizmoHandles){
-      const color=state.gizmoDrag?.mode===name?GIZMO_STYLE.colors.active:(state.hoveredGizmoHandle===name?GIZMO_STYLE.colors.hover:null);
-      root.traverse(child=>{if(child.isMesh)child.material.color.setHex(color??child.userData.gizmoBaseColor);});
+      const active=state.gizmoDrag?.mode===name,dimmed=!!state.gizmoDrag&&!active,color=active?GIZMO_STYLE.colors.active:(state.hoveredGizmoHandle===name?GIZMO_STYLE.colors.hover:null);
+      root.traverse(child=>{if(!child.isMesh||child.userData.gizmoRole==='pick')return;child.material.color.setHex(color??child.userData.gizmoBaseColor);child.material.opacity=dimmed?.22:(active?1:child.userData.gizmoBaseOpacity);});
     }
+  }
+  function drawRotationDragFeedback(center,drag){
+    if(!gizmoCtx||drag?.handle?.kind!=='ring'||!drag.startVector||!drag.currentVector)return;
+    const radius=Math.max(.01,drag.feedbackRadius||1),c=worldToScreen(center.x,center.y,center.z),startWorld=vec3Add(center,vec3Scale(drag.startVector,radius)),currentWorld=vec3Add(center,vec3Scale(drag.currentVector,radius)),a=worldToScreen(startWorld.x,startWorld.y,startWorld.z),b=worldToScreen(currentWorld.x,currentWorld.y,currentWorld.z);
+    if(!c.visible||!a.visible||!b.visible)return;
+    gizmoCtx.save();gizmoCtx.strokeStyle='#fff';gizmoCtx.fillStyle='#fff';gizmoCtx.lineWidth=2;gizmoCtx.beginPath();gizmoCtx.moveTo(c.sx,c.sy);gizmoCtx.lineTo(a.sx,a.sy);gizmoCtx.moveTo(c.sx,c.sy);gizmoCtx.lineTo(b.sx,b.sy);gizmoCtx.stroke();
+    const screenRadius=Math.max(12,Math.hypot(a.sx-c.sx,a.sy-c.sy)),startAngle=Math.atan2(a.sy-c.sy,a.sx-c.sx),endAngle=Math.atan2(b.sy-c.sy,b.sx-c.sx);gizmoCtx.globalAlpha=.8;gizmoCtx.beginPath();gizmoCtx.arc(c.sx,c.sy,screenRadius,startAngle,endAngle,drag.appliedAngle<0);gizmoCtx.stroke();gizmoCtx.globalAlpha=1;gizmoCtx.font='12px sans-serif';gizmoCtx.fillText(drag.label,c.sx+14,c.sy-14);gizmoCtx.restore();
   }
   function updateItemGizmo(){
     const rect=cv.getBoundingClientRect(),dpr=Math.max(1,Math.min(window.devicePixelRatio||1,2));
@@ -8237,12 +8247,12 @@
     const group=state.glb.gizmoGroup,it=getSelected(),items=selectedTransformItems(),center=gizmoPivot(items);
     if(!it||!center||state.modalOpen){group.visible=false;state.gizmoVisual=null;return;}
     group.visible=true;group.position.set(center.x,center.y,center.z);
-    const basis=itemTransformBasis(it),THREE=state.glb.THREE,m=new THREE.Matrix4().makeBasis(new THREE.Vector3(basis.x.x,basis.x.y,basis.x.z),new THREE.Vector3(basis.y.x,basis.y.y,basis.y.z),new THREE.Vector3(basis.z.x,basis.z.y,basis.z.z));group.quaternion.setFromRotationMatrix(m);
+    const basis=state.gizmoDrag?.handle?.kind==='ring'?state.gizmoDrag.basis:itemTransformBasis(it),THREE=state.glb.THREE,m=new THREE.Matrix4().makeBasis(new THREE.Vector3(basis.x.x,basis.x.y,basis.x.z),new THREE.Vector3(basis.y.x,basis.y.y,basis.y.z),new THREE.Vector3(basis.z.x,basis.z.y,basis.z.z));group.quaternion.setFromRotationMatrix(m);
     const distance=Math.max(.01,Math.hypot(center.x-cam.pos.x,center.y-cam.pos.y,center.z-cam.pos.z)),viewportH=Math.max(1,rect.height),worldPerPixel=2*distance*Math.tan(Math.PI/6)/viewportH,scale=worldPerPixel*GIZMO_STYLE.screenSizePx;group.scale.setScalar(scale);
     for(const [name,root] of state.glb.gizmoHandles)root.visible=state.transformMode==='translate'?name.startsWith('move'):name.startsWith('rot');
     updateGizmoMaterials();
     state.gizmoVisual={mode:state.transformMode,center:{world:center},basis,handles:{moveX:{kind:'axis',axis:basis.x},moveY:{kind:'axis',axis:basis.y},moveZ:{kind:'axis',axis:basis.z},moveXY:{kind:'plane',axisA:basis.x,axisB:basis.y},moveXZ:{kind:'plane',axisA:basis.x,axisB:basis.z},moveYZ:{kind:'plane',axisA:basis.y,axisB:basis.z},rotX:{kind:'ring',axis:basis.x},rotZ:{kind:'ring',axis:basis.z}}};
-    if(state.gizmoDrag?.label&&gizmoCtx){const c=worldToScreen(center.x,center.y,center.z);gizmoCtx.font='12px sans-serif';gizmoCtx.fillStyle='#fff';gizmoCtx.fillText(state.gizmoDrag.label,c.sx+14,c.sy-14);}
+    if(state.gizmoDrag?.label&&gizmoCtx){if(state.gizmoDrag.handle?.kind==='ring')drawRotationDragFeedback(center,state.gizmoDrag);else{const c=worldToScreen(center.x,center.y,center.z);gizmoCtx.font='12px sans-serif';gizmoCtx.fillStyle='#fff';gizmoCtx.fillText(state.gizmoDrag.label,c.sx+14,c.sy-14);}}
   }
   function drawThreeGizmo(){
     if(!state.glb.ready||!state.glb.gizmoScene||!state.glb.gizmoGroup?.visible)return;
@@ -8953,7 +8963,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     const rect=cv.getBoundingClientRect(),nx=((clientX-rect.left)/rect.width)*2-1,ny=1-((clientY-rect.top)/rect.height)*2;
     state.glb.gizmoPointerNdc.set(nx,ny);state.glb.gizmoGroup.updateMatrixWorld(true);
     state.glb.gizmoRaycaster.setFromCamera(state.glb.gizmoPointerNdc,state.glb.camera);
-    const activeRoots=Array.from(state.glb.gizmoHandles.entries()).filter(([name])=>isGizmoHandleInteractive(name)).map(([,root])=>root);
+    const activeRoots=Array.from(state.glb.gizmoHandles.entries()).filter(([name])=>isGizmoHandleInteractive(name)).flatMap(([,root])=>root.userData.gizmoPickMeshes||[root]);
     const hits=state.glb.gizmoRaycaster.intersectObjects(activeRoots,true);
     for(const hit of hits){let node=hit.object;while(node&&node!==state.glb.gizmoGroup){const name=node.userData?.gizmoHandle;if(isGizmoHandleInteractive(name))return name;node=node.parent;}}
     return null;
@@ -8992,12 +9002,17 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     const drag={mode,itemIds,lastX:clientX,lastY:clientY,pivot,basis:visual.basis,handle:h,snapshots,label:''};
     if(h.kind==='axis')drag.startScalar=rayAxisParameter(ray,pivot,h.axis);
     if(h.kind==='plane'){const normal=vec3Norm(vec3Cross(h.axisA,h.axisB));drag.startPoint=rayPlanePoint(ray,pivot,normal);drag.planeNormal=normal;}
-    if(h.kind==='ring'){drag.startPoint=rayPlanePoint(ray,pivot,h.axis);if(drag.startPoint)drag.startVector=vec3Norm(vec3Sub(drag.startPoint,pivot));}
+    if(h.kind==='ring'){
+      drag.startPoint=rayPlanePoint(ray,pivot,h.axis);
+      if(!drag.startPoint)return null;
+      drag.startVector=vec3Norm(vec3Sub(drag.startPoint,pivot));drag.lastVector=drag.startVector;drag.currentVector=drag.startVector;drag.accumulatedAngle=0;drag.appliedAngle=0;drag.feedbackRadius=vec3Len(vec3Sub(drag.startPoint,pivot));
+    }
     return drag;
   }
   window.addEventListener('mousemove',e=>{
     if(!state.gizmoDrag)return;
     const d=state.gizmoDrag,rect=cv.getBoundingClientRect(),ray=screenRay(e.clientX-rect.left,e.clientY-rect.top),snapOn=state.transformSnapEnabled;
+    if(!isGizmoHandleInteractive(d.mode)||state.modalOpen||!d.snapshots.every(start=>getItemByIdFast(start.id))){state.gizmoDrag=null;state.hoveredGizmoHandle=null;endUndoTransaction();updateItemGizmo();return;}
     if(d.handle.kind==='axis'){
       let delta=rayAxisParameter(ray,d.pivot,d.handle.axis)-d.startScalar;if(snapOn)delta=snapValue(delta,state.translationSnap);d.label=`${delta.toFixed(2)}`;
       for(const start of d.snapshots){const it=getItemByIdFast(start.id),move=vec3Scale(d.handle.axis,delta);if(!it)continue;applyTranslationDelta(it,start,move);}
@@ -9005,7 +9020,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
       const hit=rayPlanePoint(ray,d.pivot,d.planeNormal);if(!hit||!d.startPoint)return;let delta=vec3Sub(hit,d.startPoint),da=vec3Dot(delta,d.handle.axisA),db=vec3Dot(delta,d.handle.axisB);if(snapOn){da=snapValue(da,state.translationSnap);db=snapValue(db,state.translationSnap);}delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));d.label=`${da.toFixed(2)}, ${db.toFixed(2)}`;
       for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;applyTranslationDelta(it,start,delta);}
     }else if(d.handle.kind==='ring'){
-      const hit=rayPlanePoint(ray,d.pivot,d.handle.axis);if(!hit||!d.startVector)return;const cur=vec3Norm(vec3Sub(hit,d.pivot));let angle=Math.atan2(vec3Dot(d.handle.axis,vec3Cross(d.startVector,cur)),vec3Dot(d.startVector,cur)),deg=angle*180/Math.PI;if(snapOn){deg=snapValue(deg,state.rotationSnap);angle=deg*Math.PI/180;}d.label=`${deg.toFixed(1)}°`;
+      const hit=rayPlanePoint(ray,d.pivot,d.handle.axis);if(!hit||!d.lastVector)return;const cur=vec3Norm(vec3Sub(hit,d.pivot)),deltaAngle=Math.atan2(vec3Dot(d.handle.axis,vec3Cross(d.lastVector,cur)),vec3Dot(d.lastVector,cur));d.accumulatedAngle+=deltaAngle;d.lastVector=cur;let angle=d.accumulatedAngle,deg=angle*180/Math.PI;if(snapOn){deg=snapValue(deg,state.rotationSnap);angle=deg*Math.PI/180;}d.appliedAngle=angle;d.currentVector=vec3Norm(rotateAroundAxis(d.startVector,d.handle.axis,angle));d.label=`${deg.toFixed(1)}°`;
       for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;if(d.mode==='rotX')it.pitch=start.pitch+deg;else it.heading=start.heading-deg;if(state.transformPivot!=='individual'&&d.snapshots.length>1){const p=vec3Add(d.pivot,rotateAroundAxis(vec3Sub(start.world,d.pivot),d.handle.axis,angle));it.x=worldToRaw(p.x,'x');it.y=worldToRaw(p.y,'y');it.z=worldToRaw(p.z,'z');}}
     }
     commitGizmoUpdates(d.snapshots.map(x=>getItemByIdFast(x.id)).filter(Boolean));updateItemGizmo();
