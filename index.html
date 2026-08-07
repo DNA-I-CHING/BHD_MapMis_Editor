@@ -7526,7 +7526,9 @@
     waypointLineGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0), 3));
     const waypointLineMaterial = new THREE.LineBasicMaterial({
       vertexColors: true,
-      depthTest: false,
+      // Drawn after GLBs, but tested against their retained depth so only
+      // segments that are actually in front remain visible.
+      depthTest: true,
       depthWrite: false,
       transparent: false,
       fog: false,
