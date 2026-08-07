@@ -541,6 +541,20 @@
     }
     .meta{ color:var(--text-muted); font-size:12px; margin-top:4px; }
 
+    .ssnCodeLookup{
+      width:24px;
+      height:24px;
+      margin-left:4px;
+      padding:0;
+      vertical-align:middle;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+      line-height:1;
+      cursor:pointer;
+    }
+
     /* Modal Item Attributes */
     #modalOverlay{
       position:absolute;
@@ -1563,7 +1577,7 @@
 
           <div class="winTop">
             <div class="metaBlock">
-              <div>Social Security Number: <span id="ui_ssn" class="metaValue">0</span></div>
+              <div>Social Security Number: <span id="ui_ssn" class="metaValue">0</span><button id="ui_findSsnInMis" class="ssnCodeLookup" type="button" title="Locate this item's block in MIS Code" aria-label="Locate this item's block in MIS Code">&#128269;</button></div>
               <div>Graphic: <span id="ui_graphic" class="metaValue">-</span></div>
               <div>
                 <label class="inlineLabel" for="ui_layer">Layer</label>
@@ -2145,6 +2159,7 @@
   const liveMisCloseBtn = document.getElementById("liveMisCloseBtn");
   const liveMisText = document.getElementById("liveMisText");
   const liveMisSearch = document.getElementById("liveMisSearch");
+  const findSsnInMisBtn = document.getElementById("ui_findSsnInMis");
   const logsOverlay = document.getElementById("logsOverlay");
   const logsCloseBtn = document.getElementById("logsCloseBtn");
   const logsText = document.getElementById("logsText");
@@ -5125,6 +5140,53 @@
     liveMisSearch.focus();
   }
 
+  function openLiveMisAtItem(item){
+    if (!item) return;
+
+    refreshLiveMisWindow(false, { force: true });
+    const raw = state.liveMisRawText || "";
+    const ssn = String(item.kv?.id ?? "").trim();
+    const escapedSsn = ssn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const itemBlockPattern = new RegExp(
+      `(^|\\n)[ \\t]*begin[ \\t]+item(?:[^\\n]*)\\n([\\s\\S]*?)(?=^[ \\t]*end[ \\t]+item[ \\t]*(?:\\n|$))`,
+      "gmi"
+    );
+    const idLinePattern = ssn
+      ? new RegExp(`^[ \\t]*id[ \\t]+${escapedSsn}[ \\t]*(?:\\r?$)`, "mi")
+      : null;
+    let match = null;
+    let idMatch = null;
+
+    while ((match = itemBlockPattern.exec(raw))){
+      idMatch = idLinePattern?.exec(match[2]) || null;
+      if (idMatch) break;
+    }
+
+    state.liveMisOpen = true;
+    liveMisOverlay.classList.add("open");
+    liveMisOverlay.setAttribute("aria-hidden", "false");
+
+    if (match && idMatch){
+      const blockBodyOffset = match.index + match[0].indexOf(match[2]);
+      const idValueOffset = idMatch[0].toLowerCase().indexOf(ssn.toLowerCase());
+      state.liveMisSearchTerm = ssn;
+      state.liveMisSearchIndex = blockBodyOffset + idMatch.index + Math.max(0, idValueOffset);
+      liveMisSearch.value = ssn;
+      renderLiveMisHighlighted();
+
+      const current = document.getElementById("liveMisCurrent");
+      current?.scrollIntoView({ block: "center" });
+      liveMisText.focus();
+      return;
+    }
+
+    liveMisSearch.value = ssn;
+    state.liveMisSearchTerm = ssn.toLowerCase();
+    state.liveMisSearchIndex = ssn ? raw.toLowerCase().indexOf(ssn.toLowerCase()) : -1;
+    renderLiveMisHighlighted();
+    liveMisSearch.focus();
+  }
+
   function closeLiveMisWindow(){
     state.liveMisOpen = false;
     liveMisOverlay.classList.remove("open");
@@ -6610,6 +6672,7 @@
   liveMisOverlay.addEventListener("mousedown", (e) => { if (e.target === liveMisOverlay) closeLiveMisWindow(); });
   liveMisSearch.addEventListener("input", () => findInLiveMis(false, false));
   liveMisSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); findInLiveMis(true, true); } });
+  findSsnInMisBtn.addEventListener("click", () => openLiveMisAtItem(getSelected()));
   sectionKindSelect.addEventListener("change", () => { state.sectionKind = sectionKindSelect.value; state.sectionSelectedId = null; sectionAddBtn.textContent = state.sectionKind === "group" ? "Ok" : "Add block"; updateSectionEditorMode(); renderSectionList(); });
   sectionQuickNav?.addEventListener("change", () => {
     state.sectionKind = sectionQuickNav.value;
