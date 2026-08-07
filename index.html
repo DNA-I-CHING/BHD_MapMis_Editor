@@ -381,6 +381,8 @@
       padding:10px;
     }
     #canvasShowPanel.open{ display:block; }
+    #canvasShowPanelControls{ display:flex; align-items:center; gap:6px; margin-bottom:8px; }
+    #canvasShowPanelControls button{ min-height:22px; padding:2px 8px; font-size:11px; }
     #canvasShowPanelList{ display:grid; grid-template-columns:1fr; gap:4px; font-size:12px; }
     #canvasShowPanelList label{ display:flex; align-items:center; gap:6px; }
     #canvasShowPanelList label.showCategoryEmpty{ opacity:.42; }
@@ -1246,6 +1248,10 @@
       <canvas id="gizmoCanvas" aria-hidden="true"></canvas>
 
       <div id="canvasShowPanel" aria-hidden="true">
+        <div id="canvasShowPanelControls">
+          <button id="hideAllShowOptionsBtn" type="button">Hide All</button>
+          <button id="showAllShowOptionsBtn" type="button">Show All</button>
+        </div>
         <div id="canvasShowPanelList">
           <label><input type="checkbox" id="showCharTiles"> Char Tiles</label>
           <label data-show-category="foliage"><input type="checkbox" id="showFoliage" checked> <span>Foliage (0)</span></label>
@@ -2064,6 +2070,8 @@
   const showPanelBtn = document.getElementById("showPanelBtn");
   const showLayersBtn = document.getElementById("showLayersBtn");
   const debugFogBtn = document.getElementById("debugFogBtn");
+  const hideAllShowOptionsBtn = document.getElementById("hideAllShowOptionsBtn");
+  const showAllShowOptionsBtn = document.getElementById("showAllShowOptionsBtn");
   const hideAllLayersBtn = document.getElementById("hideAllLayersBtn");
   const showAllLayersBtn = document.getElementById("showAllLayersBtn");
   const canvasShowPanelEl = document.getElementById("canvasShowPanel");
@@ -6382,6 +6390,24 @@
   showAllLayersBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     setAllLayerVisibility(true);
+  });
+
+  function setAllShowOptions(visible){
+    canvasShowPanelEl?.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+      input.checked = !!visible;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    requestRender();
+  }
+
+  hideAllShowOptionsBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setAllShowOptions(false);
+  });
+
+  showAllShowOptionsBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setAllShowOptions(true);
   });
 
   canvasShowPanelEl?.addEventListener("click", (event) => {
