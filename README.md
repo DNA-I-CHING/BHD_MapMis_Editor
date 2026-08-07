@@ -16,8 +16,9 @@ Todo:
 - [ ] Global Replace
 - [ ] Weapon Loadouts
 
-* itemsDef.js works similarly to the original items.def.  
-* otheritems.js lists all the items that aren’t in items.def by default and also uses new variables to indicate which 3D .glb file will be used for the item.
+* `resources/items_lists/itemsDef.js` works similarly to the original `items.def`.
+* `resources/items_lists/otheritems.js` lists all the items that aren’t in `items.def` by default and also uses new variables to indicate which 3D `.glb` file will be used for the item.
+* `resources/items_lists/weapon.def` provides the weapon catalog used to display loadout names.
 * Today, when loading a map, the editor moves the camera to a spot near the center of the inserted items. This could be optimized to keep the camera from being positioned so high up in the sky.
 
 All 3D .glb items should be in the resources/3d_items folder, and you should download the items here: https://drive.google.com/file/d/1Ra4pI8aTDwG5vO3h0fLZYzqPM6YveKQH/view?usp=sharing  

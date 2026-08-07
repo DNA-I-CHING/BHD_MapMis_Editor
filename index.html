@@ -1791,7 +1791,7 @@
   </div>
   </div>
 
-<script src="resources/itemsDef.js"></script>
+<script src="resources/items_lists/itemsDef.js"></script>
 
 <script>
   const state = {
@@ -2880,7 +2880,7 @@
   }
 
   async function loadWeaponDefs(){
-    const path = "resources/weapon.def";
+    const path = "resources/items_lists/weapon.def";
     const text = await loadTextResource(path);
     if (text === null) return;
     state.weaponDefs = parseWeaponDefCatalog(text);
@@ -3250,7 +3250,7 @@
   async function loadAndApplyItemCatalogs(){
     const defText = (window.BHD_ITEMS_DEF_TEXT || "").toString();
     const defs = parseItemsDef(defText);
-    const otherItemsText = await loadTextResource("resources/otheritems.js");
+    const otherItemsText = await loadTextResource("resources/items_lists/otheritems.js");
     const soundDef = extractSoundDefinitionFromOtherItems(otherItemsText);
     state.soundGraphicFromOtherItems = soundDef.graphic;
     state.soundGraphicScaleFromOtherItems = soundDef.graphicScale;
