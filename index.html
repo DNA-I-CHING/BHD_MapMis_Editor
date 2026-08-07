@@ -3283,6 +3283,50 @@
     return defs;
   }
 
+  function mergeItemCatalogDefs(primaryDefs, supplementalDefs){
+    const mergedById = new Map();
+    const orderedIds = [];
+
+    const remember = (def) => {
+      const id = String(def?.id || def?.typeId || "").trim();
+      if (!id) return;
+      if (!mergedById.has(id)) orderedIds.push(id);
+      mergedById.set(id, {
+        ...def,
+        id,
+        attrib: Array.isArray(def.attrib) ? def.attrib.slice() : [],
+        kv: { ...(def.kv || {}) },
+      });
+    };
+
+    for (const def of primaryDefs || []) remember(def);
+
+    for (const supplement of supplementalDefs || []){
+      const id = String(supplement?.id || supplement?.typeId || "").trim();
+      if (!id) continue;
+      const base = mergedById.get(id);
+      if (!base){
+        remember(supplement);
+        continue;
+      }
+
+      const supplementKv = supplement.kv || {};
+      const attrib = Array.from(new Set([...(base.attrib || []), ...(supplement.attrib || [])]));
+      mergedById.set(id, {
+        ...base,
+        id,
+        typeId: supplement.typeId || base.typeId,
+        type: Object.prototype.hasOwnProperty.call(supplementKv, "type") ? supplement.type : base.type,
+        graphic: Object.prototype.hasOwnProperty.call(supplementKv, "graphic") ? supplement.graphic : base.graphic,
+        graphicScale: Object.prototype.hasOwnProperty.call(supplementKv, "graphic_scale") ? supplement.graphicScale : base.graphicScale,
+        attrib,
+        kv: { ...(base.kv || {}), ...supplementKv },
+      });
+    }
+
+    return orderedIds.map((id) => mergedById.get(id));
+  }
+
   function applyDefs(defs){
     state.defLoaded = true;
     state.defsById = new Map();
@@ -3310,7 +3354,7 @@
     state.soundGraphicFromOtherItems = soundDef.graphic;
     state.soundGraphicScaleFromOtherItems = soundDef.graphicScale;
     const otherItemDefs = otherItemsText ? parseItemsDef(otherItemsText) : [];
-    const mergedDefs = defs.concat(otherItemDefs);
+    const mergedDefs = mergeItemCatalogDefs(defs, otherItemDefs);
     if (!mergedDefs.length){
       defStatusEl.textContent = "Warning: embedded catalog is empty (ITEMS.DEF).";
       addLog("WARNING: Embedded ITEMS.DEF parsed with 0 defs.");
