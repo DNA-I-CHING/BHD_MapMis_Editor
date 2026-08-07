@@ -3958,6 +3958,12 @@
   const WAYPOINT_COLORS = [
     "Orange","Black","Yellow","Red","Green","Blue","Gray","LtGray","Purple","Cyan","Brown","Aqua","Indigo","Tan","Teal","Dark Red","White","Violet","Pink","Magenta","Dark Blue","Dark Green","Dark Yellow"
   ];
+  const WAYPOINT_COLOR_HEX = [
+    0xffa500, 0x000000, 0xffff00, 0xff0000, 0x008000, 0x0000ff,
+    0x808080, 0xd3d3d3, 0x800080, 0x00ffff, 0x8b4513, 0x00ffff,
+    0x4b0082, 0xd2b48c, 0x008080, 0x8b0000, 0xffffff, 0xee82ee,
+    0xffc0cb, 0xff00ff, 0x00008b, 0x006400, 0x808000,
+  ];
 
   function parseWaypointNumber(sec){
     if (!sec || sec.kind !== "waypoint") return null;
@@ -4173,6 +4179,8 @@
     if (attribVal > 0){ sec.kv.attrib = String(attribVal); lines.push(`  attrib ${attribVal}`); }
     sec.lines = lines;
     buildWaypointList();
+    refreshGlbWaypointColors(n);
+    requestRender();
     scheduleLiveMisRefresh();
   }
 
@@ -7829,6 +7837,50 @@
     return mat;
   }
 
+  function getWaypointColorHexForItem(it){
+    const waypointId = getItemWaypointId(it);
+    if (waypointId == null) return null;
+    const sec = getWaypointSectionByNumber(waypointId);
+    if (!sec) return null;
+    const colorIndex = Number(sec.kv?.color ?? 0);
+    if (!Number.isInteger(colorIndex) || colorIndex < 0 || colorIndex >= WAYPOINT_COLOR_HEX.length) return null;
+    return WAYPOINT_COLOR_HEX[colorIndex];
+  }
+
+  function applyWaypointColorToMaterial(material, colorHex){
+    if (!material?.color) return;
+    if (!material.userData) material.userData = {};
+    if (!material.userData._waypointOriginalColor){
+      material.userData._waypointOriginalColor = material.color.clone();
+    }
+    if (colorHex == null) material.color.copy(material.userData._waypointOriginalColor);
+    else material.color.setHex(colorHex);
+    material.needsUpdate = true;
+  }
+
+  function applyWaypointColorToGlbObject(instance, it){
+    if (!instance) return;
+    const colorHex = getWaypointColorHexForItem(it);
+    instance.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return;
+      // While wireframe is active, update its preserved solid material; the
+      // temporary white/yellow wire material remains controlled by selection.
+      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")
+        ? obj.userData._wireframeOriginalMaterial
+        : obj.material;
+      const materials = Array.isArray(material) ? material : [material];
+      materials.forEach((mat) => applyWaypointColorToMaterial(mat, colorHex));
+    });
+  }
+
+  function refreshGlbWaypointColors(waypointId){
+    const wantedId = Number(waypointId);
+    for (const it of state.items || []){
+      if (getItemWaypointId(it) !== wantedId) continue;
+      applyWaypointColorToGlbObject(state.glb.itemInstances.get(it.id), it);
+    }
+  }
+
   function applyWireframeToGlbObject(root){
     if (!root) return;
     const selectedColor = 0xffff00;
@@ -7922,6 +7974,7 @@
             if (Array.isArray(obj.material)) obj.material = obj.material.map(m => m ? m.clone() : m);
             else if (obj.material) obj.material = obj.material.clone();
           });
+          applyWaypointColorToGlbObject(instance, it);
           applyWireframeToGlbObject(instance);
           instance.userData.itemId = it.id;
           instance.userData.graphic = graphic;
@@ -7929,6 +7982,7 @@
           state.glb.itemInstances.set(it.id, instance);
         }
 
+        applyWaypointColorToGlbObject(instance, it);
         applyItemTransformToObject(instance, it);
       }
 
