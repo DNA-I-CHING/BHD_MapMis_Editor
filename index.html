@@ -1537,8 +1537,7 @@
             </div>
 
             <div class="metaBlock">
-              <div>Type: <span id="ui_type" class="metaValue">-</span></div>
-              <div>Type ID: <span id="ui_typeId" class="metaValue">-</span></div>
+              <div>Type: <span id="ui_type" class="metaValue">-</span> (id <span id="ui_typeId" class="metaValue">-</span>)</div>
             </div>
 
             <div class="subTypeWrap">
@@ -6016,22 +6015,25 @@
   okBtn.addEventListener("click", closeModalOk);
 
   document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "c"){
+    // Open windows own their clipboard and editing shortcuts. Let the browser
+    // handle them instead of applying the command to the editor behind them.
+    const hasOpenWindow = !!document.querySelector('[id$="Overlay"].open');
+    if (!hasOpenWindow && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "c"){
       e.preventDefault();
       copySelectedItem();
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "v"){
+    if (!hasOpenWindow && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "v"){
       e.preventDefault();
       pasteCopiedItem();
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "x"){
+    if (!hasOpenWindow && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "x"){
       e.preventDefault();
       cutSelectedItems();
       return;
     }
-    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z"){
+    if (!hasOpenWindow && (e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "z"){
       e.preventDefault();
       if (e.shiftKey) redoLastChange();
       else undoLastChange();
