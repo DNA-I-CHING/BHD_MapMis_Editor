@@ -1920,6 +1920,7 @@
       materials: null,
       pointsByGroup: new Map(),
       drawCountByGroup: new Map(),
+      waypointLineScene: null,
       waypointLines: null,
       ready: false,
     },
@@ -2026,6 +2027,7 @@
     drawOverlaysThree(P, V, forward);
     drawItemsThree(P, V);
     drawGlbItems(P, V);
+    drawWaypointLinesThree(P, V);
     updateItemGizmo();
     drawThreeGizmo();
     return result;
@@ -7489,6 +7491,7 @@
     items.materials = new Map();
     items.pointsByGroup = new Map();
     items.drawCountByGroup = new Map();
+    items.waypointLineScene = new THREE.Scene();
 
     const groupDefs = [
       ['normal', [0.88,0.9,1.0,1], 8],
@@ -7531,7 +7534,7 @@
     });
     items.waypointLines = new THREE.LineSegments(waypointLineGeometry, waypointLineMaterial);
     items.waypointLines.frustumCulled = false;
-    items.scene.add(items.waypointLines);
+    items.waypointLineScene.add(items.waypointLines);
     items.ready = true;
     addLog('[items_three] item points layer initialized.');
     return true;
@@ -7573,12 +7576,20 @@
       updateThreeItemGroup('paste', groups.pasteBuf, groups.pasteLen);
     }
 
+    applyThreeCameraFromPV(P, V);
+    state.glb.renderer.resetState();
+    state.glb.renderer.render(state.threeItems.scene, state.glb.camera);
+    state.glb.renderer.resetState();
+  }
+
+  function drawWaypointLinesThree(P, V){
+    if (!ensureThreeItemsReady()) return;
     const waypointLines = collectWaypointLineData();
     updateThreeLineGeometry(state.threeItems.waypointLines, waypointLines.positions, waypointLines.colors);
 
     applyThreeCameraFromPV(P, V);
     state.glb.renderer.resetState();
-    state.glb.renderer.render(state.threeItems.scene, state.glb.camera);
+    state.glb.renderer.render(state.threeItems.waypointLineScene, state.glb.camera);
     state.glb.renderer.resetState();
   }
 
