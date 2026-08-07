@@ -424,6 +424,7 @@
       left:146px;
       z-index:11;
       min-width:180px;
+      max-height:min(68vh, 430px);
       display:none;
       background:var(--panel);
       border:1px solid var(--line-strong);
@@ -431,6 +432,7 @@
       box-shadow:var(--shadow-md);
       padding:10px;
       font-size:12px;
+      overflow:auto;
     }
     #viewModePanel.open{ display:block; }
     #viewModeList{ display:grid; grid-template-columns:1fr; gap:6px; }
@@ -1313,7 +1315,18 @@
       <div id="viewModePanel" aria-hidden="true">
         <div id="viewModeList" role="radiogroup" aria-label="3D item view mode">
           <label><input type="radio" name="glbViewMode" value="default" checked> Default</label>
+          <label><input type="radio" name="glbViewMode" value="unlit"> Unlit</label>
+          <label><input type="radio" name="glbViewMode" value="solid"> Solid</label>
+          <label><input type="radio" name="glbViewMode" value="clay"> Clay</label>
+          <label><input type="radio" name="glbViewMode" value="white"> White</label>
+          <label><input type="radio" name="glbViewMode" value="black"> Black</label>
+          <label><input type="radio" name="glbViewMode" value="xray"> X-Ray</label>
+          <label><input type="radio" name="glbViewMode" value="ghosted"> Ghosted</label>
+          <label><input type="radio" name="glbViewMode" value="outline"> Outline</label>
+          <label><input type="radio" name="glbViewMode" value="solid_outline"> Solid + Outline</label>
           <label><input type="radio" name="glbViewMode" value="wireframe"> Wireframe (F)</label>
+          <label><input type="radio" name="glbViewMode" value="transparent_wireframe"> Transparent Wireframe</label>
+          <label><input type="radio" name="glbViewMode" value="category_colors"> Category Colors</label>
         </div>
       </div>
 
@@ -8286,10 +8299,10 @@
     const colorHex = getWaypointColorHexForItem(it);
     instance.traverse((obj) => {
       if (!obj.isMesh || !obj.material) return;
-      // While wireframe is active, update its preserved solid material; the
-      // temporary white/yellow wire material remains controlled by selection.
-      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")
-        ? obj.userData._wireframeOriginalMaterial
+      // While a View Mode is active, keep the preserved default material current;
+      // temporary display materials remain controlled by the selected mode.
+      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")
+        ? obj.userData._viewModeOriginalMaterial
         : obj.material;
       const materials = Array.isArray(material) ? material : [material];
       materials.forEach((mat) => applyWaypointColorToMaterial(mat, colorHex));
@@ -8301,8 +8314,8 @@
     const colorHex = getAreaTriggerColorHexForItem(it);
     instance.traverse((obj) => {
       if (!obj.isMesh || !obj.material) return;
-      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")
-        ? obj.userData._wireframeOriginalMaterial
+      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")
+        ? obj.userData._viewModeOriginalMaterial
         : obj.material;
       const materials = Array.isArray(material) ? material : [material];
       materials.forEach((mat) => {
@@ -8401,45 +8414,122 @@
     }
   }
 
-  function applyWireframeToGlbObject(root, item = null){
-    if (!root) return;
-    const sourceItem = item || getItemByIdFast(root.userData?.itemId);
-    const useWireframe = state.glb.viewMode === "wireframe" && isItemEligibleForGlbViewMode(sourceItem);
-    const selectedColor = 0xffff00;
-    const defaultColor = 0xffffff;
-    root.traverse((obj) => {
-      if (!obj.isMesh || !obj.material) return;
-      if (useWireframe){
-        if (!Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")){
-          obj.userData._wireframeOriginalMaterial = obj.material;
-        }
-        const base = obj.userData._wireframeOriginalMaterial;
-        const wireColor = root.userData._selectedGlbVisual ? selectedColor : defaultColor;
-        const current = obj.material;
-        if (Array.isArray(base)) obj.material = base.map((m) => createWhiteWireframeMaterialFrom(m, wireColor));
-        else obj.material = createWhiteWireframeMaterialFrom(base, wireColor);
-        if (Array.isArray(current)) current.forEach((m) => m?.dispose?.());
-        else if (current && current !== base) current.dispose?.();
-        return;
-      }
-      if (Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")){
-        const current = obj.material;
-        obj.material = obj.userData._wireframeOriginalMaterial;
-        delete obj.userData._wireframeOriginalMaterial;
-        if (Array.isArray(current)) current.forEach((m) => m?.dispose?.());
-        else current?.dispose?.();
-      }
+  const GLB_VIEW_MODES = new Set([
+    "default", "unlit", "solid", "clay", "white", "black", "xray", "ghosted",
+    "outline", "solid_outline", "wireframe", "transparent_wireframe", "category_colors",
+  ]);
+  const GLB_CATEGORY_COLORS = {
+    building: 0x5b8ff9,
+    foliage: 0x61dDAa,
+    decoration: 0xf6bd16,
+    object: 0x9270ca,
+    vehicle: 0xe8684a,
+  };
+
+  function disposeViewModeMaterial(material, original){
+    const materials = Array.isArray(material) ? material : [material];
+    const originals = new Set(Array.isArray(original) ? original : [original]);
+    materials.forEach((mat) => { if (mat && !originals.has(mat)) mat.dispose?.(); });
+  }
+
+  function clearViewModeOutline(root){
+    root?.traverse((obj) => {
+      const outline = obj.userData?._viewModeOutline;
+      if (!outline) return;
+      obj.remove(outline);
+      outline.geometry?.dispose?.();
+      outline.material?.dispose?.();
+      delete obj.userData._viewModeOutline;
     });
   }
 
-  const GLB_VIEW_MODES = new Set(["default", "wireframe"]);
+  function addViewModeOutline(root, colorHex = 0x111111){
+    const { THREE } = state.glb;
+    root?.traverse((obj) => {
+      if (!obj.isMesh || !obj.geometry || obj.userData._viewModeOutline) return;
+      const outline = new THREE.LineSegments(
+        new THREE.EdgesGeometry(obj.geometry, 35),
+        new THREE.LineBasicMaterial({ color: colorHex, depthTest: true, depthWrite: false, toneMapped: false })
+      );
+      outline.renderOrder = 18;
+      outline.raycast = () => null;
+      obj.add(outline);
+      obj.userData._viewModeOutline = outline;
+    });
+  }
+
+  function createViewModeMaterial(baseMat, mode, colorHex){
+    const { THREE } = state.glb;
+    const baseColor = baseMat?.color?.clone?.() || new THREE.Color(0xffffff);
+    if (mode === "unlit") return new THREE.MeshBasicMaterial({
+      map: baseMat?.map || null, color: baseColor, transparent: !!baseMat?.transparent,
+      opacity: Number.isFinite(baseMat?.opacity) ? baseMat.opacity : 1, side: baseMat?.side,
+      alphaTest: baseMat?.alphaTest || 0, vertexColors: !!baseMat?.vertexColors, fog: false, toneMapped: false,
+    });
+    if (mode === "ghosted" || mode === "xray") return new THREE.MeshBasicMaterial({
+      map: mode === "ghosted" ? (baseMat?.map || null) : null,
+      color: mode === "ghosted" ? baseColor : new THREE.Color(0x8fd3ff),
+      transparent: true, opacity: mode === "ghosted" ? 0.38 : 0.22,
+      side: THREE.DoubleSide, alphaTest: baseMat?.alphaTest || 0, depthTest: mode === "ghosted",
+      depthWrite: false, fog: false, toneMapped: false,
+    });
+    if (mode === "wireframe" || mode === "transparent_wireframe"){
+      const mat = createWhiteWireframeMaterialFrom(baseMat, colorHex);
+      if (mode === "transparent_wireframe"){
+        mat.transparent = true;
+        mat.opacity = 0.32;
+        mat.depthWrite = false;
+      }
+      return mat;
+    }
+    const colors = { solid: 0x7f8792, solid_outline: 0x7f8792, clay: 0xb98b68, white: 0xffffff, black: 0x050505 };
+    const color = colorHex ?? colors[mode] ?? 0x7f8792;
+    return new THREE.MeshPhongMaterial({
+      color, emissive: mode === "black" ? 0x010101 : 0x000000,
+      shininess: mode === "clay" ? 4 : 18, flatShading: false,
+      side: baseMat?.side, transparent: false, opacity: 1,
+    });
+  }
+
+  function applyViewModeToGlbObject(root, item = null, force = false){
+    if (!root) return;
+    const sourceItem = item || getItemByIdFast(root.userData?.itemId);
+    const category = getItemShowCategory(sourceItem);
+    const eligible = GLB_VIEW_MODE_ELIGIBLE_CATEGORIES.has(category);
+    const mode = eligible ? state.glb.viewMode : "default";
+    const signature = `${mode}:${category}:${root.userData._selectedGlbVisual ? 1 : 0}`;
+    if (!force && root.userData._appliedViewMode === signature) return;
+
+    clearViewModeOutline(root);
+    root.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return;
+      if (Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")){
+        const current = obj.material;
+        obj.material = obj.userData._viewModeOriginalMaterial;
+        delete obj.userData._viewModeOriginalMaterial;
+        disposeViewModeMaterial(current, obj.material);
+      }
+      if (mode === "default" || mode === "outline") return;
+      obj.userData._viewModeOriginalMaterial = obj.material;
+      const originals = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const colorOverride = mode === "category_colors"
+        ? GLB_CATEGORY_COLORS[category]
+        : ((mode === "wireframe" || mode === "transparent_wireframe")
+          ? (root.userData._selectedGlbVisual ? 0xffff00 : 0xffffff)
+          : undefined);
+      const converted = originals.map((mat) => createViewModeMaterial(mat, mode, colorOverride));
+      obj.material = Array.isArray(obj.userData._viewModeOriginalMaterial) ? converted : converted[0];
+    });
+    if (mode === "outline" || mode === "solid_outline") addViewModeOutline(root);
+    root.userData._appliedViewMode = signature;
+  }
 
   function setGlbViewMode(mode){
     const next = GLB_VIEW_MODES.has(mode) ? mode : "default";
     if (state.glb.viewMode === next) return;
     state.glb.viewMode = next;
     for (const [itemId, instance] of state.glb.itemInstances){
-      applyWireframeToGlbObject(instance, getItemByIdFast(itemId));
+      applyViewModeToGlbObject(instance, getItemByIdFast(itemId), true);
     }
     if (state.glb.ready){
       state.glb.lastSelectedVisualIds.clear();
@@ -8460,15 +8550,16 @@
   function cleanupGlbInstanceVisualState(instance){
     if (!instance) return;
     clearGlbSelectionOutline(instance);
+    clearViewModeOutline(instance);
     instance.traverse((obj) => {
       if (!obj.isMesh) return;
-      if (!Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")) return;
+      if (!Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")) return;
       const current = obj.material;
-      obj.material = obj.userData._wireframeOriginalMaterial;
-      delete obj.userData._wireframeOriginalMaterial;
-      if (Array.isArray(current)) current.forEach((m) => m?.dispose?.());
-      else current?.dispose?.();
+      obj.material = obj.userData._viewModeOriginalMaterial;
+      delete obj.userData._viewModeOriginalMaterial;
+      disposeViewModeMaterial(current, obj.material);
     });
+    delete instance.userData._appliedViewMode;
   }
 
   async function syncGlbItems(){
@@ -8509,14 +8600,14 @@
           applyAreaTriggerColorToGlbObject(instance, it);
           instance.userData.itemId = it.id;
           instance.userData.graphic = graphic;
-          applyWireframeToGlbObject(instance, it);
+          applyViewModeToGlbObject(instance, it);
           state.glb.scene.add(instance);
           state.glb.itemInstances.set(it.id, instance);
         }
 
         applyWaypointColorToGlbObject(instance, it);
         applyAreaTriggerColorToGlbObject(instance, it);
-        applyWireframeToGlbObject(instance, it);
+        applyViewModeToGlbObject(instance, it);
         applyItemTransformToObject(instance, it);
       }
 
@@ -8661,9 +8752,10 @@
   function setGlbInstanceSelected(instance, selected){
     if (!instance) return;
     instance.userData._selectedGlbVisual = !!selected;
-    if (state.glb.viewMode === "wireframe" && isItemEligibleForGlbViewMode(getItemByIdFast(instance.userData?.itemId))){
+    if ((state.glb.viewMode === "wireframe" || state.glb.viewMode === "transparent_wireframe")
+        && isItemEligibleForGlbViewMode(getItemByIdFast(instance.userData?.itemId))){
       clearGlbSelectionOutline(instance);
-      applyWireframeToGlbObject(instance);
+      applyViewModeToGlbObject(instance, null, true);
       return;
     }
     if (selected) ensureGlbSelectionOutline(instance);
