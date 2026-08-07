@@ -1920,6 +1920,7 @@
       materials: null,
       pointsByGroup: new Map(),
       drawCountByGroup: new Map(),
+      waypointLines: null,
       ready: false,
     },
     threeOverlays: {
@@ -7442,6 +7443,43 @@
     return { enabled: true, normalBuf, normalLen, waypointBuf, waypointLen, selectedBuf, selectedLen, pasteBuf, pasteLen };
   }
 
+  function getItemWaypointNumber(it){
+    if (!kvHas(it, "wpnumber")) return 0;
+    const number = Math.trunc(Number(it.kv.wpnumber));
+    return Number.isFinite(number) && number >= 0 ? number : 0;
+  }
+
+  function collectWaypointLineData(){
+    const groups = new Map();
+    for (const [sourceIndex, it] of (state.items || []).entries()){
+      if (!isItemLayerVisible(it)) continue;
+      const waypointId = getItemWaypointId(it);
+      if (waypointId == null || getWaypointColorHexForItem(it) == null) continue;
+      if (!groups.has(waypointId)) groups.set(waypointId, []);
+      groups.get(waypointId).push({ it, sourceIndex, number: getItemWaypointNumber(it) });
+    }
+
+    const positions = [];
+    const colors = [];
+    const color = new state.glb.THREE.Color();
+    for (const entries of groups.values()){
+      if (entries.length < 2) continue;
+      entries.sort((a, b) => (a.number - b.number) || (a.sourceIndex - b.sourceIndex));
+      const colorHex = getWaypointColorHexForItem(entries[0].it);
+      color.setHex(colorHex);
+      for (let i = 1; i < entries.length; i++){
+        const previous = entries[i - 1].it;
+        const current = entries[i].it;
+        positions.push(
+          rawToWorld(previous.x, 'x'), rawToWorld(previous.y, 'y'), getItemWorldZ(previous),
+          rawToWorld(current.x, 'x'), rawToWorld(current.y, 'y'), getItemWorldZ(current),
+        );
+        colors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+      }
+    }
+    return { positions: new Float32Array(positions), colors: new Float32Array(colors) };
+  }
+
   function ensureThreeItemsReady(){
     if (!state.glb.ready || !state.glb.THREE || !state.glb.renderer || !state.glb.camera) return false;
     if (state.threeItems.ready) return true;
@@ -7480,6 +7518,20 @@
       items.drawCountByGroup.set(group, 0);
       items.scene.add(points);
     }
+    const waypointLineGeometry = new THREE.BufferGeometry();
+    waypointLineGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
+    waypointLineGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0), 3));
+    const waypointLineMaterial = new THREE.LineBasicMaterial({
+      vertexColors: true,
+      depthTest: false,
+      depthWrite: false,
+      transparent: false,
+      fog: false,
+      toneMapped: false,
+    });
+    items.waypointLines = new THREE.LineSegments(waypointLineGeometry, waypointLineMaterial);
+    items.waypointLines.frustumCulled = false;
+    items.scene.add(items.waypointLines);
     items.ready = true;
     addLog('[items_three] item points layer initialized.');
     return true;
@@ -7514,12 +7566,15 @@
       updateThreeItemGroup('waypoint', null, 0);
       updateThreeItemGroup('selected', null, 0);
       updateThreeItemGroup('paste', null, 0);
-      return;
+    } else {
+      updateThreeItemGroup('normal', groups.normalBuf, groups.normalLen);
+      updateThreeItemGroup('waypoint', groups.waypointBuf, groups.waypointLen);
+      updateThreeItemGroup('selected', groups.selectedBuf, groups.selectedLen);
+      updateThreeItemGroup('paste', groups.pasteBuf, groups.pasteLen);
     }
-    updateThreeItemGroup('normal', groups.normalBuf, groups.normalLen);
-    updateThreeItemGroup('waypoint', groups.waypointBuf, groups.waypointLen);
-    updateThreeItemGroup('selected', groups.selectedBuf, groups.selectedLen);
-    updateThreeItemGroup('paste', groups.pasteBuf, groups.pasteLen);
+
+    const waypointLines = collectWaypointLineData();
+    updateThreeLineGeometry(state.threeItems.waypointLines, waypointLines.positions, waypointLines.colors);
 
     applyThreeCameraFromPV(P, V);
     state.glb.renderer.resetState();
