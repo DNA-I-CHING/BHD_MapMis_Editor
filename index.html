@@ -1429,7 +1429,7 @@
                   <div class="inlineLabel">Color</div>
                   <select id="areaTrigColor"></select>
                 </div>
-                <label class="checkRow"><input type="checkbox" id="areaTrigDesignated" /><span>Designated Mission Areia</span></label>
+                <label class="checkRow"><input type="checkbox" id="areaTrigDesignated" /><span>Designated Mission Area</span></label>
                 <label class="checkRow"><input type="checkbox" id="areaTrigVol3d" /><span>!3D Volume trigger</span></label>
                 <div id="areaTrigBottomActions"><button id="areaTrigSelectMarkersBtn" type="button">Select Markers</button><button type="button">Save As</button><button id="areaTrigOkBtn" type="button">Ok</button></div>
               </div>
@@ -2130,6 +2130,8 @@
   const wpMarkerCount = document.getElementById("wpMarkerCount");
   const areaTrigDesc = document.getElementById("areaTrigDesc");
   const areaTrigColor = document.getElementById("areaTrigColor");
+  const areaTrigDesignated = document.getElementById("areaTrigDesignated");
+  const areaTrigVol3d = document.getElementById("areaTrigVol3d");
   const areaTrigSelectMarkersBtn = document.getElementById("areaTrigSelectMarkersBtn");
   const areaTrigOkBtn = document.getElementById("areaTrigOkBtn");
   const briefingCancelBtn = document.getElementById("briefingCancelBtn");
@@ -4126,8 +4128,18 @@
   }
 
   function fillAreaTrigEditor(sec){
+    const attrib = Math.max(0, Math.trunc(Number(sec?.kv?.attrib) || 0));
     areaTrigDesc.value = getAreaTrigDescription(sec);
     areaTrigColor.value = String(getAreaTrigColorIndex(sec));
+    areaTrigDesignated.checked = (attrib & 1) !== 0;
+    areaTrigVol3d.checked = (attrib & 2) !== 0;
+  }
+
+  function buildAreaTrigAttrib(){
+    let attrib = 0;
+    if (areaTrigDesignated.checked) attrib |= 1;
+    if (areaTrigVol3d.checked) attrib |= 2;
+    return attrib;
   }
 
   function saveCurrentAreaTrig(){
@@ -4135,7 +4147,8 @@
     let sec = getAreaTrigSectionByNumber(number);
     const description = String(areaTrigDesc.value || "").trim();
     const color = Math.max(0, Math.min(16, Math.trunc(Number(areaTrigColor.value) || 0)));
-    if (!sec && !description && color === 0) return;
+    const attrib = buildAreaTrigAttrib();
+    if (!sec && !description && color === 0 && attrib === 0) return;
 
     if (!sec){
       const nextId = state.sectionBlocks.reduce((max, entry) => Math.max(max, entry.id), 0) + 1;
@@ -4152,7 +4165,6 @@
       state.sectionBlocks.push(sec);
     }
 
-    const preservedAttrib = sec.kv?.attrib;
     sec.beginLine = `begin areatrig ${number}`;
     sec.label = String(number);
     sec.kv = {};
@@ -4165,9 +4177,9 @@
       sec.kv.color = String(color);
       sec.lines.push(`  color ${color}`);
     }
-    if (preservedAttrib !== undefined){
-      sec.kv.attrib = String(preservedAttrib);
-      sec.lines.push(`  attrib ${preservedAttrib}`);
+    if (attrib > 0){
+      sec.kv.attrib = String(attrib);
+      sec.lines.push(`  attrib ${attrib}`);
     }
     state.areaTriggerVolumes.signature = "";
     for (const it of state.items.filter(isAreaTriggerItem)){
