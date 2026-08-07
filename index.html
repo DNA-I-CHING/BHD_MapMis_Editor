@@ -1322,7 +1322,6 @@
           <label><input type="radio" name="glbViewMode" value="black"> Black</label>
           <label><input type="radio" name="glbViewMode" value="xray"> X-Ray</label>
           <label><input type="radio" name="glbViewMode" value="ghosted"> Ghosted</label>
-          <label><input type="radio" name="glbViewMode" value="outline"> Outline</label>
           <label><input type="radio" name="glbViewMode" value="solid_outline"> Solid + Outline</label>
           <label><input type="radio" name="glbViewMode" value="wireframe"> Wireframe</label>
           <label><input type="radio" name="glbViewMode" value="transparent_wireframe"> Transparent Wireframe</label>
@@ -8416,7 +8415,7 @@
 
   const GLB_VIEW_MODE_ORDER = [
     "default", "unlit", "solid", "clay", "white", "black", "xray", "ghosted",
-    "outline", "solid_outline", "wireframe", "transparent_wireframe", "category_colors",
+    "solid_outline", "wireframe", "transparent_wireframe", "category_colors",
   ];
   const GLB_VIEW_MODES = new Set(GLB_VIEW_MODE_ORDER);
   const GLB_CATEGORY_COLORS = {
@@ -8510,7 +8509,7 @@
         delete obj.userData._viewModeOriginalMaterial;
         disposeViewModeMaterial(current, obj.material);
       }
-      if (mode === "default" || mode === "outline") return;
+      if (mode === "default") return;
       obj.userData._viewModeOriginalMaterial = obj.material;
       const originals = Array.isArray(obj.material) ? obj.material : [obj.material];
       const colorOverride = mode === "category_colors"
@@ -8521,7 +8520,7 @@
       const converted = originals.map((mat) => createViewModeMaterial(mat, mode, colorOverride));
       obj.material = Array.isArray(obj.userData._viewModeOriginalMaterial) ? converted : converted[0];
     });
-    if (mode === "outline" || mode === "solid_outline") addViewModeOutline(root);
+    if (mode === "solid_outline") addViewModeOutline(root);
     root.userData._appliedViewMode = signature;
   }
 
