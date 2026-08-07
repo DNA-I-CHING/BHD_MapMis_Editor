@@ -6029,11 +6029,16 @@
   cancelBtn.addEventListener("click", closeModalCancel);
   okBtn.addEventListener("click", closeModalOk);
 
+  function hasSelectedDocumentText(){
+    const selection = window.getSelection?.();
+    return !!selection && selection.rangeCount > 0 && !selection.isCollapsed;
+  }
+
   document.addEventListener("keydown", (e) => {
     // Open windows own their clipboard and editing shortcuts. Let the browser
     // handle them instead of applying the command to the editor behind them.
     const hasOpenWindow = !!document.querySelector('[id$="Overlay"].open');
-    if (!hasOpenWindow && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "c"){
+    if (!hasOpenWindow && !hasSelectedDocumentText() && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "c"){
       e.preventDefault();
       copySelectedItem();
       return;
