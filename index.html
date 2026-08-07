@@ -249,41 +249,23 @@
       white-space:pre;
       pointer-events:none;
     }
-    #showPanelBtn{
+    #canvasModeToolbar{
       position:absolute;
       top:10px;
       left:10px;
       z-index:10;
-      width:52px;
-      height:24px;
-      padding:0 10px;
+      display:flex;
+      align-items:center;
+      gap:10px;
     }
-    #showLayersBtn{
-      position:absolute;
-      top:10px;
-      left:72px;
-      z-index:10;
-      width:66px;
+    #canvasModeToolbar .modeBtn{
+      position:static;
+      width:auto;
+      min-width:0;
       height:24px;
-      padding:0 10px;
-    }
-    #viewModeBtn{
-      position:absolute;
-      top:10px;
-      left:148px;
-      z-index:10;
-      width:88px;
-      height:24px;
-      padding:0 10px;
-    }
-    #debugFogBtn{
-      position:absolute;
-      top:10px;
-      left:246px;
-      z-index:10;
-      width:82px;
-      height:24px;
-      padding:0 10px;
+      padding:0 8px;
+      font-size:12px;
+      white-space:nowrap;
     }
     #fpsCounter{
       position:absolute;
@@ -1266,10 +1248,12 @@
     </div>
 
     <div id="canvasWrap">
-      <button id="showPanelBtn" type="button" class="modeBtn">Show</button>
-      <button id="showLayersBtn" type="button" class="modeBtn">Layers</button>
-      <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">View Mode</button>
-      <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
+      <div id="canvasModeToolbar">
+        <button id="showPanelBtn" type="button" class="modeBtn">Show</button>
+        <button id="showLayersBtn" type="button" class="modeBtn">Layers</button>
+        <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">View Mode</button>
+        <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
+      </div>
       <canvas id="cv"></canvas>
       <div id="camDebug"></div>
       <div id="fpsCounter">0 FPS</div>
@@ -4321,10 +4305,21 @@
 
   function setLayerVisibilityPanelOpen(open){
     const visible = !!open;
-    if (visible) renderLayerVisibilityPanel();
+    if (visible){
+      renderLayerVisibilityPanel();
+      positionLayerVisibilityPanel();
+    }
     layerVisibilityPanelEl?.classList.toggle('open', visible);
     layerVisibilityPanelEl?.setAttribute('aria-hidden', visible ? 'false' : 'true');
     showLayersBtn?.classList.toggle('active', visible);
+  }
+
+  function positionLayerVisibilityPanel(){
+    if (!layerVisibilityPanelEl || !showLayersBtn || !canvasWrapEl) return;
+    const wrapRect = canvasWrapEl.getBoundingClientRect();
+    const btnRect = showLayersBtn.getBoundingClientRect();
+    layerVisibilityPanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
+    layerVisibilityPanelEl.style.left = `${Math.round(Math.max(8, btnRect.left - wrapRect.left))}px`;
   }
 
   function positionViewModePanel(){
@@ -6538,6 +6533,7 @@
 
   addEventListener("resize", () => {
     if (canvasShowPanelEl?.classList.contains("open")) positionCanvasShowPanel();
+    if (layerVisibilityPanelEl?.classList.contains("open")) positionLayerVisibilityPanel();
     if (debugFogPanelEl?.classList.contains("open")) positionDebugFogPanel();
     if (viewModePanelEl?.classList.contains("open")) positionViewModePanel();
   });
