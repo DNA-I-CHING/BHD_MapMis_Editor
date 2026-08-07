@@ -5564,7 +5564,7 @@
     setEnabled(ui.navWp, true);
 
     setValueIf(ui.wpList, kvHas(it, "waypoint_id") ? it.kv.waypoint_id : "");
-    setValueIf(ui.wpNumber, kvHas(it, "wpnumber") ? it.kv.wpnumber : "");
+    setValueIf(ui.wpNumber, kvHas(it, "wpnumber") ? it.kv.wpnumber : "0");
     setValueIf(ui.wpDistance, wpDistanceKey ? it.kv[wpDistanceKey] : "");
     const tt = Number(it?.kv?.ttoolindex ?? "");
     const ttIdx = Number.isFinite(tt) && tt > 0 ? Math.trunc(tt) : 0;
