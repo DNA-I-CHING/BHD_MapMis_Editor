@@ -1322,7 +1322,6 @@
           <label><input type="radio" name="glbViewMode" value="black"> Black</label>
           <label><input type="radio" name="glbViewMode" value="xray"> X-Ray</label>
           <label><input type="radio" name="glbViewMode" value="ghosted"> Ghosted</label>
-          <label><input type="radio" name="glbViewMode" value="solid_outline"> Solid + Outline</label>
           <label><input type="radio" name="glbViewMode" value="wireframe"> Wireframe</label>
           <label><input type="radio" name="glbViewMode" value="transparent_wireframe"> Transparent Wireframe</label>
           <label><input type="radio" name="glbViewMode" value="category_colors"> Category Colors</label>
@@ -8415,7 +8414,7 @@
 
   const GLB_VIEW_MODE_ORDER = [
     "default", "unlit", "solid", "clay", "white", "black", "xray", "ghosted",
-    "solid_outline", "wireframe", "transparent_wireframe", "category_colors",
+    "wireframe", "transparent_wireframe", "category_colors",
   ];
   const GLB_VIEW_MODES = new Set(GLB_VIEW_MODE_ORDER);
   const GLB_CATEGORY_COLORS = {
@@ -8430,32 +8429,6 @@
     const materials = Array.isArray(material) ? material : [material];
     const originals = new Set(Array.isArray(original) ? original : [original]);
     materials.forEach((mat) => { if (mat && !originals.has(mat)) mat.dispose?.(); });
-  }
-
-  function clearViewModeOutline(root){
-    root?.traverse((obj) => {
-      const outline = obj.userData?._viewModeOutline;
-      if (!outline) return;
-      obj.remove(outline);
-      outline.geometry?.dispose?.();
-      outline.material?.dispose?.();
-      delete obj.userData._viewModeOutline;
-    });
-  }
-
-  function addViewModeOutline(root, colorHex = 0x111111){
-    const { THREE } = state.glb;
-    root?.traverse((obj) => {
-      if (!obj.isMesh || !obj.geometry || obj.userData._viewModeOutline) return;
-      const outline = new THREE.LineSegments(
-        new THREE.EdgesGeometry(obj.geometry, 35),
-        new THREE.LineBasicMaterial({ color: colorHex, depthTest: true, depthWrite: false, toneMapped: false })
-      );
-      outline.renderOrder = 18;
-      outline.raycast = () => null;
-      obj.add(outline);
-      obj.userData._viewModeOutline = outline;
-    });
   }
 
   function createViewModeMaterial(baseMat, mode, colorHex){
@@ -8482,7 +8455,7 @@
       }
       return mat;
     }
-    const colors = { solid: 0x7f8792, solid_outline: 0x7f8792, clay: 0xb98b68, white: 0xffffff, black: 0x050505 };
+    const colors = { solid: 0x7f8792, clay: 0xb98b68, white: 0xffffff, black: 0x050505 };
     const color = colorHex ?? colors[mode] ?? 0x7f8792;
     return new THREE.MeshPhongMaterial({
       color, emissive: mode === "black" ? 0x010101 : 0x000000,
@@ -8500,7 +8473,6 @@
     const signature = `${mode}:${category}:${root.userData._selectedGlbVisual ? 1 : 0}`;
     if (!force && root.userData._appliedViewMode === signature) return;
 
-    clearViewModeOutline(root);
     root.traverse((obj) => {
       if (!obj.isMesh || !obj.material) return;
       if (Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")){
@@ -8520,7 +8492,6 @@
       const converted = originals.map((mat) => createViewModeMaterial(mat, mode, colorOverride));
       obj.material = Array.isArray(obj.userData._viewModeOriginalMaterial) ? converted : converted[0];
     });
-    if (mode === "solid_outline") addViewModeOutline(root);
     root.userData._appliedViewMode = signature;
   }
 
@@ -8552,7 +8523,6 @@
   function cleanupGlbInstanceVisualState(instance){
     if (!instance) return;
     clearGlbSelectionOutline(instance);
-    clearViewModeOutline(instance);
     instance.traverse((obj) => {
       if (!obj.isMesh) return;
       if (!Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")) return;
