@@ -383,6 +383,7 @@
     #canvasShowPanel.open{ display:block; }
     #canvasShowPanelList{ display:grid; grid-template-columns:1fr; gap:4px; font-size:12px; }
     #canvasShowPanelList label{ display:flex; align-items:center; gap:6px; }
+    #canvasShowPanelList label.showCategoryEmpty{ opacity:.42; }
     #layerVisibilityPanel{
       position:absolute;
       top:42px;
@@ -1247,13 +1248,15 @@
       <div id="canvasShowPanel" aria-hidden="true">
         <div id="canvasShowPanelList">
           <label><input type="checkbox" id="showCharTiles"> Char Tiles</label>
-          <label><input type="checkbox" id="showFoliage"> Foliage</label>
-          <label><input type="checkbox" id="showVehicles"> Vehicles</label>
-          <label><input type="checkbox" id="showPeople"> People</label>
-          <label><input type="checkbox" id="showBuildings"> Buildings</label>
-          <label><input type="checkbox" id="showObjects"> Objects</label>
-          <label><input type="checkbox" id="showDecorations"> Decorations</label>
-          <label><input type="checkbox" id="showMarkers"> Markers</label>
+          <label data-show-category="foliage"><input type="checkbox" id="showFoliage" checked> <span>Foliage (0)</span></label>
+          <label data-show-category="vehicle"><input type="checkbox" id="showVehicles" checked> <span>Vehicles (0)</span></label>
+          <label data-show-category="people"><input type="checkbox" id="showPeople" checked> <span>People &amp; Person (0)</span></label>
+          <label data-show-category="building"><input type="checkbox" id="showBuildings" checked> <span>Buildings (0)</span></label>
+          <label data-show-category="object"><input type="checkbox" id="showObjects" checked> <span>Objects (0)</span></label>
+          <label data-show-category="decoration"><input type="checkbox" id="showDecorations" checked> <span>Decorations (0)</span></label>
+          <label data-show-category="markerGameplay"><input type="checkbox" id="showMarkers" checked> <span>Markers - Gameplay (0)</span></label>
+          <label data-show-category="markerSound"><input type="checkbox" id="showSoundMarkers" checked> <span>Markers - Sound (0)</span></label>
+          <label data-show-category="powerup"><input type="checkbox" id="showPowerups" checked> <span>Powerups (0)</span></label>
           <label><input type="checkbox" id="showWpDistance"> WP Distance</label>
           <label><input type="checkbox" id="showFovCones"> FOV Cones</label>
           <label><input type="checkbox" id="showAreaTriggers"> Area Triggers</label>
@@ -2407,6 +2410,7 @@
       rebuildLookupIndexes();
       rebuildSpatialIndex();
     }
+    updateShowCategoryCounts();
   }
 
   function markItemTransformDirty(itemId){
@@ -3137,6 +3141,56 @@
     return otherItemsDef;
   }
 
+  const SHOW_ITEM_CATEGORIES = {
+    building: { inputId: "showBuildings", label: "Buildings" },
+    decoration: { inputId: "showDecorations", label: "Decorations" },
+    foliage: { inputId: "showFoliage", label: "Foliage" },
+    people: { inputId: "showPeople", label: "People & Person" },
+    markerGameplay: { inputId: "showMarkers", label: "Markers - Gameplay" },
+    markerSound: { inputId: "showSoundMarkers", label: "Markers - Sound" },
+    object: { inputId: "showObjects", label: "Objects" },
+    powerup: { inputId: "showPowerups", label: "Powerups" },
+    vehicle: { inputId: "showVehicles", label: "Vehicles" },
+  };
+
+  function getCatalogDefForItem(it){
+    const tid = kvHas(it, "type_id") ? String(it.kv.type_id) : "";
+    if (!tid) return null;
+    return state.defsById.get(toDefIdFromMisTypeId(tid)) || state.defsById.get(tid) || null;
+  }
+
+  function getItemShowCategory(it){
+    const def = getCatalogDefForItem(it);
+    const type = String(def?.type || "").trim().toLowerCase();
+    if (type === "person" || type === "people") return "people";
+    if (type === "marker"){
+      const catalogName = String(def?.name || "").trim().toLowerCase();
+      return catalogName.startsWith("snd:") ? "markerSound" : "markerGameplay";
+    }
+    return Object.prototype.hasOwnProperty.call(SHOW_ITEM_CATEGORIES, type) ? type : "";
+  }
+
+  function isItemShowCategoryVisible(it){
+    const category = getItemShowCategory(it);
+    if (!category) return true;
+    const input = document.getElementById(SHOW_ITEM_CATEGORIES[category].inputId);
+    return !input || input.checked;
+  }
+
+  function updateShowCategoryCounts(){
+    const counts = Object.fromEntries(Object.keys(SHOW_ITEM_CATEGORIES).map((key) => [key, 0]));
+    for (const it of state.items || []){
+      const category = getItemShowCategory(it);
+      if (category) counts[category] += 1;
+    }
+    for (const [category, config] of Object.entries(SHOW_ITEM_CATEGORIES)){
+      const label = canvasShowPanelEl?.querySelector(`[data-show-category="${category}"]`);
+      const text = label?.querySelector("span");
+      if (text) text.textContent = `${config.label} (${counts[category]})`;
+      label?.classList.toggle("showCategoryEmpty", counts[category] === 0);
+    }
+  }
+
   function getItemGraphicScale(it){
     const def = getDefForItem(it);
     const rawGraphicScale = Number(def?.graphicScale);
@@ -3229,6 +3283,50 @@
     return defs;
   }
 
+  function mergeItemCatalogDefs(primaryDefs, supplementalDefs){
+    const mergedById = new Map();
+    const orderedIds = [];
+
+    const remember = (def) => {
+      const id = String(def?.id || def?.typeId || "").trim();
+      if (!id) return;
+      if (!mergedById.has(id)) orderedIds.push(id);
+      mergedById.set(id, {
+        ...def,
+        id,
+        attrib: Array.isArray(def.attrib) ? def.attrib.slice() : [],
+        kv: { ...(def.kv || {}) },
+      });
+    };
+
+    for (const def of primaryDefs || []) remember(def);
+
+    for (const supplement of supplementalDefs || []){
+      const id = String(supplement?.id || supplement?.typeId || "").trim();
+      if (!id) continue;
+      const base = mergedById.get(id);
+      if (!base){
+        remember(supplement);
+        continue;
+      }
+
+      const supplementKv = supplement.kv || {};
+      const attrib = Array.from(new Set([...(base.attrib || []), ...(supplement.attrib || [])]));
+      mergedById.set(id, {
+        ...base,
+        id,
+        typeId: supplement.typeId || base.typeId,
+        type: Object.prototype.hasOwnProperty.call(supplementKv, "type") ? supplement.type : base.type,
+        graphic: Object.prototype.hasOwnProperty.call(supplementKv, "graphic") ? supplement.graphic : base.graphic,
+        graphicScale: Object.prototype.hasOwnProperty.call(supplementKv, "graphic_scale") ? supplement.graphicScale : base.graphicScale,
+        attrib,
+        kv: { ...(base.kv || {}), ...supplementKv },
+      });
+    }
+
+    return orderedIds.map((id) => mergedById.get(id));
+  }
+
   function applyDefs(defs){
     state.defLoaded = true;
     state.defsById = new Map();
@@ -3238,6 +3336,7 @@
       if (d.type) state.defTypes.add(String(d.type).toLowerCase());
     }
     state.defsSorted = defs.slice().sort((a,b) => a.name.localeCompare(b.name));
+    updateShowCategoryCounts();
 
     defStatusEl.textContent = `ITEMS.DEF loaded. defs: ${state.defsSorted.length}`;
     addLog(`Loaded embedded ITEMS.DEF (${state.defsSorted.length} defs)`);
@@ -3255,7 +3354,7 @@
     state.soundGraphicFromOtherItems = soundDef.graphic;
     state.soundGraphicScaleFromOtherItems = soundDef.graphicScale;
     const otherItemDefs = otherItemsText ? parseItemsDef(otherItemsText) : [];
-    const mergedDefs = defs.concat(otherItemDefs);
+    const mergedDefs = mergeItemCatalogDefs(defs, otherItemDefs);
     if (!mergedDefs.length){
       defStatusEl.textContent = "Warning: embedded catalog is empty (ITEMS.DEF).";
       addLog("WARNING: Embedded ITEMS.DEF parsed with 0 defs.");
@@ -6081,7 +6180,10 @@
 
   function setCanvasShowPanelOpen(open){
     const visible = !!open;
-    if (visible) positionCanvasShowPanel();
+    if (visible){
+      updateShowCategoryCounts();
+      positionCanvasShowPanel();
+    }
     canvasShowPanelEl?.classList.toggle("open", visible);
     canvasShowPanelEl?.setAttribute("aria-hidden", visible ? "false" : "true");
     showPanelBtn?.classList.toggle("active", visible);
@@ -6168,6 +6270,12 @@
 
   canvasShowPanelEl?.addEventListener("click", (event) => {
     event.stopPropagation();
+  });
+  canvasShowPanelEl?.addEventListener("change", (event) => {
+    if (!(event.target instanceof HTMLInputElement)) return;
+    if (!event.target.closest("[data-show-category]")) return;
+    state.glb.structureDirty = true;
+    requestRender();
   });
   debugFogPanelEl?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -7402,7 +7510,7 @@
     if (!renderUiState.showAnchorPoints){
       return { enabled: false, normalBuf: null, normalLen: 0, waypointBuf: null, waypointLen: 0, selectedBuf: null, selectedLen: 0, pasteBuf: null, pasteLen: 0 };
     }
-    const items = getFilteredItems().filter((it) => isItemLayerVisible(it));
+    const items = getFilteredItems().filter((it) => isItemLayerVisible(it) && isItemShowCategoryVisible(it));
     if (!items.length && !(state.pastePlacementActive && state.pastePreviewWorld && state.itemClipboardItems.length)){
       return { enabled: true, normalBuf: null, normalLen: 0, waypointBuf: null, waypointLen: 0, selectedBuf: null, selectedLen: 0, pasteBuf: null, pasteLen: 0 };
     }
@@ -7455,6 +7563,7 @@
     const groups = new Map();
     for (const [sourceIndex, it] of (state.items || []).entries()){
       if (!isItemLayerVisible(it)) continue;
+      if (!isItemShowCategoryVisible(it)) continue;
       const waypointId = getItemWaypointId(it);
       if (waypointId == null || getWaypointColorHexForItem(it) == null) continue;
       if (!groups.has(waypointId)) groups.set(waypointId, []);
@@ -7732,6 +7841,7 @@
 
     for (const it of state.items || []){
       if (!isItemLayerVisible(it)) continue;
+      if (!isItemShowCategoryVisible(it)) continue;
       const typeId = String(it?.kv?.type_id || "").trim();
       const def = getDefForItem(it);
       const defGraphic = String(def?.graphic || "").trim();
@@ -8408,7 +8518,7 @@
     scheduleRenderList();
   }
 
-  function pickItemAt(sx,sy){ const world=screenToWorld(sx,sy,0); const size=Math.max(64, Number(state.spatialIndex.cellSize)||2048); const candidates=getSpatialCandidatesByWorldRect(world.x-size,world.y-size,world.x+size,world.y+size); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); let best=null,bestD2=Infinity; for(const it of candidates){ if(!filteredSet.has(it.id)) continue; if(!isItemLayerVisible(it)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(!p.visible) continue; const dx=p.sx-sx,dy=p.sy-sy,d2=dx*dx+dy*dy; if(d2<bestD2){bestD2=d2;best=it;} } return (best&&bestD2<14*14)?best:null; }
+  function pickItemAt(sx,sy){ const world=screenToWorld(sx,sy,0); const size=Math.max(64, Number(state.spatialIndex.cellSize)||2048); const candidates=getSpatialCandidatesByWorldRect(world.x-size,world.y-size,world.x+size,world.y+size); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); let best=null,bestD2=Infinity; for(const it of candidates){ if(!filteredSet.has(it.id)) continue; if(!isItemLayerVisible(it)||!isItemShowCategoryVisible(it)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(!p.visible) continue; const dx=p.sx-sx,dy=p.sy-sy,d2=dx*dx+dy*dy; if(d2<bestD2){bestD2=d2;best=it;} } return (best&&bestD2<14*14)?best:null; }
 
   const FOG_PRESET_BASE_DISTANCE = 128;
   const FOG_PRESET_DEFAULTS = {
@@ -9060,7 +9170,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   cv.addEventListener("contextmenu", (e) => { e.preventDefault(); if(state.cameraLookActive || (state.cameraLookPending&&state.cameraLookButton===2)) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; const picked=pickItemAtCanvas(sx,sy); if (picked){ if (!(picked.id===state.selectedId||state.multiSelectedIds.has(picked.id))) selectById(picked.id); showItemContextMenu(e.clientX,e.clientY); return; } if (state.selectedId!==null||state.multiSelectedIds.size>0||state.itemClipboardItems.length) showItemContextMenu(e.clientX,e.clientY); });
   cv.addEventListener("dblclick", (e) => { const rect=cv.getBoundingClientRect(); const picked=pickItemAtCanvas(e.clientX-rect.left,e.clientY-rect.top); if(picked){ selectById(picked.id); openModal(); } });
   cv.addEventListener("mousemove", (e) => { if(state.modalOpen) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; if(state.cameraLookPending){ const mask=state.cameraLookButton===2?2:1; if(e.buttons & mask){ const start=state.cameraLookStart||{sx,sy}; const moved=Math.hypot(sx-start.sx, sy-start.sy); if(moved>3){ state.cameraLookPending=false; if(state.cameraLookButton===1) state.pendingLeftClick=null; state.cameraLookActive=true; requestCameraPointerLock(); } } else if(!state.cameraLookActive){ state.cameraLookPending=false; state.cameraLookButton=0; } } if(state.pastePlacementActive){ const z=state.selectedId?rawToWorld(getSelected()?.z||0,'z'):0; state.pastePreviewWorld=screenToWorld(sx,sy,z); } if(state.boxSelecting&&state.boxStart) state.boxCurrent={sx,sy}; else if(state.draggingItem&&state.selectedId){ const active=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id)); const zPlane=rawToWorld((active[0]?.z)||0,'z'); const nowW=screenToWorld(sx,sy,zPlane); const prevW=state.dragAnchor||nowW; const dx=nowW.x-prevW.x, dy=nowW.y-prevW.y; for(const it of active){ if(!kvHas(it,'position')) continue; it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x'); it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y'); it.kv.position=`${it.x} ${it.y} ${it.z}`; markItemTransformDirty(it.id);} markItemsChanged({ structure: false }); state.dragAnchor=nowW; scheduleRenderList(); scheduleLiveMisRefresh(); } state.lastMouse={sx,sy}; });
-  function stopDrag(){ const had=state.boxSelecting&&state.boxStart&&state.boxCurrent; const shouldFinalizeClick=!!state.pendingLeftClick && !state.cameraLookActive && !state.gizmoDrag && !state.draggingItem && !had; const x0=had?Math.min(state.boxStart.sx,state.boxCurrent.sx):0, x1=had?Math.max(state.boxStart.sx,state.boxCurrent.sx):0, y0=had?Math.min(state.boxStart.sy,state.boxCurrent.sy):0, y1=had?Math.max(state.boxStart.sy,state.boxCurrent.sy):0, add=state.boxSelectAdditive; state.draggingItem=false; state.boxSelecting=false; state.boxSelectAdditive=false; state.boxStart=null; state.boxCurrent=null; state.lastMouse=null; state.dragAnchor=null; state.cameraLookActive=false; state.cameraLookPending=false; state.cameraLookStart=null; state.cameraLookButton=0; if(document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock(); if(shouldFinalizeClick){ const pickedId=state.pendingLeftClick.pickedId; selectById(pickedId != null ? pickedId : null); } state.pendingLeftClick=null; if(had){ const worldA=screenToWorld(x0,y0,0); const worldB=screenToWorld(x1,y1,0); const minX=Math.min(worldA.x,worldB.x), maxX=Math.max(worldA.x,worldB.x), minY=Math.min(worldA.y,worldB.y), maxY=Math.max(worldA.y,worldB.y); const candidates=getSpatialCandidatesByWorldRect(minX,minY,maxX,maxY); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); const ids=[]; for(const it of candidates){ if(!filteredSet.has(it.id)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(p.visible&&p.sx>=x0&&p.sx<=x1&&p.sy>=y0&&p.sy<=y1) ids.push(it.id); } if(!add) state.multiSelectedIds.clear(); for(const id of ids) state.multiSelectedIds.add(id); state.selectedId=state.multiSelectedIds.size?Array.from(state.multiSelectedIds).at(-1):null; renderList(); refreshLiveMisWindow(false, { force: true }); } }
+  function stopDrag(){ const had=state.boxSelecting&&state.boxStart&&state.boxCurrent; const shouldFinalizeClick=!!state.pendingLeftClick && !state.cameraLookActive && !state.gizmoDrag && !state.draggingItem && !had; const x0=had?Math.min(state.boxStart.sx,state.boxCurrent.sx):0, x1=had?Math.max(state.boxStart.sx,state.boxCurrent.sx):0, y0=had?Math.min(state.boxStart.sy,state.boxCurrent.sy):0, y1=had?Math.max(state.boxStart.sy,state.boxCurrent.sy):0, add=state.boxSelectAdditive; state.draggingItem=false; state.boxSelecting=false; state.boxSelectAdditive=false; state.boxStart=null; state.boxCurrent=null; state.lastMouse=null; state.dragAnchor=null; state.cameraLookActive=false; state.cameraLookPending=false; state.cameraLookStart=null; state.cameraLookButton=0; if(document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock(); if(shouldFinalizeClick){ const pickedId=state.pendingLeftClick.pickedId; selectById(pickedId != null ? pickedId : null); } state.pendingLeftClick=null; if(had){ const worldA=screenToWorld(x0,y0,0); const worldB=screenToWorld(x1,y1,0); const minX=Math.min(worldA.x,worldB.x), maxX=Math.max(worldA.x,worldB.x), minY=Math.min(worldA.y,worldB.y), maxY=Math.max(worldA.y,worldB.y); const candidates=getSpatialCandidatesByWorldRect(minX,minY,maxX,maxY); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); const ids=[]; for(const it of candidates){ if(!filteredSet.has(it.id)||!isItemShowCategoryVisible(it)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(p.visible&&p.sx>=x0&&p.sx<=x1&&p.sy>=y0&&p.sy<=y1) ids.push(it.id); } if(!add) state.multiSelectedIds.clear(); for(const id of ids) state.multiSelectedIds.add(id); state.selectedId=state.multiSelectedIds.size?Array.from(state.multiSelectedIds).at(-1):null; renderList(); refreshLiveMisWindow(false, { force: true }); } }
   cv.addEventListener('mouseup',stopDrag); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; stopDrag(); });
   cv.addEventListener('wheel',(e)=>{ e.preventDefault(); const lvl=speedLevelEl; if(!lvl) return; const cur=Math.round(parseFloat(lvl.value||'4')||4); const min=Math.round(parseFloat(lvl.min||'1')||1); const max=Math.round(parseFloat(lvl.max||'8')||8); const step=Math.round(parseFloat(lvl.step||'1')||1); const dir=e.deltaY<0?1:-1; const next=Math.max(min,Math.min(max,cur+dir*step)); lvl.value=String(next); syncRenderUiState(); },{passive:false});
 
