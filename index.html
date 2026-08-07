@@ -249,32 +249,23 @@
       white-space:pre;
       pointer-events:none;
     }
-    #showPanelBtn{
+    #canvasModeToolbar{
       position:absolute;
       top:10px;
       left:10px;
       z-index:10;
-      min-width:52px;
-      height:24px;
-      padding:0 10px;
+      display:flex;
+      align-items:center;
+      gap:10px;
     }
-    #showLayersBtn{
-      position:absolute;
-      top:10px;
-      left:72px;
-      z-index:10;
-      min-width:66px;
+    #canvasModeToolbar .modeBtn{
+      position:static;
+      width:auto;
+      min-width:0;
       height:24px;
-      padding:0 10px;
-    }
-    #debugFogBtn{
-      position:absolute;
-      top:10px;
-      left:146px;
-      z-index:10;
-      min-width:82px;
-      height:24px;
-      padding:0 10px;
+      padding:0 8px;
+      font-size:12px;
+      white-space:nowrap;
     }
     #fpsCounter{
       position:absolute;
@@ -409,10 +400,29 @@
     #layerVisibilityControls button{ min-height:22px; padding:2px 8px; font-size:11px; }
     #layerVisibilityList{ display:grid; grid-template-columns:1fr; gap:4px; font-size:12px; overflow:auto; min-height:0; }
     #layerVisibilityList label{ display:flex; align-items:center; gap:6px; }
+    #viewModePanel{
+      position:absolute;
+      top:42px;
+      left:148px;
+      z-index:11;
+      min-width:180px;
+      max-height:min(68vh, 430px);
+      display:none;
+      background:var(--panel);
+      border:1px solid var(--line-strong);
+      border-radius:var(--radius-md);
+      box-shadow:var(--shadow-md);
+      padding:10px;
+      font-size:12px;
+      overflow:auto;
+    }
+    #viewModePanel.open{ display:block; }
+    #viewModeList{ display:grid; grid-template-columns:1fr; gap:6px; }
+    #viewModeList label{ display:flex; align-items:center; gap:6px; }
     #debugFogPanel{
       position:absolute;
       top:42px;
-      left:146px;
+      left:246px;
       z-index:11;
       min-width:330px;
       max-width:min(56vw, 520px);
@@ -1232,16 +1242,18 @@
       <label class="tbCtl"><input id="showSectors" type="checkbox"> Show Sectors</label>
       <label class="tbCtl">TRN Mesh step <select id="step"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
       <label class="tbCtl"><input id="showStats" type="checkbox" checked> Map Info (I):</label>
-      <label class="tbCtl"><input id="showGlbWireframe" type="checkbox"> Wireframe mode (F)</label>
       <label class="tbCtl"><input id="showAnchorPoints" type="checkbox" checked> Anchor points (H)</label>
       <button id="exportBtn" type="button" class="modeBtn">Go to</button>
       <div id="status">No file loaded.</div>
     </div>
 
     <div id="canvasWrap">
-      <button id="showPanelBtn" type="button" class="modeBtn">Show</button>
-      <button id="showLayersBtn" type="button" class="modeBtn">Layers</button>
-      <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
+      <div id="canvasModeToolbar">
+        <button id="showPanelBtn" type="button" class="modeBtn">Show</button>
+        <button id="showLayersBtn" type="button" class="modeBtn">Layers</button>
+        <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">View Mode</button>
+        <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
+      </div>
       <canvas id="cv"></canvas>
       <div id="camDebug"></div>
       <div id="fpsCounter">0 FPS</div>
@@ -1282,6 +1294,22 @@
           <button id="showAllLayersBtn" type="button">Show All</button>
         </div>
         <div id="layerVisibilityList"></div>
+      </div>
+
+      <div id="viewModePanel" aria-hidden="true">
+        <div id="viewModeList" role="radiogroup" aria-label="3D item view mode">
+          <label><input type="radio" name="glbViewMode" value="default" checked> Default</label>
+          <label><input type="radio" name="glbViewMode" value="unlit"> Unlit</label>
+          <label><input type="radio" name="glbViewMode" value="solid"> Solid</label>
+          <label><input type="radio" name="glbViewMode" value="clay"> Clay</label>
+          <label><input type="radio" name="glbViewMode" value="white"> White</label>
+          <label><input type="radio" name="glbViewMode" value="black"> Black</label>
+          <label><input type="radio" name="glbViewMode" value="xray"> X-Ray</label>
+          <label><input type="radio" name="glbViewMode" value="ghosted"> Ghosted</label>
+          <label><input type="radio" name="glbViewMode" value="wireframe"> Wireframe</label>
+          <label><input type="radio" name="glbViewMode" value="transparent_wireframe"> Transparent Wireframe</label>
+          <label><input type="radio" name="glbViewMode" value="category_colors"> Category Colors</label>
+        </div>
       </div>
 
       <div id="debugFogPanel" aria-hidden="true">
@@ -1973,7 +2001,7 @@
       lodDistances: [0, 280, 500],
       activeLodLevels: [0, 1],
       lodConfigLogged: false,
-      wireframeEnabled: false,
+      viewMode: "default",
       scratchProjectionMatrix: null,
       scratchViewMatrix: null,
       raycaster: null,
@@ -2070,6 +2098,7 @@
   const exportBtn = document.getElementById("exportBtn");
   const showPanelBtn = document.getElementById("showPanelBtn");
   const showLayersBtn = document.getElementById("showLayersBtn");
+  const viewModeBtn = document.getElementById("viewModeBtn");
   const debugFogBtn = document.getElementById("debugFogBtn");
   const hideAllShowOptionsBtn = document.getElementById("hideAllShowOptionsBtn");
   const showAllShowOptionsBtn = document.getElementById("showAllShowOptionsBtn");
@@ -2077,6 +2106,8 @@
   const showAllLayersBtn = document.getElementById("showAllLayersBtn");
   const canvasShowPanelEl = document.getElementById("canvasShowPanel");
   const layerVisibilityPanelEl = document.getElementById("layerVisibilityPanel");
+  const viewModePanelEl = document.getElementById("viewModePanel");
+  const viewModeListEl = document.getElementById("viewModeList");
   const debugFogPanelEl = document.getElementById("debugFogPanel");
   const debugFogPresetBtnsEl = document.getElementById("debugFogPresetBtns");
   const fogDbgNearDistEl = document.getElementById("fogDbgNearDist");
@@ -2109,7 +2140,6 @@
   const sectionDeleteBtn = document.getElementById("sectionDeleteBtn");
   const groupSelectMembersBtn = document.getElementById("groupSelectMembersBtn");
   const groupSaveAsTextBtn = document.getElementById("groupSaveAsTextBtn");
-  const showGlbWireframeEl = document.getElementById("showGlbWireframe");
   const sectionAddBtn = document.getElementById("sectionAddBtn");
   const liveMisOverlay = document.getElementById("liveMisOverlay");
   const liveMisCloseBtn = document.getElementById("liveMisCloseBtn");
@@ -3197,6 +3227,12 @@
     return Object.prototype.hasOwnProperty.call(SHOW_ITEM_CATEGORIES, type) ? type : "";
   }
 
+  const GLB_VIEW_MODE_ELIGIBLE_CATEGORIES = new Set(["building", "foliage", "decoration", "object", "vehicle"]);
+
+  function isItemEligibleForGlbViewMode(it){
+    return GLB_VIEW_MODE_ELIGIBLE_CATEGORIES.has(getItemShowCategory(it));
+  }
+
   function isItemShowCategoryVisible(it){
     const category = getItemShowCategory(it);
     if (!category) return true;
@@ -4269,10 +4305,38 @@
 
   function setLayerVisibilityPanelOpen(open){
     const visible = !!open;
-    if (visible) renderLayerVisibilityPanel();
+    if (visible){
+      renderLayerVisibilityPanel();
+      positionLayerVisibilityPanel();
+    }
     layerVisibilityPanelEl?.classList.toggle('open', visible);
     layerVisibilityPanelEl?.setAttribute('aria-hidden', visible ? 'false' : 'true');
     showLayersBtn?.classList.toggle('active', visible);
+  }
+
+  function positionLayerVisibilityPanel(){
+    if (!layerVisibilityPanelEl || !showLayersBtn || !canvasWrapEl) return;
+    const wrapRect = canvasWrapEl.getBoundingClientRect();
+    const btnRect = showLayersBtn.getBoundingClientRect();
+    layerVisibilityPanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
+    layerVisibilityPanelEl.style.left = `${Math.round(Math.max(8, btnRect.left - wrapRect.left))}px`;
+  }
+
+  function positionViewModePanel(){
+    if (!viewModePanelEl || !viewModeBtn || !canvasWrapEl) return;
+    const wrapRect = canvasWrapEl.getBoundingClientRect();
+    const btnRect = viewModeBtn.getBoundingClientRect();
+    viewModePanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
+    viewModePanelEl.style.left = `${Math.round(Math.max(8, btnRect.left - wrapRect.left))}px`;
+  }
+
+  function setViewModePanelOpen(open){
+    const visible = !!open;
+    if (visible) positionViewModePanel();
+    viewModePanelEl?.classList.toggle("open", visible);
+    viewModePanelEl?.setAttribute("aria-hidden", visible ? "false" : "true");
+    viewModeBtn?.setAttribute("aria-expanded", visible ? "true" : "false");
+    viewModeBtn?.classList.toggle("active", visible);
   }
 
   function setAllLayerVisibility(visible){
@@ -6062,7 +6126,7 @@
     if (e.key === "Escape" && state.modalOpen) closeModalCancel();
     if (e.key === "Escape" && state.sectionEditorOpen) closeSectionEditor();
     if (e.key === "Escape" && state.liveMisOpen) closeLiveMisWindow();
-    if (e.key === "Escape") { setCanvasShowPanelOpen(false); setLayerVisibilityPanelOpen(false); setDebugFogPanelOpen(false); }
+    if (e.key === "Escape") { setCanvasShowPanelOpen(false); setLayerVisibilityPanelOpen(false); setViewModePanelOpen(false); setDebugFogPanelOpen(false); }
     if (e.key === "Escape" && state.pastePlacementActive){
       state.pastePlacementActive = false;
       state.pastePreviewWorld = null;
@@ -6369,6 +6433,7 @@
     const next = !canvasShowPanelEl?.classList.contains("open");
     if (next){
       setLayerVisibilityPanelOpen(false);
+      setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
     }
     setCanvasShowPanelOpen(next);
@@ -6379,9 +6444,27 @@
     const next = !layerVisibilityPanelEl?.classList.contains("open");
     if (next){
       setCanvasShowPanelOpen(false);
+      setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
     }
     setLayerVisibilityPanelOpen(next);
+  });
+
+  viewModeBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const next = !viewModePanelEl?.classList.contains("open");
+    if (next){
+      setCanvasShowPanelOpen(false);
+      setLayerVisibilityPanelOpen(false);
+      setDebugFogPanelOpen(false);
+    }
+    setViewModePanelOpen(next);
+  });
+
+  viewModePanelEl?.addEventListener("click", (event) => event.stopPropagation());
+  viewModeListEl?.addEventListener("change", (event) => {
+    if (!(event.target instanceof HTMLInputElement) || event.target.name !== "glbViewMode") return;
+    setGlbViewMode(event.target.value);
   });
 
   debugFogBtn?.addEventListener("click", (event) => {
@@ -6390,6 +6473,7 @@
     if (next){
       setCanvasShowPanelOpen(false);
       setLayerVisibilityPanelOpen(false);
+      setViewModePanelOpen(false);
     }
     setDebugFogPanelOpen(next);
   });
@@ -6442,11 +6526,16 @@
     if (debugFogPanelEl?.classList.contains("open")){
       if (!(debugFogPanelEl.contains(event.target) || debugFogBtn?.contains(event.target))) setDebugFogPanelOpen(false);
     }
+    if (viewModePanelEl?.classList.contains("open")){
+      if (!(viewModePanelEl.contains(event.target) || viewModeBtn?.contains(event.target))) setViewModePanelOpen(false);
+    }
   });
 
   addEventListener("resize", () => {
     if (canvasShowPanelEl?.classList.contains("open")) positionCanvasShowPanel();
+    if (layerVisibilityPanelEl?.classList.contains("open")) positionLayerVisibilityPanel();
     if (debugFogPanelEl?.classList.contains("open")) positionDebugFogPanel();
+    if (viewModePanelEl?.classList.contains("open")) positionViewModePanel();
   });
 
   exportBtn.addEventListener("click", () => {
@@ -8204,10 +8293,10 @@
     const colorHex = getWaypointColorHexForItem(it);
     instance.traverse((obj) => {
       if (!obj.isMesh || !obj.material) return;
-      // While wireframe is active, update its preserved solid material; the
-      // temporary white/yellow wire material remains controlled by selection.
-      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")
-        ? obj.userData._wireframeOriginalMaterial
+      // While a View Mode is active, keep the preserved default material current;
+      // temporary display materials remain controlled by the selected mode.
+      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")
+        ? obj.userData._viewModeOriginalMaterial
         : obj.material;
       const materials = Array.isArray(material) ? material : [material];
       materials.forEach((mat) => applyWaypointColorToMaterial(mat, colorHex));
@@ -8219,8 +8308,8 @@
     const colorHex = getAreaTriggerColorHexForItem(it);
     instance.traverse((obj) => {
       if (!obj.isMesh || !obj.material) return;
-      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")
-        ? obj.userData._wireframeOriginalMaterial
+      const material = Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")
+        ? obj.userData._viewModeOriginalMaterial
         : obj.material;
       const materials = Array.isArray(material) ? material : [material];
       materials.forEach((mat) => {
@@ -8319,48 +8408,111 @@
     }
   }
 
-  function applyWireframeToGlbObject(root){
-    if (!root) return;
-    const selectedColor = 0xffff00;
-    const defaultColor = 0xffffff;
-    root.traverse((obj) => {
-      if (!obj.isMesh || !obj.material) return;
-      if (state.glb.wireframeEnabled){
-        if (!Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")){
-          obj.userData._wireframeOriginalMaterial = obj.material;
-        }
-        const base = obj.userData._wireframeOriginalMaterial;
-        const wireColor = root.userData._selectedGlbVisual ? selectedColor : defaultColor;
-        const current = obj.material;
-        if (Array.isArray(base)) obj.material = base.map((m) => createWhiteWireframeMaterialFrom(m, wireColor));
-        else obj.material = createWhiteWireframeMaterialFrom(base, wireColor);
-        if (Array.isArray(current)) current.forEach((m) => m?.dispose?.());
-        else if (current && current !== base) current.dispose?.();
-        return;
+  const GLB_VIEW_MODE_ORDER = [
+    "default", "unlit", "solid", "clay", "white", "black", "xray", "ghosted",
+    "wireframe", "transparent_wireframe", "category_colors",
+  ];
+  const GLB_VIEW_MODES = new Set(GLB_VIEW_MODE_ORDER);
+  const GLB_CATEGORY_COLORS = {
+    building: 0x5b8ff9,
+    foliage: 0x61dDAa,
+    decoration: 0xf6bd16,
+    object: 0x9270ca,
+    vehicle: 0xe8684a,
+  };
+
+  function disposeViewModeMaterial(material, original){
+    const materials = Array.isArray(material) ? material : [material];
+    const originals = new Set(Array.isArray(original) ? original : [original]);
+    materials.forEach((mat) => { if (mat && !originals.has(mat)) mat.dispose?.(); });
+  }
+
+  function createViewModeMaterial(baseMat, mode, colorHex){
+    const { THREE } = state.glb;
+    const baseColor = baseMat?.color?.clone?.() || new THREE.Color(0xffffff);
+    if (mode === "unlit") return new THREE.MeshBasicMaterial({
+      map: baseMat?.map || null, color: baseColor, transparent: !!baseMat?.transparent,
+      opacity: Number.isFinite(baseMat?.opacity) ? baseMat.opacity : 1, side: baseMat?.side,
+      alphaTest: baseMat?.alphaTest || 0, vertexColors: !!baseMat?.vertexColors, fog: false, toneMapped: false,
+    });
+    if (mode === "ghosted" || mode === "xray") return new THREE.MeshBasicMaterial({
+      map: mode === "ghosted" ? (baseMat?.map || null) : null,
+      color: mode === "ghosted" ? baseColor : new THREE.Color(0x8fd3ff),
+      transparent: true, opacity: mode === "ghosted" ? 0.38 : 0.22,
+      side: THREE.DoubleSide, alphaTest: baseMat?.alphaTest || 0, depthTest: mode === "ghosted",
+      depthWrite: false, fog: false, toneMapped: false,
+    });
+    if (mode === "wireframe" || mode === "transparent_wireframe"){
+      const mat = createWhiteWireframeMaterialFrom(baseMat, colorHex);
+      if (mode === "transparent_wireframe"){
+        mat.transparent = true;
+        mat.opacity = 0.32;
+        mat.depthWrite = false;
       }
-      if (Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")){
-        const current = obj.material;
-        obj.material = obj.userData._wireframeOriginalMaterial;
-        delete obj.userData._wireframeOriginalMaterial;
-        if (Array.isArray(current)) current.forEach((m) => m?.dispose?.());
-        else current?.dispose?.();
-      }
+      return mat;
+    }
+    const colors = { solid: 0x7f8792, clay: 0xb98b68, white: 0xffffff, black: 0x050505 };
+    const color = colorHex ?? colors[mode] ?? 0x7f8792;
+    return new THREE.MeshPhongMaterial({
+      color, emissive: mode === "black" ? 0x010101 : 0x000000,
+      shininess: mode === "clay" ? 4 : 18, flatShading: false,
+      side: baseMat?.side, transparent: false, opacity: 1,
     });
   }
 
-  function setGlbWireframeEnabled(enabled){
-    const next = !!enabled;
-    if (state.glb.wireframeEnabled === next) return;
-    state.glb.wireframeEnabled = next;
-    for (const instance of state.glb.itemInstances.values()){
-      applyWireframeToGlbObject(instance);
+  function applyViewModeToGlbObject(root, item = null, force = false){
+    if (!root) return;
+    const sourceItem = item || getItemByIdFast(root.userData?.itemId);
+    const category = getItemShowCategory(sourceItem);
+    const eligible = GLB_VIEW_MODE_ELIGIBLE_CATEGORIES.has(category);
+    const mode = eligible ? state.glb.viewMode : "default";
+    const signature = `${mode}:${category}:${root.userData._selectedGlbVisual ? 1 : 0}`;
+    if (!force && root.userData._appliedViewMode === signature) return;
+
+    root.traverse((obj) => {
+      if (!obj.isMesh || !obj.material) return;
+      if (Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")){
+        const current = obj.material;
+        obj.material = obj.userData._viewModeOriginalMaterial;
+        delete obj.userData._viewModeOriginalMaterial;
+        disposeViewModeMaterial(current, obj.material);
+      }
+      if (mode === "default") return;
+      obj.userData._viewModeOriginalMaterial = obj.material;
+      const originals = Array.isArray(obj.material) ? obj.material : [obj.material];
+      const colorOverride = mode === "category_colors"
+        ? GLB_CATEGORY_COLORS[category]
+        : ((mode === "wireframe" || mode === "transparent_wireframe")
+          ? (root.userData._selectedGlbVisual ? 0xffff00 : 0xffffff)
+          : undefined);
+      const converted = originals.map((mat) => createViewModeMaterial(mat, mode, colorOverride));
+      obj.material = Array.isArray(obj.userData._viewModeOriginalMaterial) ? converted : converted[0];
+    });
+    root.userData._appliedViewMode = signature;
+  }
+
+  function setGlbViewMode(mode){
+    const next = GLB_VIEW_MODES.has(mode) ? mode : "default";
+    if (state.glb.viewMode === next) return;
+    state.glb.viewMode = next;
+    for (const [itemId, instance] of state.glb.itemInstances){
+      applyViewModeToGlbObject(instance, getItemByIdFast(itemId), true);
     }
     if (state.glb.ready){
       state.glb.lastSelectedVisualIds.clear();
       updateSelectedGlbVisual();
     }
-    if (showGlbWireframeEl) showGlbWireframeEl.checked = next;
-    addLog(`[3d_items] wireframe ${next ? "on" : "off"}`);
+    viewModeListEl?.querySelectorAll('input[name="glbViewMode"]').forEach((input) => {
+      input.checked = input.value === next;
+    });
+    addLog(`[3d_items] view_mode=${next}`);
+    requestRender();
+  }
+
+  function cycleGlbViewMode(){
+    const currentIndex = GLB_VIEW_MODE_ORDER.indexOf(state.glb.viewMode);
+    const nextIndex = (currentIndex + 1 + GLB_VIEW_MODE_ORDER.length) % GLB_VIEW_MODE_ORDER.length;
+    setGlbViewMode(GLB_VIEW_MODE_ORDER[nextIndex]);
   }
 
 
@@ -8369,13 +8521,13 @@
     clearGlbSelectionOutline(instance);
     instance.traverse((obj) => {
       if (!obj.isMesh) return;
-      if (!Object.prototype.hasOwnProperty.call(obj.userData, "_wireframeOriginalMaterial")) return;
+      if (!Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")) return;
       const current = obj.material;
-      obj.material = obj.userData._wireframeOriginalMaterial;
-      delete obj.userData._wireframeOriginalMaterial;
-      if (Array.isArray(current)) current.forEach((m) => m?.dispose?.());
-      else current?.dispose?.();
+      obj.material = obj.userData._viewModeOriginalMaterial;
+      delete obj.userData._viewModeOriginalMaterial;
+      disposeViewModeMaterial(current, obj.material);
     });
+    delete instance.userData._appliedViewMode;
   }
 
   async function syncGlbItems(){
@@ -8414,15 +8566,16 @@
           });
           applyWaypointColorToGlbObject(instance, it);
           applyAreaTriggerColorToGlbObject(instance, it);
-          applyWireframeToGlbObject(instance);
           instance.userData.itemId = it.id;
           instance.userData.graphic = graphic;
+          applyViewModeToGlbObject(instance, it);
           state.glb.scene.add(instance);
           state.glb.itemInstances.set(it.id, instance);
         }
 
         applyWaypointColorToGlbObject(instance, it);
         applyAreaTriggerColorToGlbObject(instance, it);
+        applyViewModeToGlbObject(instance, it);
         applyItemTransformToObject(instance, it);
       }
 
@@ -8567,9 +8720,10 @@
   function setGlbInstanceSelected(instance, selected){
     if (!instance) return;
     instance.userData._selectedGlbVisual = !!selected;
-    if (state.glb.wireframeEnabled){
+    if ((state.glb.viewMode === "wireframe" || state.glb.viewMode === "transparent_wireframe")
+        && isItemEligibleForGlbViewMode(getItemByIdFast(instance.userData?.itemId))){
       clearGlbSelectionOutline(instance);
-      applyWireframeToGlbObject(instance);
+      applyViewModeToGlbObject(instance, null, true);
       return;
     }
     if (selected) ensureGlbSelectionOutline(instance);
@@ -9336,7 +9490,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
 
   cv.addEventListener('click',()=>{ if (!hasTypingFocus()) cv.focus(); });
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&showStatsEl){ showStatsEl.checked=!showStatsEl.checked; syncRenderUiState(); } if(k==='h'&&showAnchorPointsEl){ showAnchorPointsEl.checked=!showAnchorPointsEl.checked; syncRenderUiState(); } if(k==='f'){ setGlbWireframeEnabled(!state.glb.wireframeEnabled); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&showStatsEl){ showStatsEl.checked=!showStatsEl.checked; syncRenderUiState(); } if(k==='h'&&showAnchorPointsEl){ showAnchorPointsEl.checked=!showAnchorPointsEl.checked; syncRenderUiState(); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
@@ -9371,8 +9525,6 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   document.getElementById('gridPlus')?.addEventListener('click',()=>stepGridExponent(1));
   document.getElementById('gridMinus')?.addEventListener('click',()=>stepGridExponent(-1));
   document.getElementById('step')?.addEventListener('change',()=>rebuildTerrain());
-  showGlbWireframeEl?.addEventListener('change', (e) => setGlbWireframeEnabled(!!e.target.checked));
-  if (showGlbWireframeEl) showGlbWireframeEl.checked = !!state.glb.wireframeEnabled;
   updateGridUi();
   syncRenderUiState();
   setRenderMode('C');
