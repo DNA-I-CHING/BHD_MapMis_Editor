@@ -1577,7 +1577,7 @@
 
           <div class="winTop">
             <div class="metaBlock">
-              <div>Social Security Number: <span id="ui_ssn" class="metaValue">0</span><button id="ui_findSsnInMis" class="ssnCodeLookup" type="button" title="Locate this item's block in MIS Code" aria-label="Locate this item's block in MIS Code">&#128269;</button></div>
+              <div><strong>Item Block Index:</strong> <span id="ui_itemBlockIndex" class="metaValue">-</span></div>
               <div>Graphic: <span id="ui_graphic" class="metaValue">-</span></div>
               <div>
                 <label class="inlineLabel" for="ui_layer">Layer</label>
@@ -1590,8 +1590,8 @@
             </div>
 
             <div class="subTypeWrap">
-              <label class="inlineLabel" for="ui_subtype">Sub-type (item object):</label>
-              <select id="ui_subtype"></select>
+              <div>Social Security Number: <span id="ui_ssn" class="metaValue">0</span><button id="ui_findSsnInMis" class="ssnCodeLookup" type="button" title="Locate this item's block in MIS Code" aria-label="Locate this item's block in MIS Code">&#128269;</button></div>
+              <select id="ui_subtype" hidden aria-hidden="true" tabindex="-1"></select>
             </div>
 
             <div class="nextSsnWrap">
@@ -2272,6 +2272,7 @@
 
   const ui = {
     ssn: document.getElementById("ui_ssn"),
+    itemBlockIndex: document.getElementById("ui_itemBlockIndex"),
     graphic: document.getElementById("ui_graphic"),
     layer: document.getElementById("ui_layer"),
     type: document.getElementById("ui_type"),
@@ -5767,14 +5768,19 @@
     if (!it){
       ui.itemTitle.textContent = "No item selected.";
       ui.presenceHint.textContent = "";
+      setValueIf(ui.itemBlockIndex, "-");
       setValueIf(ui.typeId, "-");
       return;
     }
 
     const def = getDefForItem(it);
     const ssn = kvHas(it, "id") ? it.kv.id : "";
+    const itemSection = getItemSectionByStartFast(it.start);
+    const blockHeader = String(it.beginLine || itemSection?.beginLine || "").trim();
+    const blockIndexMatch = blockHeader.match(/^begin\s+item\s+(.+)$/i);
 
     setValueIf(ui.ssn, ssn);
+    setValueIf(ui.itemBlockIndex, blockIndexMatch?.[1]?.trim() || "-");
 
     // Graphic e Type agora preferem DEF
     const graphic = def?.graphic ? def.graphic : (kvHas(it, "graphic") ? it.kv.graphic : (kvHas(it, "gen_string") ? "TEXT" : "TEXT"));
