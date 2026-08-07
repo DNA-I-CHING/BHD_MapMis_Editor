@@ -7804,11 +7804,17 @@
     return Number.isFinite(number) && number >= 0 ? number : 0;
   }
 
+  function isWaypointMarkerItem(it){
+    const typeId = String(it?.kv?.type_id || "").trim();
+    return typeId === "6005" || typeId === "106005";
+  }
+
   function collectWaypointLineData(){
     const groups = new Map();
     for (const [sourceIndex, it] of (state.items || []).entries()){
       if (!isItemLayerVisible(it)) continue;
       if (!isItemShowCategoryVisible(it)) continue;
+      if (!isWaypointMarkerItem(it)) continue;
       const waypointId = getItemWaypointId(it);
       if (waypointId == null || getWaypointColorHexForItem(it) == null) continue;
       if (!groups.has(waypointId)) groups.set(waypointId, []);
