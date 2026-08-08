@@ -4438,10 +4438,17 @@
 
   function renderGroupVisibilityPanel(){
     if (!groupVisibilityListEl) return;
+    const itemCountByGroup = new Map();
+    for (const it of state.items || []){
+      const rawGroup = String(it?.kv?.group_id ?? "").trim();
+      const groupNumber = Number(rawGroup);
+      if (!Number.isInteger(groupNumber) || groupNumber < 1 || groupNumber > 63) continue;
+      itemCountByGroup.set(groupNumber, (itemCountByGroup.get(groupNumber) || 0) + 1);
+    }
     const rows = [];
     for (let n = 1; n <= 63; n++){
       const desc = getGroupDescription(getGroupSectionByNumber(n));
-      const label = `${n} - ${desc || ""}`;
+      const label = `${n} - ${desc || ""} (${itemCountByGroup.get(n) || 0})`;
       const checked = getGroupVisibility(String(n)) ? "checked" : "";
       rows.push(`<label><input type="checkbox" data-group-vis="${n}" ${checked}/> ${escapeHtml(label)}</label>`);
     }
@@ -4470,14 +4477,24 @@
 
   function renderWaypointVisibilityPanel(){
     if (!waypointVisibilityListEl) return;
+    const itemCountByWaypoint = new Map();
+    let unlinkedPeopleCount = 0;
+    for (const it of state.items || []){
+      const waypointId = getItemWaypointId(it);
+      if (waypointId != null && waypointId <= 127){
+        itemCountByWaypoint.set(waypointId, (itemCountByWaypoint.get(waypointId) || 0) + 1);
+      } else if (!kvHas(it, "waypoint_id") && getItemShowCategory(it) === "people"){
+        unlinkedPeopleCount++;
+      }
+    }
     const unlinkedPeopleChecked = getWaypointVisibility(UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY) ? "checked" : "";
     const rows = [
-      `<label><input type="checkbox" data-waypoint-vis="${UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY}" ${unlinkedPeopleChecked}/><span>Person Not Linked to Waypoints</span></label>`,
+      `<label><input type="checkbox" data-waypoint-vis="${UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY}" ${unlinkedPeopleChecked}/><span>Person Not Linked to Waypoints (${unlinkedPeopleCount})</span></label>`,
     ];
     for (let n = 1; n <= 127; n++){
       const sec = getWaypointSectionByNumber(n);
       const desc = getWaypointDescription(sec);
-      const label = `${n} - ${desc || ""}`;
+      const label = `${n} - ${desc || ""} (${itemCountByWaypoint.get(n) || 0})`;
       const checked = getWaypointVisibility(String(n)) ? "checked" : "";
       const hasDefinedColor = Object.prototype.hasOwnProperty.call(sec?.kv || {}, "color");
       const colorIndex = Number(sec?.kv?.color);
