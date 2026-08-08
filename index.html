@@ -249,16 +249,17 @@
       white-space:pre;
       pointer-events:none;
     }
-    #canvasModeToolbar{
+    .canvasFloatingToolbar{
       position:absolute;
       top:10px;
-      left:10px;
       z-index:10;
       display:flex;
       align-items:center;
       gap:10px;
     }
-    #canvasModeToolbar .modeBtn{
+    #canvasModeToolbar{ left:10px; }
+    #canvasViewToolbar{ right:10px; }
+    .canvasFloatingToolbar .modeBtn{
       position:static;
       width:auto;
       min-width:0;
@@ -268,10 +269,6 @@
       white-space:nowrap;
     }
     #fpsCounter{
-      position:absolute;
-      top:10px;
-      right:10px;
-      z-index:6;
       color:#dfe9ff;
       font-size:16px;
       font-weight:600;
@@ -1273,15 +1270,17 @@
     </div>
 
     <div id="canvasWrap">
-      <div id="canvasModeToolbar">
+      <div id="canvasModeToolbar" class="canvasFloatingToolbar">
         <button id="showPanelBtn" type="button" class="modeBtn">Show</button>
         <button id="showLayersBtn" type="button" class="modeBtn">Layers</button>
-        <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">View Mode</button>
+      </div>
+      <div id="canvasViewToolbar" class="canvasFloatingToolbar">
         <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
+        <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">View Mode</button>
+        <div id="fpsCounter">0 FPS</div>
       </div>
       <canvas id="cv"></canvas>
       <div id="camDebug"></div>
-      <div id="fpsCounter">0 FPS</div>
       <canvas id="gizmoCanvas" aria-hidden="true"></canvas>
 
       <div id="canvasShowPanel" aria-hidden="true">
@@ -4350,8 +4349,9 @@
     if (!viewModePanelEl || !viewModeBtn || !canvasWrapEl) return;
     const wrapRect = canvasWrapEl.getBoundingClientRect();
     const btnRect = viewModeBtn.getBoundingClientRect();
+    const panelWidth = viewModePanelEl.offsetWidth || 180;
     viewModePanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
-    viewModePanelEl.style.left = `${Math.round(Math.max(8, btnRect.left - wrapRect.left))}px`;
+    viewModePanelEl.style.left = `${Math.round(Math.max(8, btnRect.right - wrapRect.left - panelWidth))}px`;
   }
 
   function setViewModePanelOpen(open){
@@ -6460,7 +6460,8 @@
     const wrapRect = canvasWrapEl.getBoundingClientRect();
     const btnRect = debugFogBtn.getBoundingClientRect();
     const top = Math.max(8, (btnRect.bottom - wrapRect.top) + 6);
-    const left = Math.max(8, btnRect.left - wrapRect.left);
+    const panelWidth = debugFogPanelEl.offsetWidth || 330;
+    const left = Math.max(8, btnRect.right - wrapRect.left - panelWidth);
     debugFogPanelEl.style.top = `${Math.round(top)}px`;
     debugFogPanelEl.style.left = `${Math.round(left)}px`;
   }
