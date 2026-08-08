@@ -12,7 +12,7 @@ Todo:
 - [ ] 60% - Item context menu
 - [ ] Canvas context menu
 - [ ] Briefing
-- [ ] Events
+- [x] Events
 - [ ] Global Replace
 - [ ] Weapon Loadouts
 
