@@ -249,16 +249,17 @@
       white-space:pre;
       pointer-events:none;
     }
-    #canvasModeToolbar{
+    .canvasFloatingToolbar{
       position:absolute;
       top:10px;
-      left:10px;
       z-index:10;
       display:flex;
       align-items:center;
       gap:10px;
     }
-    #canvasModeToolbar .modeBtn{
+    #canvasModeToolbar{ left:10px; }
+    #canvasViewToolbar{ right:10px; }
+    .canvasFloatingToolbar .modeBtn{
       position:static;
       width:auto;
       min-width:0;
@@ -268,14 +269,19 @@
       white-space:nowrap;
     }
     #fpsCounter{
-      position:absolute;
-      top:10px;
-      right:10px;
-      z-index:6;
+      flex:0 0 64px;
+      width:64px;
+      height:24px;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      box-sizing:border-box;
+      background:transparent;
       color:#dfe9ff;
       font-size:16px;
       font-weight:600;
       line-height:1;
+      white-space:nowrap;
       pointer-events:none;
     }
     #gizmoCanvas{
@@ -541,7 +547,7 @@
     }
     .meta{ color:var(--text-muted); font-size:12px; margin-top:4px; }
 
-    .ssnCodeLookup{
+    .itemBlockCodeLookup{
       width:24px;
       height:24px;
       margin-left:4px;
@@ -1273,15 +1279,17 @@
     </div>
 
     <div id="canvasWrap">
-      <div id="canvasModeToolbar">
+      <div id="canvasModeToolbar" class="canvasFloatingToolbar">
         <button id="showPanelBtn" type="button" class="modeBtn">Show</button>
         <button id="showLayersBtn" type="button" class="modeBtn">Layers</button>
-        <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">View Mode</button>
+      </div>
+      <div id="canvasViewToolbar" class="canvasFloatingToolbar">
         <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
+        <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">View Mode</button>
+        <div id="fpsCounter">0 FPS</div>
       </div>
       <canvas id="cv"></canvas>
       <div id="camDebug"></div>
-      <div id="fpsCounter">0 FPS</div>
       <canvas id="gizmoCanvas" aria-hidden="true"></canvas>
 
       <div id="canvasShowPanel" aria-hidden="true">
@@ -1587,9 +1595,9 @@
           </div>
 
           <div class="winTop">
-            <div class="topMetaField itemBlockField">Item Block Index:&nbsp;<span id="ui_itemBlockIndex" class="metaValue">-</span></div>
+            <div class="topMetaField itemBlockField">Item Block Index:&nbsp;<span id="ui_itemBlockIndex" class="metaValue">-</span><button id="ui_findItemBlockInMis" class="itemBlockCodeLookup" type="button" title="Locate this Item Block Index in MIS Code" aria-label="Locate this Item Block Index in MIS Code">&#128269;</button></div>
             <div class="topMetaField typeField">Type:&nbsp;<span id="ui_type" class="metaValue">-</span>&nbsp;(id&nbsp;<span id="ui_typeId" class="metaValue">-</span>)</div>
-            <div class="topMetaField ssnField">Social Security Number:&nbsp;<span id="ui_ssn" class="metaValue">0</span><button id="ui_findSsnInMis" class="ssnCodeLookup" type="button" title="Locate this item's block in MIS Code" aria-label="Locate this item's block in MIS Code">&#128269;</button></div>
+            <div class="topMetaField ssnField">Social Security Number:&nbsp;<span id="ui_ssn" class="metaValue">0</span></div>
             <div class="nextSsnWrap">
               <label class="inlineLabel" for="ui_nextssn">Next SSN</label>
               <input class="tinyInput" id="ui_nextssn" disabled value="0" />
@@ -2167,7 +2175,7 @@
   const liveMisCloseBtn = document.getElementById("liveMisCloseBtn");
   const liveMisText = document.getElementById("liveMisText");
   const liveMisSearch = document.getElementById("liveMisSearch");
-  const findSsnInMisBtn = document.getElementById("ui_findSsnInMis");
+  const findItemBlockInMisBtn = document.getElementById("ui_findItemBlockInMis");
   const logsOverlay = document.getElementById("logsOverlay");
   const logsCloseBtn = document.getElementById("logsCloseBtn");
   const logsText = document.getElementById("logsText");
@@ -4350,8 +4358,9 @@
     if (!viewModePanelEl || !viewModeBtn || !canvasWrapEl) return;
     const wrapRect = canvasWrapEl.getBoundingClientRect();
     const btnRect = viewModeBtn.getBoundingClientRect();
+    const panelWidth = viewModePanelEl.offsetWidth || 180;
     viewModePanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
-    viewModePanelEl.style.left = `${Math.round(Math.max(8, btnRect.left - wrapRect.left))}px`;
+    viewModePanelEl.style.left = `${Math.round(Math.max(8, btnRect.right - wrapRect.left - panelWidth))}px`;
   }
 
   function setViewModePanelOpen(open){
@@ -5149,38 +5158,28 @@
     liveMisSearch.focus();
   }
 
-  function openLiveMisAtItem(item){
+  function openLiveMisAtItemBlock(item){
     if (!item) return;
 
     refreshLiveMisWindow(false, { force: true });
     const raw = state.liveMisRawText || "";
-    const ssn = String(item.kv?.id ?? "").trim();
-    const escapedSsn = ssn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const itemBlockPattern = new RegExp(
-      `(^|\\n)[ \\t]*begin[ \\t]+item(?:[^\\n]*)\\n([\\s\\S]*?)(?=^[ \\t]*end[ \\t]+item[ \\t]*(?:\\n|$))`,
-      "gmi"
-    );
-    const idLinePattern = ssn
-      ? new RegExp(`^[ \\t]*id[ \\t]+${escapedSsn}[ \\t]*(?:\\r?$)`, "mi")
+    const blockIndexMatch = String(item.beginLine || "").trim().match(/^begin\s+item\s+(.+)$/i);
+    const blockIndex = blockIndexMatch?.[1]?.trim() || "";
+    const escapedBlockIndex = blockIndex.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const blockHeaderPattern = blockIndex
+      ? new RegExp(`^[ \\t]*begin[ \\t]+item[ \\t]+(${escapedBlockIndex})[ \\t]*(?:\\r?$)`, "mi")
       : null;
-    let match = null;
-    let idMatch = null;
-
-    while ((match = itemBlockPattern.exec(raw))){
-      idMatch = idLinePattern?.exec(match[2]) || null;
-      if (idMatch) break;
-    }
+    const match = blockHeaderPattern?.exec(raw) || null;
 
     state.liveMisOpen = true;
     liveMisOverlay.classList.add("open");
     liveMisOverlay.setAttribute("aria-hidden", "false");
 
-    if (match && idMatch){
-      const blockBodyOffset = match.index + match[0].indexOf(match[2]);
-      const idValueOffset = idMatch[0].toLowerCase().indexOf(ssn.toLowerCase());
-      state.liveMisSearchTerm = ssn;
-      state.liveMisSearchIndex = blockBodyOffset + idMatch.index + Math.max(0, idValueOffset);
-      liveMisSearch.value = ssn;
+    if (match){
+      const indexOffset = match[0].lastIndexOf(match[1]);
+      state.liveMisSearchTerm = blockIndex.toLowerCase();
+      state.liveMisSearchIndex = match.index + Math.max(0, indexOffset);
+      liveMisSearch.value = blockIndex;
       renderLiveMisHighlighted();
 
       const current = document.getElementById("liveMisCurrent");
@@ -5189,9 +5188,9 @@
       return;
     }
 
-    liveMisSearch.value = ssn;
-    state.liveMisSearchTerm = ssn.toLowerCase();
-    state.liveMisSearchIndex = ssn ? raw.toLowerCase().indexOf(ssn.toLowerCase()) : -1;
+    liveMisSearch.value = blockIndex;
+    state.liveMisSearchTerm = blockIndex.toLowerCase();
+    state.liveMisSearchIndex = blockIndex ? raw.toLowerCase().indexOf(blockIndex.toLowerCase()) : -1;
     renderLiveMisHighlighted();
     liveMisSearch.focus();
   }
@@ -6470,7 +6469,8 @@
     const wrapRect = canvasWrapEl.getBoundingClientRect();
     const btnRect = debugFogBtn.getBoundingClientRect();
     const top = Math.max(8, (btnRect.bottom - wrapRect.top) + 6);
-    const left = Math.max(8, btnRect.left - wrapRect.left);
+    const panelWidth = debugFogPanelEl.offsetWidth || 330;
+    const left = Math.max(8, btnRect.right - wrapRect.left - panelWidth);
     debugFogPanelEl.style.top = `${Math.round(top)}px`;
     debugFogPanelEl.style.left = `${Math.round(left)}px`;
   }
@@ -6686,7 +6686,7 @@
   liveMisOverlay.addEventListener("mousedown", (e) => { if (e.target === liveMisOverlay) closeLiveMisWindow(); });
   liveMisSearch.addEventListener("input", () => findInLiveMis(false, false));
   liveMisSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); findInLiveMis(true, true); } });
-  findSsnInMisBtn.addEventListener("click", () => openLiveMisAtItem(getSelected()));
+  findItemBlockInMisBtn.addEventListener("click", () => openLiveMisAtItemBlock(getSelected()));
   sectionKindSelect.addEventListener("change", () => { state.sectionKind = sectionKindSelect.value; state.sectionSelectedId = null; sectionAddBtn.textContent = state.sectionKind === "group" ? "Ok" : "Add block"; updateSectionEditorMode(); renderSectionList(); });
   sectionQuickNav?.addEventListener("change", () => {
     state.sectionKind = sectionQuickNav.value;
