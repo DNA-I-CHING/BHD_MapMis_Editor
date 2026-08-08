@@ -541,6 +541,20 @@
     }
     .meta{ color:var(--text-muted); font-size:12px; margin-top:4px; }
 
+    .ssnCodeLookup{
+      width:24px;
+      height:24px;
+      margin-left:4px;
+      padding:0;
+      vertical-align:middle;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      font-size:14px;
+      line-height:1;
+      cursor:pointer;
+    }
+
     /* Modal Item Attributes */
     #modalOverlay{
       position:absolute;
@@ -698,22 +712,33 @@
 
     .winTop{
       display:grid;
-      grid-template-columns: 1.45fr 1fr 1.3fr auto;
-      gap:10px;
-      align-items:start;
+      grid-template-columns:minmax(190px, 1.35fr) minmax(170px, 1fr) minmax(230px, 1.35fr) auto;
+      grid-template-rows:repeat(3, 24px);
+      grid-template-areas:
+        "block type ssn next"
+        "graphic subtype subtype ."
+        "layer . . .";
+      column-gap:12px;
+      row-gap:4px;
+      align-items:center;
       margin-bottom:6px;
       font-size:12px;
     }
-    .metaBlock{ display:grid; gap:4px; }
+    .topMetaField{ display:flex; align-items:center; min-width:0; }
+    .itemBlockField{ grid-area:block; }
+    .typeField{ grid-area:type; }
+    .ssnField{ grid-area:ssn; white-space:nowrap; }
+    .graphicField{ grid-area:graphic; }
+    .layerField{ grid-area:layer; gap:4px; }
+    #ui_subtype{ grid-area:subtype; width:100%; min-width:0; }
     .metaValue{ font-weight:400; }
-    .subTypeWrap{
-      display:grid;
-      gap:3px;
-    }
     .nextSsnWrap{
-      display:grid;
-      gap:3px;
-      justify-items:end;
+      grid-area:next;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:6px;
+      white-space:nowrap;
     }
     .topHint{
       font-size:11px;
@@ -1562,27 +1587,20 @@
           </div>
 
           <div class="winTop">
-            <div class="metaBlock">
-              <div>Social Security Number: <span id="ui_ssn" class="metaValue">0</span></div>
-              <div>Graphic: <span id="ui_graphic" class="metaValue">-</span></div>
-              <div>
-                <label class="inlineLabel" for="ui_layer">Layer</label>
-                <select id="ui_layer" class="midInput"></select>
-              </div>
-            </div>
-
-            <div class="metaBlock">
-              <div>Type: <span id="ui_type" class="metaValue">-</span> (id <span id="ui_typeId" class="metaValue">-</span>)</div>
-            </div>
-
-            <div class="subTypeWrap">
-              <label class="inlineLabel" for="ui_subtype">Sub-type (item object):</label>
-              <select id="ui_subtype"></select>
-            </div>
-
+            <div class="topMetaField itemBlockField">Item Block Index:&nbsp;<span id="ui_itemBlockIndex" class="metaValue">-</span></div>
+            <div class="topMetaField typeField">Type:&nbsp;<span id="ui_type" class="metaValue">-</span>&nbsp;(id&nbsp;<span id="ui_typeId" class="metaValue">-</span>)</div>
+            <div class="topMetaField ssnField">Social Security Number:&nbsp;<span id="ui_ssn" class="metaValue">0</span><button id="ui_findSsnInMis" class="ssnCodeLookup" type="button" title="Locate this item's block in MIS Code" aria-label="Locate this item's block in MIS Code">&#128269;</button></div>
             <div class="nextSsnWrap">
               <label class="inlineLabel" for="ui_nextssn">Next SSN</label>
               <input class="tinyInput" id="ui_nextssn" disabled value="0" />
+            </div>
+
+            <div class="topMetaField graphicField">Graphic:&nbsp;<span id="ui_graphic" class="metaValue">-</span></div>
+            <select id="ui_subtype" aria-label="Item sub-type"></select>
+
+            <div class="topMetaField layerField">
+              <label class="inlineLabel" for="ui_layer">Layer</label>
+              <select id="ui_layer" class="midInput"></select>
             </div>
           </div>
 
@@ -2145,6 +2163,7 @@
   const liveMisCloseBtn = document.getElementById("liveMisCloseBtn");
   const liveMisText = document.getElementById("liveMisText");
   const liveMisSearch = document.getElementById("liveMisSearch");
+  const findSsnInMisBtn = document.getElementById("ui_findSsnInMis");
   const logsOverlay = document.getElementById("logsOverlay");
   const logsCloseBtn = document.getElementById("logsCloseBtn");
   const logsText = document.getElementById("logsText");
@@ -2257,6 +2276,7 @@
 
   const ui = {
     ssn: document.getElementById("ui_ssn"),
+    itemBlockIndex: document.getElementById("ui_itemBlockIndex"),
     graphic: document.getElementById("ui_graphic"),
     layer: document.getElementById("ui_layer"),
     type: document.getElementById("ui_type"),
@@ -5125,6 +5145,53 @@
     liveMisSearch.focus();
   }
 
+  function openLiveMisAtItem(item){
+    if (!item) return;
+
+    refreshLiveMisWindow(false, { force: true });
+    const raw = state.liveMisRawText || "";
+    const ssn = String(item.kv?.id ?? "").trim();
+    const escapedSsn = ssn.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const itemBlockPattern = new RegExp(
+      `(^|\\n)[ \\t]*begin[ \\t]+item(?:[^\\n]*)\\n([\\s\\S]*?)(?=^[ \\t]*end[ \\t]+item[ \\t]*(?:\\n|$))`,
+      "gmi"
+    );
+    const idLinePattern = ssn
+      ? new RegExp(`^[ \\t]*id[ \\t]+${escapedSsn}[ \\t]*(?:\\r?$)`, "mi")
+      : null;
+    let match = null;
+    let idMatch = null;
+
+    while ((match = itemBlockPattern.exec(raw))){
+      idMatch = idLinePattern?.exec(match[2]) || null;
+      if (idMatch) break;
+    }
+
+    state.liveMisOpen = true;
+    liveMisOverlay.classList.add("open");
+    liveMisOverlay.setAttribute("aria-hidden", "false");
+
+    if (match && idMatch){
+      const blockBodyOffset = match.index + match[0].indexOf(match[2]);
+      const idValueOffset = idMatch[0].toLowerCase().indexOf(ssn.toLowerCase());
+      state.liveMisSearchTerm = ssn;
+      state.liveMisSearchIndex = blockBodyOffset + idMatch.index + Math.max(0, idValueOffset);
+      liveMisSearch.value = ssn;
+      renderLiveMisHighlighted();
+
+      const current = document.getElementById("liveMisCurrent");
+      current?.scrollIntoView({ block: "center" });
+      liveMisText.focus();
+      return;
+    }
+
+    liveMisSearch.value = ssn;
+    state.liveMisSearchTerm = ssn.toLowerCase();
+    state.liveMisSearchIndex = ssn ? raw.toLowerCase().indexOf(ssn.toLowerCase()) : -1;
+    renderLiveMisHighlighted();
+    liveMisSearch.focus();
+  }
+
   function closeLiveMisWindow(){
     state.liveMisOpen = false;
     liveMisOverlay.classList.remove("open");
@@ -5705,14 +5772,19 @@
     if (!it){
       ui.itemTitle.textContent = "No item selected.";
       ui.presenceHint.textContent = "";
+      setValueIf(ui.itemBlockIndex, "-");
       setValueIf(ui.typeId, "-");
       return;
     }
 
     const def = getDefForItem(it);
     const ssn = kvHas(it, "id") ? it.kv.id : "";
+    const itemSection = getItemSectionByStartFast(it.start);
+    const blockHeader = String(it.beginLine || itemSection?.beginLine || "").trim();
+    const blockIndexMatch = blockHeader.match(/^begin\s+item\s+(.+)$/i);
 
     setValueIf(ui.ssn, ssn);
+    setValueIf(ui.itemBlockIndex, blockIndexMatch?.[1]?.trim() || "-");
 
     // Graphic e Type agora preferem DEF
     const graphic = def?.graphic ? def.graphic : (kvHas(it, "graphic") ? it.kv.graphic : (kvHas(it, "gen_string") ? "TEXT" : "TEXT"));
@@ -6610,6 +6682,7 @@
   liveMisOverlay.addEventListener("mousedown", (e) => { if (e.target === liveMisOverlay) closeLiveMisWindow(); });
   liveMisSearch.addEventListener("input", () => findInLiveMis(false, false));
   liveMisSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); findInLiveMis(true, true); } });
+  findSsnInMisBtn.addEventListener("click", () => openLiveMisAtItem(getSelected()));
   sectionKindSelect.addEventListener("change", () => { state.sectionKind = sectionKindSelect.value; state.sectionSelectedId = null; sectionAddBtn.textContent = state.sectionKind === "group" ? "Ok" : "Add block"; updateSectionEditorMode(); renderSectionList(); });
   sectionQuickNav?.addEventListener("change", () => {
     state.sectionKind = sectionQuickNav.value;
