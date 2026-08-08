@@ -712,22 +712,33 @@
 
     .winTop{
       display:grid;
-      grid-template-columns: 1.45fr 1fr 1.3fr auto;
-      gap:10px;
-      align-items:start;
+      grid-template-columns:minmax(190px, 1.35fr) minmax(170px, 1fr) minmax(230px, 1.35fr) auto;
+      grid-template-rows:repeat(3, 24px);
+      grid-template-areas:
+        "block type ssn next"
+        "graphic subtype subtype ."
+        "layer . . .";
+      column-gap:12px;
+      row-gap:4px;
+      align-items:center;
       margin-bottom:6px;
       font-size:12px;
     }
-    .metaBlock{ display:grid; gap:4px; }
+    .topMetaField{ display:flex; align-items:center; min-width:0; }
+    .itemBlockField{ grid-area:block; }
+    .typeField{ grid-area:type; }
+    .ssnField{ grid-area:ssn; white-space:nowrap; }
+    .graphicField{ grid-area:graphic; }
+    .layerField{ grid-area:layer; gap:4px; }
+    #ui_subtype{ grid-area:subtype; width:100%; min-width:0; }
     .metaValue{ font-weight:400; }
-    .subTypeWrap{
-      display:grid;
-      gap:3px;
-    }
     .nextSsnWrap{
-      display:grid;
-      gap:3px;
-      justify-items:end;
+      grid-area:next;
+      display:flex;
+      align-items:center;
+      justify-content:flex-end;
+      gap:6px;
+      white-space:nowrap;
     }
     .topHint{
       font-size:11px;
@@ -1576,27 +1587,20 @@
           </div>
 
           <div class="winTop">
-            <div class="metaBlock">
-              <div><strong>Item Block Index:</strong> <span id="ui_itemBlockIndex" class="metaValue">-</span></div>
-              <div>Graphic: <span id="ui_graphic" class="metaValue">-</span></div>
-              <div>
-                <label class="inlineLabel" for="ui_layer">Layer</label>
-                <select id="ui_layer" class="midInput"></select>
-              </div>
-            </div>
-
-            <div class="metaBlock">
-              <div>Type: <span id="ui_type" class="metaValue">-</span> (id <span id="ui_typeId" class="metaValue">-</span>)</div>
-            </div>
-
-            <div class="subTypeWrap">
-              <div>Social Security Number: <span id="ui_ssn" class="metaValue">0</span><button id="ui_findSsnInMis" class="ssnCodeLookup" type="button" title="Locate this item's block in MIS Code" aria-label="Locate this item's block in MIS Code">&#128269;</button></div>
-              <select id="ui_subtype" aria-label="Item sub-type"></select>
-            </div>
-
+            <div class="topMetaField itemBlockField"><strong>Item Block Index:</strong>&nbsp;<span id="ui_itemBlockIndex" class="metaValue">-</span></div>
+            <div class="topMetaField typeField">Type:&nbsp;<span id="ui_type" class="metaValue">-</span>&nbsp;(id&nbsp;<span id="ui_typeId" class="metaValue">-</span>)</div>
+            <div class="topMetaField ssnField">Social Security Number:&nbsp;<span id="ui_ssn" class="metaValue">0</span><button id="ui_findSsnInMis" class="ssnCodeLookup" type="button" title="Locate this item's block in MIS Code" aria-label="Locate this item's block in MIS Code">&#128269;</button></div>
             <div class="nextSsnWrap">
               <label class="inlineLabel" for="ui_nextssn">Next SSN</label>
               <input class="tinyInput" id="ui_nextssn" disabled value="0" />
+            </div>
+
+            <div class="topMetaField graphicField">Graphic:&nbsp;<span id="ui_graphic" class="metaValue">-</span></div>
+            <select id="ui_subtype" aria-label="Item sub-type"></select>
+
+            <div class="topMetaField layerField">
+              <label class="inlineLabel" for="ui_layer">Layer</label>
+              <select id="ui_layer" class="midInput"></select>
             </div>
           </div>
 
