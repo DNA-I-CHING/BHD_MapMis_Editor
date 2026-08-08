@@ -4378,6 +4378,8 @@
     return getGroupVisibility(String(Math.trunc(num)));
   }
 
+  const UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY = "unlinked-people";
+
   function getWaypointVisibility(waypointId){
     const key = String(waypointId || "").trim();
     if (!key) return true;
@@ -4387,7 +4389,13 @@
 
   function isItemWaypointVisible(it){
     const waypointId = getItemWaypointId(it);
-    if (waypointId == null || waypointId > 127) return true;
+    if (waypointId == null){
+      if (kvHas(it, "waypoint_id")) return true;
+      return getItemShowCategory(it) === "people"
+        ? getWaypointVisibility(UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY)
+        : true;
+    }
+    if (waypointId > 127) return true;
     return getWaypointVisibility(String(waypointId));
   }
 
@@ -4462,7 +4470,10 @@
 
   function renderWaypointVisibilityPanel(){
     if (!waypointVisibilityListEl) return;
-    const rows = [];
+    const unlinkedPeopleChecked = getWaypointVisibility(UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY) ? "checked" : "";
+    const rows = [
+      `<label><input type="checkbox" data-waypoint-vis="${UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY}" ${unlinkedPeopleChecked}/><span>Person Not Linked to Waypoints</span></label>`,
+    ];
     for (let n = 1; n <= 127; n++){
       const sec = getWaypointSectionByNumber(n);
       const desc = getWaypointDescription(sec);
@@ -4562,6 +4573,7 @@
   }
 
   function setAllWaypointVisibility(visible){
+    state.waypointVisibility.set(UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY, !!visible);
     for (let n = 1; n <= 127; n++){
       state.waypointVisibility.set(String(n), !!visible);
     }
