@@ -426,7 +426,8 @@
       border-radius:2px;
       box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);
     }
-    #viewModePanel{
+    #viewModePanel,
+    #viewportToolsPanel{
       position:absolute;
       top:42px;
       left:148px;
@@ -442,9 +443,17 @@
       font-size:12px;
       overflow:auto;
     }
-    #viewModePanel.open{ display:block; }
+    #viewModePanel.open,
+    #viewportToolsPanel.open{ display:block; }
     #viewModeList{ display:grid; grid-template-columns:1fr; gap:6px; }
     #viewModeList label{ display:flex; align-items:center; gap:6px; }
+    .floatingPanelSection + .floatingPanelSection{ margin-top:12px; padding-top:10px; border-top:1px solid var(--line); }
+    .floatingPanelTitle{ margin-bottom:7px; color:var(--text-subtle); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+    .floatingPanelFields{ display:grid; gap:7px; }
+    .floatingPanelFields label{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .floatingPanelFields select,.floatingPanelFields input[type="number"]{ min-width:92px; }
+    .floatingPanelFields input[type="number"]{ width:72px; }
+    .shortcutHint{ margin-left:auto; color:var(--text-subtle); font-size:10px; }
     #debugFogPanel{
       position:absolute;
       top:42px;
@@ -1276,13 +1285,8 @@
       <button id="modeC" class="modeBtn active" title="Colormap (R)">C</button>
       <button id="modeH" class="modeBtn" title="Heightmap (R)">H</button>
       <button id="modeD" class="modeBtn" title="Delta/Variation (R)">D</button>
-      <label class="gizmoCtl">Gizmo
-        <select id="transformSpace" title="Transformation space"><option value="global">Global</option><option value="local">Local</option></select>
+      <label class="gizmoCtl">Gizmo Pivot
         <select id="transformPivot" title="Selection pivot"><option value="center">Selection center</option><option value="active">Active item</option><option value="individual">Individual origins</option></select>
-      </label>
-      <label class="gizmoCtl"><input id="transformSnapEnabled" type="checkbox"> Snap
-        <input id="translationSnap" type="number" min="0.01" step="0.25" value="1" title="Translation snap, world units">
-        <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees">
       </label>
       <label class="tbCtl">Camera Speed <input id="speedLevel" type="range" min="1" max="8" step="1" value="4"></label>
       <label class="tbCtl">Speed Scalar <input id="speedScalar" type="range" min="0.1" max="4.0" step="0.1" value="1.0"></label>
@@ -1291,7 +1295,6 @@
       <label class="tbCtl">Draw radius <input id="radius" type="range" min="512" max="65536" step="256" value="12288"></label>
       <label class="tbCtl"><input id="mainArea" type="checkbox"> Main area</label>
       <label class="tbCtl"><input id="showSectors" type="checkbox"> Show Sectors</label>
-      <label class="tbCtl">TRN Mesh step <select id="step"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
       <label class="tbCtl"><input id="showStats" type="checkbox" checked> Map Info (I):</label>
       <label class="tbCtl"><input id="showAnchorPoints" type="checkbox" checked> Anchor points (H)</label>
       <button id="exportBtn" type="button" class="modeBtn">Go to</button>
@@ -1307,7 +1310,8 @@
       </div>
       <div id="canvasViewToolbar" class="canvasFloatingToolbar">
         <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
-        <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">View Mode</button>
+        <button id="viewportToolsBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">Viewport Tools</button>
+        <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">Draw Mode</button>
         <div id="fpsCounter">0 FPS</div>
       </div>
       <canvas id="cv"></canvas>
@@ -1368,7 +1372,9 @@
       </div>
 
       <div id="viewModePanel" aria-hidden="true">
-        <div id="viewModeList" role="radiogroup" aria-label="3D item view mode">
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">3D GLB Items</div>
+          <div id="viewModeList" role="radiogroup" aria-label="3D item draw mode">
           <label><input type="radio" name="glbViewMode" value="default" checked> Default</label>
           <label><input type="radio" name="glbViewMode" value="unlit"> Unlit</label>
           <label><input type="radio" name="glbViewMode" value="solid"> Solid</label>
@@ -1380,7 +1386,31 @@
           <label><input type="radio" name="glbViewMode" value="wireframe"> Wireframe</label>
           <label><input type="radio" name="glbViewMode" value="transparent_wireframe"> Transparent Wireframe</label>
           <label><input type="radio" name="glbViewMode" value="category_colors"> Category Colors</label>
-        </div>
+          </div>
+        </section>
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">Terrain</div>
+          <div class="floatingPanelFields">
+            <label>TRN Mesh Step <select id="step"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
+          </div>
+        </section>
+      </div>
+
+      <div id="viewportToolsPanel" aria-hidden="true">
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">Gizmo</div>
+          <div class="floatingPanelFields">
+            <label>Space <span class="shortcutHint">X</span><select id="transformSpace" title="Transformation space (X)"><option value="global">Global</option><option value="local">Local</option></select></label>
+          </div>
+        </section>
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">Snapping</div>
+          <div class="floatingPanelFields">
+            <label><span>Enable Snap</span><input id="transformSnapEnabled" type="checkbox"></label>
+            <label>Translation <input id="translationSnap" type="number" min="0.01" step="0.25" value="1" title="Translation snap, world units"></label>
+            <label>Rotation <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees"></label>
+          </div>
+        </section>
       </div>
 
       <div id="debugFogPanel" aria-hidden="true">
@@ -2170,6 +2200,7 @@
   const showLayersBtn = document.getElementById("showLayersBtn");
   const showGroupsBtn = document.getElementById("showGroupsBtn");
   const showWaypointsBtn = document.getElementById("showWaypointsBtn");
+  const viewportToolsBtn = document.getElementById("viewportToolsBtn");
   const viewModeBtn = document.getElementById("viewModeBtn");
   const debugFogBtn = document.getElementById("debugFogBtn");
   const hideAllShowOptionsBtn = document.getElementById("hideAllShowOptionsBtn");
@@ -2184,6 +2215,7 @@
   const layerVisibilityPanelEl = document.getElementById("layerVisibilityPanel");
   const groupVisibilityPanelEl = document.getElementById("groupVisibilityPanel");
   const waypointVisibilityPanelEl = document.getElementById("waypointVisibilityPanel");
+  const viewportToolsPanelEl = document.getElementById("viewportToolsPanel");
   const viewModePanelEl = document.getElementById("viewModePanel");
   const viewModeListEl = document.getElementById("viewModeList");
   const debugFogPanelEl = document.getElementById("debugFogPanel");
@@ -4562,6 +4594,24 @@
     viewModePanelEl.style.left = `${Math.round(Math.max(8, btnRect.right - wrapRect.left - panelWidth))}px`;
   }
 
+  function positionViewportToolsPanel(){
+    if (!viewportToolsPanelEl || !viewportToolsBtn || !canvasWrapEl) return;
+    const wrapRect = canvasWrapEl.getBoundingClientRect();
+    const btnRect = viewportToolsBtn.getBoundingClientRect();
+    const panelWidth = viewportToolsPanelEl.offsetWidth || 220;
+    viewportToolsPanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
+    viewportToolsPanelEl.style.left = `${Math.round(Math.max(8, btnRect.right - wrapRect.left - panelWidth))}px`;
+  }
+
+  function setViewportToolsPanelOpen(open){
+    const visible = !!open;
+    if (visible) positionViewportToolsPanel();
+    viewportToolsPanelEl?.classList.toggle("open", visible);
+    viewportToolsPanelEl?.setAttribute("aria-hidden", visible ? "false" : "true");
+    viewportToolsBtn?.setAttribute("aria-expanded", visible ? "true" : "false");
+    viewportToolsBtn?.classList.toggle("active", visible);
+  }
+
   function setViewModePanelOpen(open){
     const visible = !!open;
     if (visible) positionViewModePanel();
@@ -6419,7 +6469,7 @@
     if (e.key === "Escape" && state.modalOpen) closeModalCancel();
     if (e.key === "Escape" && state.sectionEditorOpen) closeSectionEditor();
     if (e.key === "Escape" && state.liveMisOpen) closeLiveMisWindow();
-    if (e.key === "Escape") { setCanvasShowPanelOpen(false); setLayerVisibilityPanelOpen(false); setGroupVisibilityPanelOpen(false); setWaypointVisibilityPanelOpen(false); setViewModePanelOpen(false); setDebugFogPanelOpen(false); }
+    if (e.key === "Escape") { setCanvasShowPanelOpen(false); setLayerVisibilityPanelOpen(false); setGroupVisibilityPanelOpen(false); setWaypointVisibilityPanelOpen(false); setViewportToolsPanelOpen(false); setViewModePanelOpen(false); setDebugFogPanelOpen(false); }
     if (e.key === "Escape" && state.pastePlacementActive){
       state.pastePlacementActive = false;
       state.pastePreviewWorld = null;
@@ -6729,6 +6779,7 @@
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
     }
@@ -6742,6 +6793,7 @@
       setCanvasShowPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
     }
@@ -6755,6 +6807,7 @@
       setCanvasShowPanelOpen(false);
       setLayerVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
     }
@@ -6768,11 +6821,28 @@
       setCanvasShowPanelOpen(false);
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
+      setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
     }
     setWaypointVisibilityPanelOpen(next);
   });
+
+  viewportToolsBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const next = !viewportToolsPanelEl?.classList.contains("open");
+    if (next){
+      setCanvasShowPanelOpen(false);
+      setLayerVisibilityPanelOpen(false);
+      setGroupVisibilityPanelOpen(false);
+      setWaypointVisibilityPanelOpen(false);
+      setViewModePanelOpen(false);
+      setDebugFogPanelOpen(false);
+    }
+    setViewportToolsPanelOpen(next);
+  });
+
+  viewportToolsPanelEl?.addEventListener("click", (event) => event.stopPropagation());
 
   viewModeBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -6782,6 +6852,7 @@
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setViewportToolsPanelOpen(false);
       setDebugFogPanelOpen(false);
     }
     setViewModePanelOpen(next);
@@ -6801,6 +6872,7 @@
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
     }
     setDebugFogPanelOpen(next);
@@ -6886,6 +6958,9 @@
     if (viewModePanelEl?.classList.contains("open")){
       if (!(viewModePanelEl.contains(event.target) || viewModeBtn?.contains(event.target))) setViewModePanelOpen(false);
     }
+    if (viewportToolsPanelEl?.classList.contains("open")){
+      if (!(viewportToolsPanelEl.contains(event.target) || viewportToolsBtn?.contains(event.target))) setViewportToolsPanelOpen(false);
+    }
   });
 
   addEventListener("resize", () => {
@@ -6895,6 +6970,7 @@
     if (waypointVisibilityPanelEl?.classList.contains("open")) positionWaypointVisibilityPanel();
     if (debugFogPanelEl?.classList.contains("open")) positionDebugFogPanel();
     if (viewModePanelEl?.classList.contains("open")) positionViewModePanel();
+    if (viewportToolsPanelEl?.classList.contains("open")) positionViewportToolsPanel();
   });
 
   exportBtn.addEventListener("click", () => {
@@ -9950,7 +10026,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
 
   cv.addEventListener('click',()=>{ if (!hasTypingFocus()) cv.focus(); });
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&showStatsEl){ showStatsEl.checked=!showStatsEl.checked; syncRenderUiState(); } if(k==='h'&&showAnchorPointsEl){ showAnchorPointsEl.checked=!showAnchorPointsEl.checked; syncRenderUiState(); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&showStatsEl){ showStatsEl.checked=!showStatsEl.checked; syncRenderUiState(); } if(k==='h'&&showAnchorPointsEl){ showAnchorPointsEl.checked=!showAnchorPointsEl.checked; syncRenderUiState(); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
