@@ -1986,8 +1986,10 @@
     hoveredGizmoHandle: null,
 
     gameStrings: new Map(),
+    missionGameStrings: new Map(),
     weaponDefs: new Map(),
     wpNames: [],
+    defaultWpNames: [],
     aiTextfileNames: [],
     aiTextfileLabels: new Map(),
     isLocalRuntime: window.location.protocol === "file:",
@@ -3027,6 +3029,29 @@
     refreshGeneralConditionSelectOptions();
   }
 
+  async function loadMissionGameStrings(fileName){
+    state.missionGameStrings = new Map();
+    state.wpNames = state.defaultWpNames.slice();
+    const stem = String(fileName || "").replace(/\.[^.]+$/, "").toUpperCase();
+    if (!/^SPBHD_\d{2}$/.test(stem)){
+      buildWpNameOptions();
+      refreshGeneralConditionSelectOptions();
+      return;
+    }
+
+    const path = `resources/game_strings/${stem}.bin`;
+    const text = await loadTextResource(path);
+    if (text !== null){
+      state.missionGameStrings = parseStringTableLikeFile(text);
+      const wpNames = parseWpNamesFromMedmssn(text);
+      if (wpNames.length) state.wpNames = wpNames;
+    }
+    buildWpNameOptions();
+    addLog(`Loaded mission strings: ${path} (${state.missionGameStrings.size} keys)`);
+    refreshGeneralConditionSelectOptions();
+    if (state.sectionKind === "event" && state.sectionEditorOpen) renderEventEditor();
+  }
+
   async function loadWpNames(){
     const path = "resources/game_strings/medmssn.bin";
     const text = await loadTextResource(path);
@@ -3035,7 +3060,10 @@
       return;
     }
     const parsed = parseWpNamesFromMedmssn(text);
-    if (parsed.length) state.wpNames = parsed;
+    if (parsed.length){
+      state.wpNames = parsed;
+      state.defaultWpNames = parsed.slice();
+    }
     buildWpNameOptions();
     addLog(`Loaded WPNames from medmssn.bin (${state.wpNames.length} entries)`);
   }
@@ -3600,7 +3628,11 @@
     const isWin = kind === "win";
     const keyRegex = isWin ? /^STRWINCOND(\d{3})$/ : /^STRLOSECOND(\d{3})$/;
     const entries = [];
-    for (const [k, v] of state.gameStrings.entries()){
+    const missionEntries = [...state.missionGameStrings.entries()];
+    const source = missionEntries.some(([k]) => keyRegex.test(String(k)))
+      ? missionEntries
+      : [...state.gameStrings.entries()];
+    for (const [k, v] of source){
       const m = String(k).match(keyRegex);
       if (!m) continue;
       entries.push({ value: Number(m[1]), label: String(v) });
@@ -5294,6 +5326,10 @@
     if(!Object.prototype.hasOwnProperty.call(choices,String(value))) options.push(`<option value="${value}" selected>${escapeHtml(`${value} - Unknown (preserved)`)}</option>`);
     return `<label>${escapeHtml(label)}<select data-field="${field}">${options.join('')}</select></label>`;
   }
+  function eventSubgoalChoices(actionType){
+    const kind=(actionType===14||actionType===35)?"win":"lose";
+    return Object.fromEntries(getGeneralConditionOptions(kind).map(option=>[option.value,option.label]));
+  }
   function renderEventRowFields(kind,values){
     const labels=EVENT_ROW_LABELS[kind]; let html=[];
     if(kind==='trigger'){
@@ -5310,7 +5346,13 @@
         : (ACTION_VARIABLES[type]||[]);
       html.push(`<label>${labels[0]}<input type="number" data-field="0" value="${values[0]}"></label>`);
       html.push(eventSelect(1,type,Object.fromEntries(EVENT_ACTION_TYPES.map((x,i)=>[i,x])),labels[1]));
-      for(let i=2;i<=5;i++) html.push(`<label>${escapeHtml(vars[i-2]||labels[i])}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
+      for(let i=2;i<=5;i++){
+        const label=vars[i-2]||labels[i];
+        const isSubgoal=i===2&&[14,15,35,36].includes(type);
+        html.push(isSubgoal
+          ? eventSelect(i,values[i],eventSubgoalChoices(type),label)
+          : `<label>${escapeHtml(label)}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
+      }
       const subtypeChoices=(type===3||type===21)?AI_ACTIONS:ACTION_SUBTYPES[type];
       html.push(subtypeChoices?eventSelect(6,values[6],subtypeChoices,(type===3||type===21)?'AI Action':'Action'):`<label>${labels[6]}<input type="number" data-field="6" value="${values[6]}"></label>`);
       html.push(`<label>${labels[7]}<input type="number" data-field="7" value="${values[7]}" title="Reserved value; preserved for lossless round trips."></label>`);
@@ -7657,6 +7699,7 @@
     if (!file) return;
     state.filename = file.name;
     state.currentMisFileHandle = fileHandle;
+    await loadMissionGameStrings(file.name);
     const misBuffer = await file.arrayBuffer();
     const decodedMis = decodeMisTextFromFile(misBuffer);
     const text = decodedMis.text;
