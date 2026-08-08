@@ -8399,6 +8399,59 @@
     });
   }
 
+  function clearGlbWaypointOutline(instance){
+    if (!instance) return;
+    instance.traverse((obj) => {
+      if (!obj.isMesh) return;
+      const outline = obj.userData._waypointOutlineLines;
+      if (!outline) return;
+      obj.remove(outline);
+      outline.geometry?.dispose?.();
+      outline.material?.dispose?.();
+      delete obj.userData._waypointOutlineLines;
+    });
+  }
+
+  function applyWaypointOutlineToGlbObject(instance, it){
+    if (!instance || !state.glb.THREE) return;
+    const category = getItemShowCategory(it);
+    const colorHex = getWaypointColorHexForItem(it);
+    const shouldHaveOutline = (category === "people" || category === "vehicle")
+      && getItemWaypointId(it) != null
+      && colorHex != null;
+
+    if (!shouldHaveOutline){
+      clearGlbWaypointOutline(instance);
+      return;
+    }
+
+    const { THREE } = state.glb;
+    instance.traverse((obj) => {
+      if (!obj.isMesh || !obj.geometry) return;
+      const existing = obj.userData._waypointOutlineLines;
+      if (existing){
+        existing.material?.color?.setHex(colorHex);
+        existing.material.needsUpdate = true;
+        return;
+      }
+
+      const edgesGeo = new THREE.EdgesGeometry(obj.geometry, 35);
+      const outlineMat = new THREE.LineBasicMaterial({
+        color: colorHex,
+        transparent: true,
+        opacity: 1,
+        depthTest: true,
+        depthWrite: false,
+        toneMapped: false,
+      });
+      const outline = new THREE.LineSegments(edgesGeo, outlineMat);
+      outline.renderOrder = 19;
+      outline.raycast = () => null;
+      obj.add(outline);
+      obj.userData._waypointOutlineLines = outline;
+    });
+  }
+
   function disposeAreaTriggerVolumes(){
     const group = state.areaTriggerVolumes.group;
     if (!group) return;
@@ -8483,7 +8536,9 @@
     const wantedId = Number(waypointId);
     for (const it of state.items || []){
       if (getItemWaypointId(it) !== wantedId) continue;
-      applyWaypointColorToGlbObject(state.glb.itemInstances.get(it.id), it);
+      const instance = state.glb.itemInstances.get(it.id);
+      applyWaypointColorToGlbObject(instance, it);
+      applyWaypointOutlineToGlbObject(instance, it);
     }
   }
 
@@ -8598,6 +8653,7 @@
   function cleanupGlbInstanceVisualState(instance){
     if (!instance) return;
     clearGlbSelectionOutline(instance);
+    clearGlbWaypointOutline(instance);
     instance.traverse((obj) => {
       if (!obj.isMesh) return;
       if (!Object.prototype.hasOwnProperty.call(obj.userData, "_viewModeOriginalMaterial")) return;
@@ -8645,6 +8701,7 @@
           });
           applyWaypointColorToGlbObject(instance, it);
           applyAreaTriggerColorToGlbObject(instance, it);
+          applyWaypointOutlineToGlbObject(instance, it);
           instance.userData.itemId = it.id;
           instance.userData.graphic = graphic;
           applyViewModeToGlbObject(instance, it);
@@ -8654,6 +8711,7 @@
 
         applyWaypointColorToGlbObject(instance, it);
         applyAreaTriggerColorToGlbObject(instance, it);
+        applyWaypointOutlineToGlbObject(instance, it);
         applyViewModeToGlbObject(instance, it);
         applyItemTransformToObject(instance, it);
       }
