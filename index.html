@@ -1983,6 +1983,10 @@
       group: null,
       signature: "",
     },
+    terrainLoad: {
+      phase: "idle",
+      revision: 0,
+    },
     threeOverlays: {
       scene: null,
       waterMaterial: null,
@@ -7322,11 +7326,19 @@
     state.threeTerrain.textures.delta = null;
     state.threeTerrain.dirty = true;
     state.threeTerrain.ready = false;
+    state.areaTriggerVolumes.signature = "";
     if (state.threeOverlays.scene){
       for (const mesh of state.threeOverlays.waterMap.values()) state.threeOverlays.scene.remove(mesh);
       state.threeOverlays.waterMap.clear();
       state.threeOverlays.waterPool.length = 0;
     }
+  }
+
+  function setTerrainLoadPhase(phase){
+    state.terrainLoad.phase = phase;
+    state.terrainLoad.revision += 1;
+    state.areaTriggerVolumes.signature = "";
+    requestRender();
   }
   function Mesh(){ this.indexCount=0; this.sourceVerts=null; this.sourceIdx=null; }
   Mesh.prototype.upload=function(mesh){ this.indexCount=mesh.idx.length; this.sourceVerts=mesh.verts; this.sourceIdx=mesh.idx; };
@@ -8471,7 +8483,12 @@
       state.glb.scene.add(state.areaTriggerVolumes.group);
     }
     const group = state.areaTriggerVolumes.group;
-    group.visible = renderUiState.showAreaTriggers;
+    const terrainLoading = state.terrainLoad.phase === "loading";
+    group.visible = renderUiState.showAreaTriggers && !terrainLoading;
+    if (terrainLoading){
+      if (group.children.length) disposeAreaTriggerVolumes();
+      return;
+    }
 
     const areas = new Map();
     for (const it of state.items || []){
@@ -8482,6 +8499,7 @@
       areas.get(number).push(it);
     }
     const signature = Array.from(areas.entries()).map(([number, markers]) => [
+      `terrain:${state.terrainLoad.revision}`,
       number,
       getAreaTrigColorIndex(getAreaTrigSectionByNumber(number)),
       ...markers.map(it => `${it.id}:${it.x}:${it.y}:${it.z}`),
@@ -9334,11 +9352,14 @@
   async function loadTerrainFromMis(terrainOverride = null){
     const terrainRaw = terrainOverride ?? extractTerrainNameFromMis();
     const terrain = String(terrainRaw || "").trim();
+    setTerrainLoadPhase("loading");
     clearTerrainRenderState();
+    try {
     addLog(`[terrain] terrain key from MIS: ${terrain || "<empty>"}`);
     if(!terrain){
       loadedTrnName=null;
       addLog("[terrain] MIS has no 'terrain' in general_information; terrain renderer disabled.");
+      setTerrainLoadPhase("failed");
       return;
     }
 
@@ -9450,7 +9471,13 @@
 
     rebuildTerrain();
     markAllItemTransformsDirty();
+    setTerrainLoadPhase("ready");
     addLog(`[terrain] terrain rebuild complete: ${folder}/${trnFile}`);
+    } finally {
+      // A missing or unreadable terrain must not leave area-trigger rendering
+      // blocked forever. In that case volumes fall back to the markers' raw Z.
+      if (state.terrainLoad.phase === "loading") setTerrainLoadPhase("failed");
+    }
   }
 
 
