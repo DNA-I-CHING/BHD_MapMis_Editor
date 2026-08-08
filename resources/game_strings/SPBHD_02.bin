@@ -1,0 +1,93 @@
+'[Mission Dialog]'
+STRDLGLINE000 = " ";
+
+'[Triggered Text]'
+
+'[Info]'
+Title = "Bandit's Crossing";
+briefing = "Bandit's Crossing
+Date:  February 27, 1993 - 1930 hours
+Location:  Jubba Valley
+
+Situation:
+UN Forces are attempting to distribute food and provisions to local civilians. Intel reports that Habr Gedir militia may be planning to raid the distribution center and take the supplies for their clan's use. You must prevent any militia unit from taking food shipments. Secure the village and ensure that enemy reinforcements cannot reach the UN Convoy.
+";
+briefing2 = "<cFC8932>Bandit's Crossing<-co>
+OPORD: 2-93, 10th MTN Div 3   Date Time: 271930 February 93
+
+1. <ucFC8932>Situation<-uco> 
+UNOSOM personnel will be handing out food and medical supplies in an area where there has been previous Habr Gedir activity.
+      <cFC8932>Weather:<-co> High clouds, good visibility.
+      <cFC8932>Terrain:<-co> Hills, flatlands, dry, some high grass.
+      <cFC8932>Enemy:<-co>  None present, militia activity in neighboring villages.
+      <cFC8932>Friendly:<-co>  Four Observation Posts (OP's) around village.
+
+2. <ucFC8932>Mission<-uco>
+      <cFC8932>Who:<-co> 10th Mt, Platoon 3 (Team One)
+      <cFC8932>What:<-co> Provide security during food distribution.
+      <cFC8932>When:<-co> Deploy when UNOSOM forces are ready.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Prevent any disturbances that may interrupt food delivery. Prevent civilian casualties.
+      <cFC8932>Concept of Operation:<-co>  Platoon 3 will deploy by boat along with UNOSOM personnel to the food distr. point where they will secure a perimeter and maintain order.   
+      <cFC8932>Coordinating instructions: <-co>  Command will coordinate with UNOSOM Cmdr.
+
+4. <ucFC8932>Service and support<-uco>
+      <cFC8932>Basic Load:<-co>  M16, M9 Beretta, Satchel Charge, Night Vision Goggles (NVG's)
+
+5. <ucFC8932>Command and signal<-uco>
+UNOSOM forces will maintain their own frequencies. Coord. instructions will come from UNITAF HQ.
+
+";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Proceed to food drop-off point after the boat docks";
+STRWINCOND002 = "Protect civilians from enemy fire";
+STRWINCOND003 = "Defend village from attacking militia";
+STRWINCOND004 = "Proceed to the OpPost at the riverbank";
+STRWINCOND005 = "Take cover in the boat and suppress enemies from crossing the bridge";
+STRWINCOND006 = "Cross the bridge and destroy the ammo cache on the far side";
+STRWINCOND007 = "Fall back & plant a satchel charge on bridge";
+STRWINCOND008 = "Detonate charges from safe distance";
+STRWINDIRECTIVE001 = "Jump off the boat when you reach the dock and proceed ahead to the distribution point and await further orders.";
+STRWINDIRECTIVE002 = "Delay attacking enemy by any means, until civilians can be dispersed. Eliminate any remaining hostiles.";
+STRWINDIRECTIVE003 = "Delay attacking enemy by any means, until civilians can be dispersed. Eliminate any remaining hostiles.";
+STRWINDIRECTIVE004 = "Proceed to the Op Post just West of the bridge and take up cover positions.";
+STRWINDIRECTIVE005 = "Prevent enemies from crossing the bridge and attacking the village. 
+Hold your position until otherwise instructed.";
+STRWINDIRECTIVE006 = "Cross the bridge and assess the enemy strength on the far side. Destroy any weapons you find. ";
+STRWINDIRECTIVE007 = "Fall back across the bridge and plant a satchel demolition charge on the center span. Watch out for enemy fire.";
+STRWINDIRECTIVE008 = "Pull back to a safe distance away from the bridge and detonate the charges to prevent any further attacks.";
+STRWINMSG003 = "Village is clear.";
+STRWINMSG008 = "Bridge has been destroyed. Mission accomplished.";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Player is killed.";
+STRLOSECOND002 = "Player shoots teammates.";
+STRLOSECOND003 = "Player shoots civilians.";
+STRLOSECOND004 = "Player Destroys Bridge Early.";
+STRLOSEDIRECTIVE001 = "z";
+STRLOSEDIRECTIVE002 = "z";
+STRLOSEMSG001 = "Player has been killed. Mission Failure.";
+STRLOSEMSG002 = "Fratricide is not tolerated. Mission Failure.";
+STRLOSEMSG003 = "Unacceptable collateral damage. Mission Failure.";
+STRLOSEMSG004 = "You were not authorized to destroy that bridge. That order supercedes your level of command.";
+STRLOSECOND005 = "Teammates Killed.";
+STRLOSEMSG005 = "You have to keep the rest of your squad covered, too... Mission Failure.";
+
+'[WPnames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Food Drop Off Point";
+STRWPNAME002 = "UN Convoy";
+STRWPNAME003 = "Village Food Drop Off";
+STRWPNAME004 = "East Field";
+STRWPNAME005 = "Foxtrot";
+STRWPNAME006 = "Op Post 1";
+STRWPNAME007 = "Enemy Encampment";
+STRWPNAME008 = "India";
+STRWPNAME009 = "Bridge Center Span";
+STRWPNAME010 = "Kilo";
+STRWPNAME011 = "Minimum Safe Distance";
+STRWPNAME012 = " ";

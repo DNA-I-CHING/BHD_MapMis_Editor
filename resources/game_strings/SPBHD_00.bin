@@ -1,0 +1,56 @@
+'[Mission Dialog]'
+STRDLGLINE000 = "Link up with the troops at the front of the convoy.";
+
+'[Triggered Text]'
+
+'[Info]'
+Title = "Weapons Range South";
+briefing = "Weapons Range South
+Use this firing range to test out all of the weapons available to the U.S. Forces in Somalia. Access to all standard weapons will be provided along with various moving and stationary targets. You can change weapons and reload ammunition in any one of the armories. 
+";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "3 different armory types are available";
+STRWINCOND002 = "Try your hand at engaging targets with squad machine guns";
+STRWINCOND003 = "Engage targets at up to 800m on this range with the sniper rifles";
+STRWINCOND004 = "Use the AT4 or M203 grenade launcher to destroy moving vehicles";
+STRWINCOND005 = "Use hand grenades to destroy targets behind bunkers";
+STRWINCOND006 = "Use satchel charges to destroy target emplaced weapons and enemy munitions";
+STRWINCOND007 = "Avoid entering the minefield";
+STRWINCOND008 = "Press ESC to exit back to the menus";
+STRWINDIRECTIVE001 = " ";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Player is leaving mission area.";
+STRLOSECOND002 = "Player has left weapons range.";
+STRLOSECOND003 = "Players elects to end mission.";
+STRLOSECOND004 = "Blackhawk is shot down.";
+STRLOSECOND005 = "UN Convoy is crippled.";
+STRLOSECOND006 = "Player AWOL.";
+STRLOSECOND007 = "Player killed civilians.";
+STRLOSEDIRECTIVE001 = "z";
+STRLOSEDIRECTIVE002 = "z";
+STRLOSEDIRECTIVE003 = "z";
+STRLOSEDIRECTIVE004 = "z";
+STRLOSEDIRECTIVE005 = "z";
+STRLOSEDIRECTIVE006 = "z";
+STRLOSEDIRECTIVE007 = "z";
+STRLOSEMSG001 = "You are leaving the weapons range. Mission will end in 25 seconds if you do not return.";
+STRLOSEMSG002 = "You have left the weapons range. Mission will end in 10 seconds.";
+STRLOSEMSG003 = "You have elected to leave Weapons Range South.";
+STRLOSEMSG004 = "Golf 3 is down, unable to complete mission.";
+STRLOSEMSG005 = "We've lost too many supply trucks, abort the mission.";
+STRLOSEMSG006 = "Desertion is not tolerated in the US Army. Mission Failure.";
+STRLOSEMSG007 = "You're here to protect civilians, not kill them. Mission Failure.";
+
+'[WPnames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "HMMWV";
+STRWPNAME002 = "Rallypoint Alpha";
+STRWPNAME003 = "Checkpoint Bravo";
+STRWPNAME004 = "Checkpoint Charlie";
+STRWPNAME005 = "Overwatch Postion";
+STRWPNAME006 = "Enemy CP";
+STRWPNAME007 = "LZ Golf";

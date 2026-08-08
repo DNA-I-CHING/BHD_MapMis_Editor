@@ -1,0 +1,111 @@
+'[Mission Dialog]'
+
+'[info]'
+briefing = "Besieged
+Date:  May 5, 1993 - 1330 hours
+Location:  Mogadishu, Somalia
+
+Situation:
+A convoy of Pakistani U.N. soldiers are under heavy fire in grid Charlie Two. They have at least one truck destroyed and are surrounded. Get your team to their location and help them pass the roadblock that has them trapped.";
+briefing2 = "<cFC8932>Besieged <-co>
+OPORD: 4-93, TFR  Div 3    Date Time: 051330 May 93	
+
+1. <ucFC8932>Situation<-uco>
+A convoy of Pakistani U.N. Soldiers is under heavy fire in grid Charlie Two. They have at least one truck destroyed and are surrounded.
+      <cFC8932>Weather:<-co>  Hot, sunny.
+      <cFC8932>Terrain:<-co> City, urban.
+      <cFC8932>Enemy:<-co>  Minimum of forty Habr Gedir militia. AK 47's, RPG's, Technicals.
+      <cFC8932>Friendly:<-co> None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Ranger Team Two-One
+      <cFC8932>What:<-co> Insert by Humvee. Locate, reinforce and free the trapped convoy. 
+      <cFC8932>When:<-co> Immediately following briefing.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Quickly locate Pakistani's and reinforce their position and facilitate their escape.
+      <cFC8932>Concept of Operation:<-co>  Move by vehicle to U.N. forces. Set up a secure perimeter and work to dismantle any resistance and roadblocks that prevent their movement.
+      <cFC8932>Coordinating instructions: <-co>  1st squad assault. 
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  M16, M9 Beretta, Satchel Charge
+
+5. <ucFC8932>Command and signal<-uco>
+	SOP
+";
+title = "Besieged";
+
+'[WPNames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "Igloo";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Oscar";
+STRWPNAME016 = "Papa";
+STRWPNAME017 = "Quebec";
+STRWPNAME018 = "Romeo";
+STRWPNAME019 = "Sierra";
+STRWPNAME020 = "Tango";
+STRWPNAME021 = "Uniform";
+STRWPNAME022 = "Victor";
+STRWPNAME023 = "Whiskey";
+STRWPNAME024 = "X-Ray";
+STRWPNAME025 = "Yankee";
+STRWPNAME026 = "Zulu";
+STRWPNAME027 = "Riot";
+STRWPNAME028 = "Rage";
+STRWPNAME029 = "Raven";
+STRWPNAME030 = "Zoom";
+STRWPNAME031 = "Zebra";
+
+'[WinConditions]'
+STRWINCOND000 = " ";
+STRWINCOND001 = "Make your way to the ambushed Pakistani convoy";
+STRWINCOND002 = "Destroy roadblock at waypoint Zulu with a satchel charge";
+STRWINCOND003 = "Escort convoy out of ambush";
+STRWINCOND004 = "Take out the enemies in the bombed out building at waypoint Hotel and the snipers across the street";
+STRWINCOND005 = "Eliminate snipers attacking the rear of the convoy";
+STRWINDIRECTIVE000 = " ";
+STRWINDIRECTIVE001 = "Make your way to the ambushed convoy!";
+STRWINDIRECTIVE002 = "Destroy the roadblock at waypoint Zulu with a satchel charge!";
+STRWINDIRECTIVE003 = "Escort the convoy out of the ambush!";
+STRWINDIRECTIVE004 = "Take out the enemies in that bombed out building at waypoint Hotel, and the snipers across the street!";
+STRWINDIRECTIVE005 = "Eliminate snipers attacking the rear of the convoy!";
+STRWINMSG000 = " ";
+STRWINMSG001 = "Get out of the Humvee and proceed on foot!";
+STRWINMSG002 = "The roadblock is destroyed and the convoy route is clear.";
+STRWINMSG003 = "Mission Completed!  Nice Work!";
+STRWINMSG004 = "Nice work!  The East building has been cleared and the snipers across the street have been eliminated!";
+STRWINMSG005 = "Sniper threat has been neutralized!";
+
+'[LoseConditions]'
+STRLOSECOND000 = " ";
+STRLOSECOND001 = "Shooting and killing Pakistanis";
+STRLOSECOND002 = "Teammates are killed";
+STRLOSECOND003 = "Too many civilian casualties";
+STRLOSECOND004 = "Prevent the Pakistanis from being slaughtered";
+STRLOSEDIRECTIVE000 = " ";
+STRLOSEDIRECTIVE001 = "Don't shoot the Pakistanis!";
+STRLOSEDIRECTIVE002 = "Avoid friendly casualties!";
+STRLOSEDIRECTIVE003 = "Don't shoot any civilians!";
+STRLOSEDIRECTIVE004 = "Protect the Pakistanis!";
+STRLOSEMSG000 = " ";
+STRLOSEMSG001 = "Five-One has gone berserk! He is killing Pakistanis!";
+STRLOSEMSG002 = "You have lost all your teammates!";
+STRLOSEMSG003 = "You have killed too many civilians!";
+STRLOSEMSG004 = "Too many Pakistanis have died!";
+
+'[PeopleNames]'
+
+'[CineText]'

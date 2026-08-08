@@ -1,0 +1,118 @@
+'[Mission Dialog]'
+
+'[info]'
+Title = "River Raid";
+briefing = "River Raid
+Date:  April 27, 1993 - 0700 hours
+Location:  Brava Village, Jubba Valley
+
+Situation:
+An informant has given us the location of an illegal weapons shipment waiting to be transferred to the Habr Gedir. Your team will insert the target area by Black Hawk. Find and secure the weapons cache and retrieve any intel. Victor Two will be on standby if you need any assistance.
+";
+briefing2 = "<cFC8932>River Raid<-co>
+OPORD: 3-93, 10th MTN Div 3    Date Time: 270700 April 93
+
+1. <ucFC8932>Situation<-uco>
+An informant has identified a village where a large weapon shipment is awaiting transfer to the Habr Gedir.
+      <cFC8932>Weather:<-co> Dry and hot.
+      <cFC8932>Terrain:<-co> Village, few permanent structures - Marshlands and river nearby.  U.N. marked minefield southeast of village.
+      <cFC8932>Enemy:<-co>  Minimum of twenty Habr Gedir militia equipped with small arms patrolling throughout village. Technicals w/ .50 caliber mounted weapons.
+      <cFC8932>Friendly: <-co> None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> 10th Mt, Platoon 3  - Victor Three, Victor Two on Standby
+      <cFC8932>What:<-co> Insert by Black Hawk, locate and secure arms shipment.
+      <cFC8932>When:<-co> NLT (No Later Than) 1030 hours.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Get in and out quickly. Secure arms. Avoid civilian casualties. Secondary objective is to gather intel at the shipment location and report to command.
+      <cFC8932>Concept of Operation:<-co>  Move by vehicle along route alpha to drop off. Locate warehouse. Do actions on objective: Secure arms shipment and gather intel. Return by foot to extract vehicles and RTB. 
+      <cFC8932>Coordinating instructions: <-co>  1st squad assault and secure weapons. 2nd squad on standby in Black Hawk.
+
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  M16/M203, M9 Beretta, AT-4
+
+5. <ucFC8932>Command and signal<-uco>
+SOP
+";
+
+'[WPNames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Oscar";
+STRWPNAME016 = "Papa";
+STRWPNAME017 = "Quebec";
+STRWPNAME018 = "Romeo";
+STRWPNAME019 = "Sierra";
+STRWPNAME020 = "Tango";
+STRWPNAME021 = "Uniform";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Proceed to town of Brava at waypoint Alpha";
+STRWINCOND002 = "Secure arms warehouse by eliminating enemies there";
+STRWINCOND003 = "Get on the truck behind the warehouse and move out";
+STRWINCOND004 = "Rendezvous with support team, Victor Two, outside village of Deka";
+STRWINCOND005 = "Proceed to Deka";
+STRWINCOND006 = "Secure Deka at waypoint Hotel by eliminating the enemies there";
+STRWINCOND007 = "Destroy the weapons transport boat before it escapes";
+STRWINCOND008 = "Search warehouse for arms shipment documents";
+STRWINDIRECTIVE000 = "null";
+STRWINDIRECTIVE001 = "Proceed to town of Brava at waypoint Alpha!";
+STRWINDIRECTIVE002 = "Secure the weapons warehouse by eliminating enemies there!";
+STRWINDIRECTIVE003 = "Get on that truck behind the warehouse and move out to Deka!";
+STRWINDIRECTIVE004 = "Meet up with Victor Two on the west side of Deka!";
+STRWINDIRECTIVE005 = "Proceed to Deka!";
+STRWINDIRECTIVE006 = "Secure Deka at waypoint Hotel by eliminating enemy resistance!";
+STRWINDIRECTIVE007 = "Destroy weapons transport boat before it escapes!";
+STRWINDIRECTIVE008 = "Search the warehouse for arms shipment documents!";
+STRWINMSG000 = "null";
+STRWINMSG001 = "On ground at Brava.  Searching for weapons warehouse!";
+STRWINMSG002 = "Warehouse secured!";
+STRWINMSG003 = "On the truck and en route to Deka!";
+STRWINMSG004 = "Linked up with Victor Two and proceeding to Deka!";
+STRWINMSG005 = "Arrived at Deka!";
+STRWINMSG006 = "Deka has been secured!";
+STRWINMSG007 = "The weapons transport has been destroyed!";
+STRWINMSG008 = "Arms shipment documents found!";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Avoid civilian casualties";
+STRLOSECOND002 = "You team must not be wiped out";
+STRLOSECOND003 = "The informant must not die";
+STRLOSECOND004 = "The informant's truck must not be destroyed";
+STRLOSECOND005 = "Do not stray from your mission objectives";
+STRLOSECOND006 = "The weapons transport boat must not escape Deka";
+STRLOSEDIRECTIVE000 = "null";
+STRLOSEDIRECTIVE001 = "Avoid civilian casualties!";
+STRLOSEDIRECTIVE002 = "Watch your teammate's back!";
+STRLOSEDIRECTIVE003 = "Don't let the informant get shot!";
+STRLOSEDIRECTIVE004 = "Do not shoot the truck.  You may need it later!";
+STRLOSEDIRECTIVE005 = "Stay on task, soldier. Don't stray from your mission objectives!";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "Objective Incomplete!  Too many civilians have been killed!";
+STRLOSEMSG002 = "Mission Failed!!  You have lost too many friendlies!";
+STRLOSEMSG003 = "Mission Failed!  The informant was killed!";
+STRLOSEMSG004 = "Soldier, you just blew up your ride. You're going to have to hike it on foot!";
+STRLOSEMSG005 = "You are AWOL soldier!";
+STRLOSEMSG006 = "Objective Incomplete!  Weapons transport boat has escaped!";
+
+'[PeopleNames]'
+STRNAME000 = "null";
+
+'[CineText]'

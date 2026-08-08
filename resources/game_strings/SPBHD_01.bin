@@ -1,0 +1,95 @@
+'[Mission Dialog]'
+STRDLGLINE000 = "Link up with the troops at the front of the convoy.";
+
+'[Triggered Text]'
+
+'[Info]'
+Title = "Marka Breakdown";
+briefing = "Marka Breakdown
+Date:  February 16, 1993 - 1530 hours
+Location:  Marka Village, Jubba Valley
+
+Situation:
+A UN convoy carrying food and supplies has broken down in the valley just north of Marka. It is suspected the militia members might try to raid the convoy and take the shipment for themselves. Board the waiting Humvee and proceed to their location. Protect the convoy and escort it to its destination.
+";
+briefing2 = "<cFC8932>Marka Breakdown<-co>
+OPORD: 1-93, 10th MTN Div 3  Date Time: 161530 February 93 
+
+1. <ucFC8932>Situation<-uco>
+A United Nations convoy was delivering food and medical supplies near the village of Marka, when one of their trucks broke down, halting the convoy. Bandits are already converging on the area in an attempt to steal the supplies.
+      <cFC8932>Weather:<-co> High Clouds, Hot, Good Visibility.
+      <cFC8932>Terrain:<-co> Hills, flatlands, dry, some high grass.
+      <cFC8932>Enemy:<-co> Vehicles with mounted 50 caliber weapons (Technicals), approx 60 militia w/ small caliber weapons.
+      <cFC8932>Friendly:<-co> Aerial Recon Black Hawk Golf Three.
+
+2. <ucFC8932>Mission<-uco>
+      <cFC8932>Who:<-co> 10th Mt, Platoon 3 (Team One)
+      <cFC8932>What:<-co> Provide security until convoy reaches town of Quorley.
+      <cFC8932>When:<-co> Immediately after briefing.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co> Protect UN food/supply convoy from capture.
+      <cFC8932>Concept of Operation:<-co>  Platoon 3 will deploy via Humvees to the location of the U.N. convoy. They will provide fire support until the column is ready to move.  
+      <cFC8932>Coordinating instructions: <-co>  Golf Three is in the area if air support is needed.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  M21, M9 Beretta, AT-4
+
+5. <ucFC8932>Command and signal:<-uco>
+	SOP
+";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Mount closest Humvee. Man the .50 cal";
+STRWINCOND002 = "Protect relief convoy with .50 cal MG";
+STRWINCOND003 = "Dismount and meet up with your teammates";
+STRWINCOND004 = "Follow teammates to enemy command post";
+STRWINCOND005 = "Eliminate resistance at enemy command post";
+STRWINCOND006 = "Board helo & man left minigun";
+STRWINCOND007 = "Protect the convoy from the air";
+STRWINCOND008 = "Escort convoy safely to destination";
+STRWINDIRECTIVE001 = "Mount the Humvee ahead of you. Press the 'Use' key to attach to the .50 cal machine gun.";
+STRWINDIRECTIVE002 = "Protect the relief convoy with the .50 cal machine gun. Prioritize enemy vehicles and troops with RPGs.";
+STRWINDIRECTIVE003 = "Meet up with the soldiers in front of the lead UN truck. Press the 'Use' key to dismount from the Humvee.";
+STRWINDIRECTIVE004 = "Follow the soldiers and check out an enemy CP to the NE. Take up a position on the hill above the vehicles.";
+STRWINDIRECTIVE005 = "Eliminate any enemies at the command post. Destroy any fuel or supplies if possible.";
+STRWINDIRECTIVE006 = "Board the Black Hawk and man the minigun on the left side of the aircraft.";
+STRWINDIRECTIVE007 = "Protect the convoy from enemy ambush. Be careful not to hit friendly vehicles.";
+STRWINDIRECTIVE008 = "z";
+STRWINMSG005 = "Enemy CP has been destroyed.";
+STRWINMSG007 = "Convoy has arrived safely. Mission Accomplished.";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Player is killed";
+STRLOSECOND002 = "Player shoots teammates";
+STRLOSECOND003 = "Player is left behind";
+STRLOSECOND004 = "Blackhawk is shot down";
+STRLOSECOND005 = "UN Convoy is crippled";
+STRLOSECOND006 = "Player AWOL";
+STRLOSECOND007 = "Player killed civilians";
+STRLOSEDIRECTIVE001 = "z";
+STRLOSEDIRECTIVE002 = "z";
+STRLOSEDIRECTIVE003 = "z";
+STRLOSEDIRECTIVE004 = "z";
+STRLOSEDIRECTIVE005 = "z";
+STRLOSEDIRECTIVE006 = "z";
+STRLOSEDIRECTIVE007 = "z";
+STRLOSEMSG001 = "Player has been killed. Mission Failure.";
+STRLOSEMSG002 = "Fratricide is not tolerated. Mission Failure.";
+STRLOSEMSG003 = "You can't accomplish your mission away from your vehicle. Mission Failure";
+STRLOSEMSG004 = "Golf 3 is down, unable to complete mission.";
+STRLOSEMSG005 = "We've lost too many supply trucks, abort the mission.";
+STRLOSEMSG006 = "Desertion is not tolerated in the US Army. Mission Failure.";
+STRLOSEMSG007 = "You're here to protect civilians, not kill them. Mission Failure.";
+
+'[WPnames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "HMMWV";
+STRWPNAME002 = "Alpha";
+STRWPNAME003 = "Bravo";
+STRWPNAME004 = "Charlie";
+STRWPNAME005 = "Overwatch Postion";
+STRWPNAME006 = "Enemy Command Post";
+STRWPNAME007 = "Pickup Point";

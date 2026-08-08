@@ -1,0 +1,97 @@
+'[Mission Dialog]'
+STRDLGLINE000 = " ";
+STRDLGLINE001 = " ";
+STRDLGLINE002 = " ";
+STRDLGLINE003 = " ";
+STRDLGLINE004 = " ";
+STRDLGLINE005 = " ";
+STRDLGLINE006 = " ";
+
+'[info]'
+Title = "Last Stand";
+briefing = "Last Stand
+Date: October 4, 1993 - 0600 hours
+Location:  Mogadishu, Somalia 
+
+Situation:
+Enemy mortars are pinning down your team. You must get around behind their position, and take them out with a satchel charge. Once they are clear, your team will be able to make their way back to base.
+";
+briefing2 = "<cFC8932>Last Stand<-co>
+FRAGO: 4 TFR  REF: OPORD 10-93 TFR Date Time: 040600 October 93 
+
+1. <ucFC8932>Situation<-uco> 
+Habr Gedir forces have overrun the 2nd crash site. All crew are captured or killed. We are recalling all units back to base. Aerial recon shows enemy mortar emplacements near your location that will have to be eliminated to clear your exfil.
+
+      <cFC8932>Weather:<-co>  Hazy, dim light, hot.
+      <cFC8932>Terrain:<-co>  Urban - City center.
+      <cFC8932>Enemy:<-co>  Estimated 500 Habr Gedir militia equipped with small arms, grenades and RPG’s. Technicals w/ .50 caliber mounted weapons.
+      <cFC8932>Friendly:<-co>  None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta 5
+      <cFC8932>What:<-co> Eliminate mortars, get team out of Mogadishu’s center.
+      <cFC8932>When:<-co> Immediately.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Return team safely to base.
+      <cFC8932>Concept of Operation:<-co>  Aerial recon shows mortars pinning down your team. If you can circle behind it and plant a satchel, your team can get out safely. A lot is riding on this, so proceed cautiously, and methodically eliminate opposing forces.
+      <cFC8932>Coordinating instructions: <-co> 
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  CAR15/M203, Colt .45, Satchel Charges
+
+5. <ucFC8932>Command and signal<-uco>
+	Task Force chain of command in effect.  Command will coordinate from recon helo. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI
+
+";
+
+'[WPNames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Mortar Position";
+STRWPNAME016 = "Pickup Point";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Exit the building and proceed to your waypoints";
+STRWINCOND002 = "Follow waypoints through the back streets to the objective";
+STRWINCOND003 = "Eliminate enemy mortar crew";
+STRWINCOND004 = "Destroy mortar positions with satchel charges";
+STRWINCOND005 = "Regroup with the rescue convoy at the pick-up point";
+STRWINDIRECTIVE001 = "Find a safe route out of the building and proceed on mission.";
+STRWINDIRECTIVE002 = "Navigate carefully through the streets and try to flank the enemy mortar position.";
+STRWINDIRECTIVE003 = "Eliminate the enemy mortar crew.";
+STRWINDIRECTIVE004 = "Destroy both mortar tubes using your satchel charges.";
+STRWINMSG000 = "null";
+STRWINMSG001 = " ";
+STRWINMSG002 = " ";
+STRWINMSG003 = "Mortar crew is down.";
+STRWINMSG004 = "Mortars have been destroyed. Convoy is enroute.";
+STRWINMSG005 = "Relief Convoy has arrived.";
+STRWINDIRECTIVE005 = "Follow the relief convoy to the front of the building and link up with the rest of your team.";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Player out of mission area";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "Desertion is not tolerated in the US Army. Mission Failure.";
+
+'[PeopleNames]'
+STRNAME000 = "null";
+
+'[CineText]'
+STRREGION = " ";
+STRTIME = " ";

@@ -1,0 +1,87 @@
+'[Mission Dialog]'
+
+'[info]'
+Title = "Irene";
+briefing = "Irene
+Date: October 3rd, 1993 - 1535 hours
+Location: TFR base outside Mogadishu, Somalia
+
+Situation:
+Two of Aidid’s high-ranking officers will be meeting with other militia members today near the Olympic Hotel in the heart of Habr Gedir territory. This is our best chance to capture two of Aidid’s top lieutenants and a number of lower level officers. This mission will include four chalks of Rangers, Delta assault teams, and multiple SOAR helos. We should be in and out in under thirty minutes.
+";
+briefing2 = "<cFC8932>Irene<-co>
+OPORD: 10-93 TFR	Date Time: 031535 October 93
+
+1. <ucFC8932>Situation<-uco> 
+Two of Aidid’s high ranking officers will be meeting with other militia members today near the Olympic Hotel in the heart of Habr Gedir territory.
+      <cFC8932>Weather:<-co>  Clear, hot.
+      <cFC8932>Terrain:<-co>  Urban - City center.
+      <cFC8932>Enemy:<-co>  Estimated 500 Habr Gedir militia equipped with with small arms and RPG’s. Technicals w/ 50 caliber mounted weapons.
+      <cFC8932>Friendly:<-co>  None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Ranger Platoons 1 - 4,  160th, Delta teams 1-5
+      <cFC8932>What:<-co> Insert by helo, locate and secure principals. All units return to base.
+      <cFC8932>When:<-co> TBD, based on intel. NLT sunset.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Secure the target building and capture Aidid’s officers.
+      <cFC8932>Concept of Operation:<-co>  Chalks and Delta will make an aerial assault on the target building. Chalks will secure the four corners while the Delta teams make their assault from the roof. 4th platoon drivers will bring extraction vehicles to the A.O. once the principals are secure. All units will extract back to base via ground vehicles.
+      <cFC8932>Coordinating instructions: <-co> Chalks 1-4 security around target, Platoon 4 vehicle movement and security, Delta Teams assault and secure principals.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  CAR15, Shotgun, AT-4
+
+5. <ucFC8932>Command and signal<-uco>
+	Task Force chain of command in effect.  Command will coordinate from recon helo. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI 
+";
+
+'[WinConditions]'
+STRWINCOND000 = " ";
+STRWINCOND001 = "Board the waiting MH-6 Little Bird";
+STRWINCOND002 = "Storm the target building and eliminate resistance";
+STRWINCOND003 = "Secure the tier one prisoners on second floor";
+STRWINCOND004 = "Get the prisoners to the convoy";
+STRWINCOND005 = "Help Ranger chalk 4 repel the enemy";
+STRWINCOND006 = "Help Ranger chalk 2 repel the enemy";
+STRWINCOND007 = "Secure the perimeter";
+STRWINDIRECTIVE001 = "Board the MH-6 Little Bird";
+STRWINDIRECTIVE002 = " ";
+STRWINDIRECTIVE003 = "Secure tier one prisoners on the second floor";
+STRWINDIRECTIVE004 = "Get the prisoners to the convoy";
+STRWINDIRECTIVE005 = "Help Ranger chalk 4";
+STRWINDIRECTIVE006 = "Help Ranger chalk 2";
+STRWINDIRECTIVE007 = "Man the .50 cal, secure the perimeter";
+STRWINMSG001 = " ";
+STRWINMSG002 = " ";
+STRWINMSG003 = "Tier One officials are in the Humvees";
+STRWINMSG006 = "The Rangers are safe.  Good Job!";
+STRWINMSG005 = " ";
+
+'[LoseConditions]'
+STRLOSECOND000 = " ";
+STRLOSECOND001 = "Chalk 1 took too many casualties";
+STRLOSECOND002 = "Chalk 2 took too many casualties";
+STRLOSECOND003 = "Chalk 3 took too many casualties";
+STRLOSECOND004 = "Chalk 4 took too many casualties";
+STRLOSECOND005 = "Prisoners have been killed";
+STRLOSECOND006 = "Civilians have been killed";
+STRLOSEMSG001 = "Chalk 1 took too many casualties";
+STRLOSEMSG002 = "Chalk 2 took too many casualties";
+STRLOSEMSG003 = "Chalk 3 took too many casualties";
+STRLOSEMSG004 = "Chalk 4 took too many casualties";
+STRLOSEMSG005 = "Prisoners have been killed";
+STRLOSEMSG006 = "Civilians have been killed";
+STRLOSECOND007 = "Left mission area";
+STRLOSEMSG007 = "Left mission area";
+
+'[WPNames]'
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME000 = " ";
+STRWPNAME008 = "Hotel";

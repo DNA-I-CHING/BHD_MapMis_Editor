@@ -1,0 +1,89 @@
+'[Mission Dialog]'
+
+'[info]'
+briefing = "Mogadishu Mile
+Date: October 4, 1993 - 0715 hours
+Location:  Mogadishu, Somalia 
+
+Situation:
+A rescue convoy has been dispatched from base. When it arrives, load the wounded and follow it to a strongpoint we’ve established. Provide cover fire for the trucks and watch for snipers. 
+";
+title = "Mogadishu Mile";
+briefing2 = "<cFC8932>Mogadishu Mile<-co>
+FRAGO: 5 TFR  REF: OPORD 10-93 TFR Date Time: 040715 October 93 
+
+1. <ucFC8932>Situation<-uco> 
+We’ve got a rescue convoy in the area that will carry the wounded to a strongpoint we’ve established. We have security there and it’s in a friendly area of the city.
+      <cFC8932>Weather:<-co>  Hazy, dim light, hot
+      <cFC8932>Terrain:<-co>  Urban - City center.
+      <cFC8932>Enemy:<-co>  Estimated 500 Habr Gedir militia equipped with small arms and RPG’s. Technicals w/ .50 caliber mounted weapons.
+      <cFC8932>Friendly:<-co>  None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta 5
+      <cFC8932>What:<-co> Load wounded onto trucks, provide security for convoy and follow to strongpoint.
+      <cFC8932>When:<-co> Immediately.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Get everyone back to base.
+      <cFC8932>Concept of Operation:<-co>  The convoy will arrive at your location and load the wounded. If there is no room, you will have to follow on foot and use the trucks for cover. If they have to stop, provide security and/or clear any roadblocks.
+      <cFC8932>Coordinating instructions: <-co> 
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  CAR15/M203, Shotgun, AT-4
+
+5. <ucFC8932>Command and signal<-uco>
+	Task Force chain of command in effect.  Command will coordinate from recon helo. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI
+";
+
+'[WPNames]'
+STRWPNAME000 = " ";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Oscar";
+STRWPNAME016 = "Papa";
+STRWPNAME017 = "Quebec";
+STRWPNAME018 = "Romeo";
+STRWPNAME019 = "Sierra";
+STRWPNAME020 = "Tango";
+STRWPNAME021 = "Uniform";
+STRWPNAME022 = "Victor";
+STRWPNAME023 = "Whiskey";
+STRWPNAME024 = "X-Ray";
+STRWPNAME025 = "Yankee";
+STRWPNAME026 = "Zulu";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Help protect the convoy from enemy fire";
+STRWINCOND002 = "Catch up to the convoy";
+STRWINCOND003 = "Get the convoy safely to the stadium";
+STRWINCOND004 = "null";
+STRWINCOND005 = "null";
+STRWINDIRECTIVE000 = "null";
+STRWINDIRECTIVE001 = "Protect the convoy from enemy fire!";
+STRWINDIRECTIVE002 = "Catch up with the convoy";
+STRWINDIRECTIVE003 = "Get the convoy safely to the stadium";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Teammates have been killed";
+STRLOSECOND002 = "Convoy has been destroyed";
+STRLOSEMSG001 = "Team mates have been killed";
+STRLOSEMSG002 = "Convoy has been destroyed";
+
+'[PeopleNames]'
+
+'[CineText]'

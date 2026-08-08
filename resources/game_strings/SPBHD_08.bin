@@ -1,0 +1,105 @@
+'[Mission Dialog]'
+
+'[info]'
+Title = "Radio Aidid";
+briefing = "Radio Aidid
+Date:  September 3, 1993 - 0200 hours
+Location:  Mogadishu, Somalia
+
+Situation:
+The Habr Gedir clan operates a radio station in Mogadishu that is broadcasting anti-U.N. propaganda throughout the region. You've been ordered to undertake a stealth raid after nightfall to take it off the air.";
+briefing2 = "<cFC8932>Radio Aidid<-co>
+OPORD: 3-93 TFR Date Time: 030200 September 93 
+
+1. <ucFC8932>Situation<-uco>    
+The Habr Gedir clan is operating a radio station in Mogadishu that is broadcasting anti-U.N. propaganda throughout the region.
+      <cFC8932>Weather:<-co>  Dark, Moonless night.
+      <cFC8932>Terrain:<-co>  City Center, urban.
+      <cFC8932>Enemy:<-co>  Outlying guard posts, minimum 15 militia inside radio station.
+      <cFC8932>Friendly:<-co>  None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta Teams 5 and 2, Ranger 4-2 (Transports)
+      <cFC8932>What:<-co> Stealth insertion, Destroy radio transmitter, control room and generators.
+      <cFC8932>When:<-co> 0200 hours
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Eliminate Aidid's transmitting capabilities.
+      <cFC8932>Concept of Operation:<-co>  Delta Five-One will make a stealth insertion without raising alarms and secure the radio building using Room Takedown techniques. Use silenced MP5's to eliminate guards if needed. Once in control, satchel charges are to be set. Extract after actions on objective.
+Coordinating instructions - Five-One will lead the assault on the building. Platoon 4 will maintain distance and maintain vehicle security until extraction.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  MP5, Colt .45, Satchel Charges, Night Vision Goggles
+
+5. <ucFC8932>Command and signal<-uco>
+Task Force chain of command in effect.  Command will coordinate from base. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI
+";
+
+'[WPNames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Oscar";
+STRWPNAME016 = "Papa";
+STRWPNAME017 = "Quebec";
+STRWPNAME018 = "Romeo";
+STRWPNAME019 = "Sierra";
+STRWPNAME020 = "Tango";
+STRWPNAME021 = "Uniform";
+STRWPNAME022 = "Victor";
+STRWPNAME023 = "Whiskey";
+STRWPNAME024 = "X-Ray";
+STRWPNAME025 = "Yankee";
+STRWPNAME026 = "Zulu";
+STRWPNAME027 = "Radio Building";
+STRWPNAME028 = "Generator";
+STRWPNAME029 = "Transmitter";
+STRWPNAME030 = "Tower";
+STRWPNAME031 = "Extract";
+STRWPNAME032 = "Rage";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Proceed to the radio building at waypoint Radio Building";
+STRWINCOND002 = "Destroy radio equipment on the top floor of radio building at waypoint Transmitter";
+STRWINCOND003 = "Destroy the radio tower at waypoint Tower";
+STRWINCOND004 = "Secure the bottom floor and destroy the power generator at waypoint Generator";
+STRWINCOND005 = "Get back to the Humvees near the insertion point at waypoint Extract";
+STRWINDIRECTIVE000 = "null";
+STRWINDIRECTIVE001 = "Proceed to the radio building at waypoint Radio Building! Try to avoid enemy militia!";
+STRWINDIRECTIVE002 = "Destroy radio equipment on the top floor of radio building at waypoint Transmitter!";
+STRWINDIRECTIVE003 = "Destroy the radio tower at waypoint Tower!";
+STRWINDIRECTIVE004 = "Secure the bottom floor and destroy the power generator at waypoint Generator!";
+STRWINDIRECTIVE005 = "Get back to the Humvees near the insertion point at waypoint Extract!";
+STRWINMSG000 = "null";
+STRWINMSG001 = " ";
+STRWINMSG002 = " ";
+STRWINMSG003 = " ";
+STRWINMSG004 = " ";
+STRWINMSG005 = "Nice work soldier!";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Your team must survive.";
+STRLOSEDIRECTIVE001 = "Your team must survive!";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "Mission failed!  Your team has taken too many casualties!";
+
+'[PeopleNames]'
+STRNAME000 = "null";
+
+'[CineText]'
+STRREGION = "Mogadishu";
+STRTIME = "1915 hours Local Time";

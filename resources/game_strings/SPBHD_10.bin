@@ -1,0 +1,121 @@
+'[Mission Dialog]'
+STRDLGLINE000 = "Infiltrate the building through the skylight and look for "Tier One" officers.";
+STRDLGLINE001 = "Blow the reinforced bunker door with a satchel charge.";
+STRDLGLINE002 = "The Habr Gedir leaders are escaping! Follow them!";
+STRDLGLINE003 = "Destroy the Weapon Crates";
+
+'[info]'
+Title = "Russian Underground";
+briefing = "Russian Underground
+Date:  September 10, 1993 - 0700 hours
+Location:  Mogadishu, Somalia 
+
+Situation:
+We have reports of a large Habr Gadir clan meeting happening today in a complex built by the Soviets. We're sending in teams to capture as many of them as we can find. If we're lucky, one will talk and give us information on Aidid.
+
+";
+briefing2 = "<cFC8932>Russian Underground<-co>
+OPORD: 5-93 TFR Date Time: 100700 September 93 
+
+1. <ucFC8932>Situation<-uco>    
+A number of high ranking Habr Gedir leaders and militia are planning a strategy meeting this afternoon in a former Soviet military complex.
+      <cFC8932>Weather:<-co>  Hazy, hot, high clouds.
+      <cFC8932>Terrain:<-co> City Center, urban.
+      <cFC8932>Enemy:<-co>  Unknown. At least 20 militia. Possible technicals.
+      <cFC8932>Friendly:<-co> None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta Teams 1, 3, 5, 160th SOAR
+      <cFC8932>What:<-co> Helo insert, secure Habr Gedir officials.
+      <cFC8932>When:<-co> 1545 hours
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Capture as many Habr Gedir as possible while avoiding civilian casualties..
+      <cFC8932>Concept of Operation:<-co>  All teams will make a fast insertion via helo into the center of the complex. Teams will split up, secure prisoners and meet helos at the extraction point.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  CAR15, Colt .45, AT-4, Night Vision Goggles
+
+5. <ucFC8932>Command and signal<-uco>
+Task Force chain of command in effect.  Command will coordinate from base. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI
+";
+
+'[WPNames]'
+STRWPNAME000 = "Alpha";
+STRWPNAME001 = "Bravo";
+STRWPNAME002 = "Charlie";
+STRWPNAME003 = "Delta";
+STRWPNAME004 = "Echo";
+STRWPNAME005 = "Foxtrot";
+STRWPNAME006 = "Golf";
+STRWPNAME007 = "Hotel";
+STRWPNAME008 = "India";
+STRWPNAME009 = "Juliet";
+STRWPNAME010 = "Kilo";
+STRWPNAME011 = "Lima";
+STRWPNAME012 = "Mike";
+STRWPNAME013 = "November";
+STRWPNAME014 = "Oscar";
+STRWPNAME015 = "Papa";
+STRWPNAME016 = "Quebec";
+STRWPNAME017 = "Romeo";
+STRWPNAME018 = "Sierra";
+STRWPNAME019 = "Tango";
+STRWPNAME020 = "Uniform";
+STRWPNAME021 = "Victor";
+STRWPNAME022 = "Whiskey";
+STRWPNAME023 = "Xray";
+STRWPNAME024 = "Yankee";
+STRWPNAME025 = "Zulu";
+STRWPNAME026 = "2nd floor rally point";
+STRWPNAME027 = "Bunker door";
+STRWPNAME028 = "Extraction area";
+STRWPNAME029 = "Insertion point";
+STRWPNAME030 = "Extraction helicopter";
+
+'[WinConditions]'
+STRWINCOND000 = " ";
+STRWINCOND001 = "Secure the second floor of the Russian Embassy Compound.";
+STRWINCOND002 = "Rendezvous with team 2 on the first floor.";
+STRWINCOND003 = "Go to the basement and breach the bunker door.";
+STRWINCOND004 = "Find a way down one floor and secure it.";
+STRWINCOND005 = "Go upstairs to the room where the Tier One officials were.";
+STRWINCOND006 = "Pursue the Tier One Officials into the tunnels.";
+STRWINCOND007 = "Exit the tunnels and reach the Black Hawk for extraction.";
+STRWINCOND008 = " ";
+STRWINCOND009 = " ";
+STRWINDIRECTIVE000 = " ";
+STRWINDIRECTIVE001 = "Clear the 2nd floor of the embassy.  Be careful not to kill any Habr Gedir officers.";
+STRWINDIRECTIVE002 = "Go down to the 1st floor and rendezvous with Team 2";
+STRWINDIRECTIVE003 = "Go down the stairway and blow the bunker door with a satchel charge.";
+STRWINDIRECTIVE004 = "Proceed down one level and secure that floor.";
+STRWINDIRECTIVE005 = "Proceed upstairs.";
+STRWINDIRECTIVE006 = "Pursue the Tier One Officials into the tunnels.";
+STRWINDIRECTIVE007 = "Exit the tunnel proceed north for extraction.";
+STRWINDIRECTIVE008 = " ";
+STRWINDIRECTIVE009 = " ";
+STRWINMSG000 = " ";
+STRWINMSG001 = "Second floor clear!";
+STRWINMSG002 = "One Official has been captured!  Proceed downstairs.";
+STRWINMSG003 = "Bunker door breached!";
+STRWINMSG004 = "Basement secured!";
+STRWINMSG005 = " ";
+STRWINMSG006 = " ";
+STRWINMSG007 = " ";
+STRWINMSG008 = " ";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "A Tier One has been killed.";
+STRLOSECOND002 = "You stayed with the helicopter.";
+STRLOSECOND003 = "Too many civilian casualties.";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "You killed a Habr Gedir officer. We needed him for information!";
+STRLOSEMSG002 = "You abandoned your team!";
+
+'[PeopleNames]'
+STRNAME000 = "Russian Underground";
+
+'[CineText]'
+STRREGION = "null";
+STRTIME = "null";

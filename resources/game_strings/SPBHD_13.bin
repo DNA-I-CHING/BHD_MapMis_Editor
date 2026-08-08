@@ -1,0 +1,83 @@
+'[Mission Dialog]'
+
+'[Triggered Text]'
+ID001 = "Get upstairs and clear the observation deck!";
+
+'[Info]'
+Title = "Diplomatic Immunity";
+briefing = "Diplomatic Immunity
+Time: September 24, 1993 - 1430 hours
+Location: Mogadishu, Somalia
+
+Situation:
+A number of captured Habr Gedir were being transferred to UNOSOM II custody when there was an attack by a large number of militia gunmen. A small riot has ensued and a number of UN personnel are being held as hostages. Your team is being sent in to rescue them.
+";
+briefing2 = "<cFC8932>Diplomatic Immunity<-co>
+OPORD: 8-93 TFR    Date Time: 241430 September 93
+
+1. <ucFC8932>Situation<-uco>   
+Habr Gedir militia forces have attacked a UN compound in Mogadishu. The attack was made to free members of their clan being held inside. The enemy forces have taken control of the building, freed their compatriots, and are holding a number of UN hostages.
+      <cFC8932>Weather:<-co>  Clear, hot.
+      <cFC8932>Terrain:<-co>  Urban - Walled compound.
+      <cFC8932>Enemy:<-co>  Estimated 25-60 Habr Gedir militia equipped with small arms and RPG’s. Some militia may be hiding among the hostages - secure for later identification.
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta Teams 2 and 5, 160th MH-6 transports, Ranger 4-2
+      <cFC8932>What:<-co> Insert by helo. Locate and secure hostages. All units return to base.
+      <cFC8932>When:<-co> Immediately after briefing.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Rescue hostages, avoid civilian casualties.
+      <cFC8932>Concept of Operation:<-co>  Both teams will insert directly into the courtyard of the complex. Delta 5-1 will assault and secure the courtyard and target building while Delta 2-1 locates the hostages. Once the hostages are secure, Ranger 4-2 will arrive with extraction convoy.
+      <cFC8932>Coordinating instructions: <-co>  Five-One will lead the assault on the building. Ranger 4-2 will maintain distance from target until hostages are secure.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  CAR15, Colt .45, Claymore
+
+5. <ucFC8932>Command and signal<-uco>
+	Task Force chain of command in effect.  Command will coordinate from base. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI
+";
+
+'[WinConditions]'
+STRWINCOND000 = " ";
+STRWINCOND001 = "Defend the Little Birds.  Take out the RPG's!";
+STRWINCOND002 = "Eliminate all hostiles within the compound walls";
+STRWINCOND003 = "Clear the ground floor of hostiles and secure the hostages";
+STRWINCOND004 = "Clear the upper floors and observation deck of hostiles";
+STRWINCOND005 = "Man the .50cal on the roof.  Defend the compound from militia counter attack";
+STRWINCOND006 = "Extract team and hostages to the evacuation convoy";
+STRWINCOND007 = "Mission accomplished.  Good job!";
+STRWINDIRECTIVE000 = " ";
+STRWINDIRECTIVE001 = "Take out the RPG's!";
+STRWINDIRECTIVE002 = " ";
+STRWINDIRECTIVE003 = " ";
+STRWINDIRECTIVE004 = "Get upstairs and clear the observation deck!";
+STRWINDIRECTIVE005 = "Man the .50cal MG on the roof.  Defend the compound against the militia counter-attack";
+STRWINDIRECTIVE006 = "Egress to the extraction convoy behind the compound to the north-east";
+STRWINDIRECTIVE007 = "Mission accomplished.  Good job, see you back at base!";
+
+'[LoseConditions]'
+STRLOSECOND000 = " ";
+STRLOSECOND001 = "You've been killed!";
+STRLOSECOND002 = "Fratricide is not acceptable.  You are ordered to remand yourself to MP custody while your case is investigated";
+STRLOSECOND003 = "You have killed a hostage.  Report to the JTF commander immediately for investigation";
+STRLOSECOND004 = "You have killed a civilian and disregarded the theater ROE.  Report to the JTF commander immediately";
+STRLOSECOND005 = "You have neglected your duty and deserted the field in the face of the enemy.  Report to the JTF commander for courtmartial proceedings";
+STRLOSECOND006 = "All hostages have been killed.  Return to base for debrief and investigation";
+STRLOSEMSG001 = "You've been killed!";
+STRLOSEMSG002 = "Fratricide is not acceptable.  You are ordered to remand yourself to MP custody while your case is investigated";
+STRLOSEMSG003 = "You have killed a hostage.  Report to the JTF commander immediately for investigation";
+STRLOSEMSG004 = "You have killed a civilian and disregarded the theater ROE.  Report to the JTF commander immediately";
+STRLOSEMSG005 = "You have neglected your duty and deserted the field in the face of the enemy.  Report to the JTF commander for courtmartial proceedings";
+STRLOSEMSG006 = "All hostages have been killed.  Return to base for debrief and investigation";
+
+'[WPNAMES]'
+STRWPNAME000 = " ";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";

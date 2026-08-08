@@ -1,0 +1,119 @@
+'[Mission Dialog]'
+
+'[info]'
+Title = "Valiant Soldiers";
+briefing = "Valiant Soldiers
+Date: October 3, 1993 - 1800 hours
+Location:  Mogadishu, Somalia
+
+Situation:
+There's been another Black Hawk shot down. Super Six-Four was hit by an RPG and crashed south of the target building. We also have men separated from their units. Collect a team and make your way to the second crash site.";
+briefing2 = "<cFC8932>Valiant Soldiers<-co>
+FRAGO: 3 TFR  REF: OPORD 10-93 TFR Date Time: 031800 October 93 
+
+1. <ucFC8932>Situation<-uco>
+Another Black Hawk, Super Six Four, was hit by an RPG and went down south of the target building. We can't get them on the radio. A group of Rangers and the C-SAR have secured the first site, but there is not a second C-SAR available. We have men scattered throughout the area radioing in trying to link up.
+      <cFC8932>Weather:<-co>  Clear, hot.
+      <cFC8932>Terrain:<-co>  Urban - City center.
+      <cFC8932>Enemy:<-co>  Estimated 500 Habr Gedir militia equipped with small arms, grenades and RPG's. Technicals w/ 50 caliber mounted weapons.
+      <cFC8932>Friendly:<-co>  None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta 5
+      <cFC8932>What:<-co> Move by foot, link up with scattered units, move to crash site.
+      <cFC8932>When:<-co> Immediately.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Link up with scattered Soldiers. Get to 2nd crash site.
+      <cFC8932>Concept of Operation:<-co>  Move to the 2nd crash site on foot while linking with any stragglers you can find. Once you have enough firepower, get to that helo before the Habr Gedir capture or kill the survivors.
+Coordinating instructions - 
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  CAR15/M203, Colt .45, AT-4
+
+5. <ucFC8932>Command and signal<-uco>
+	Separated units will be patched into the battle net as they radio in.";
+
+'[WPNames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Mike";
+STRWPNAME013 = "November";
+STRWPNAME014 = "Oscar";
+STRWPNAME015 = "Papa";
+STRWPNAME016 = "Quebec";
+STRWPNAME017 = "Romeo";
+STRWPNAME018 = "Sierra";
+STRWPNAME019 = "Tango";
+STRWPNAME020 = "Uniform";
+STRWPNAME021 = "Victor";
+STRWPNAME022 = "Whiskey";
+STRWPNAME023 = "X-Ray";
+STRWPNAME024 = "Yankee";
+STRWPNAME025 = "Zulu";
+STRWPNAME026 = "Ruben";
+STRWPNAME027 = "Riot";
+STRWPNAME028 = "Can-can";
+STRWPNAME029 = "Zebra";
+STRWPNAME030 = "Leer";
+STRWPNAME031 = "Rhino";
+STRWPNAME032 = "Nova";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Rendezvous with the soldier at waypoint Charlie";
+STRWINCOND002 = "Rendezvous with soldiers on the top floor of the building at waypoint Juliet";
+STRWINCOND003 = "Rendezvous with soldier pinned by snipers in large building to the south at waypoint Papa";
+STRWINCOND004 = "Rendezvous with Ranger 2-3 who is in a warehouse at waypoint Victor";
+STRWINCOND005 = "Rendezvous with Delta 5-3 who is pinned down to the northwest at waypoint Zulu";
+STRWINCOND006 = "null";
+STRWINCOND007 = "null";
+STRWINDIRECTIVE000 = "null";
+STRWINDIRECTIVE001 = "A soldier at waypoint Charlie is under attack!  Get to him quickly!";
+STRWINDIRECTIVE002 = "Rendezvous with soldiers in building at waypoint Juliet and move out!";
+STRWINDIRECTIVE003 = "A lone soldier is pinned down by snipers at waypoint Papa!  Link up with him and move out!";
+STRWINDIRECTIVE004 = "Ranger 2-3 is pinned down inside a warehouse!  Rendezvous with him ASAP at waypoint Victor!";
+STRWINDIRECTIVE005 = "Move to Delta 5-3's position at waypoint Zulu and provide any assistance you can!";
+STRWINDIRECTIVE006 = "null";
+STRWINDIRECTIVE007 = "null";
+STRWINMSG000 = "null";
+STRWINMSG001 = "We don't have much time!  Move out!";
+STRWINMSG002 = "Take your team and move out!";
+STRWINMSG003 = "Get to that next Soldier ASAP!";
+STRWINMSG004 = "Move out, our boys are under heavy fire!";
+STRWINMSG005 = "Nice work Soldier!";
+STRWINMSG006 = "null";
+STRWINMSG007 = "null";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "We can't afford any friendly casualties";
+STRLOSECOND002 = "Avoid civilian casualties";
+STRLOSECOND003 = "Rendezvous with each soldier in the city as directed";
+STRLOSEDIRECTIVE000 = "null";
+STRLOSEDIRECTIVE001 = "We can't afford any friendly casualties!";
+STRLOSEDIRECTIVE002 = "Do not kill civilians!";
+STRLOSEDIRECTIVE003 = "Rendezvous with each soldier in the city as directed!";
+STRLOSEDIRECTIVE004 = "null";
+STRLOSEDIRECTIVE005 = " ";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "Man down! Man down!";
+STRLOSEMSG002 = "Too many civilians have been killed!";
+STRLOSEMSG003 = "You failed to rendezvous with each soldier in the city as you were directed to!  Mission failed!";
+
+'[PeopleNames]'
+
+'[CineText]'
+STRNAME000 = "null";
+STRREGION = " ";
+STRTIME = " ";

@@ -1,0 +1,119 @@
+'[Mission Dialog]'
+
+'[info]'
+Title = "Shattered Palace";
+briefing = "Shattered Palace
+Date: September 17, 1993 - 1045 hours
+Location:  Mogadishu, Somalia
+
+Situation:
+A number of Tier One personalities will be meeting tonight at an old hotel complex in the city. Aidid is expected to be in attendance. Our teams will secure the complex and capture any Habr Gedir personnel. There will be many civilians in the area, so check your fire.  ";
+briefing2 = "<cFC8932>Shattered Palace<-co>
+OPORD: 6-93 TFR Date Time: 171045 September 93
+
+1. <ucFC8932>Situation<-uco>
+There's a mansion at grid reference X-Ray One where a number of Tier One personalities will be meeting tonight. Aidid is expected to be in attendance.
+      <cFC8932>Weather:<-co>  Hazy, low light, hot.
+      <cFC8932>Terrain:<-co>  City Center, urban.
+      <cFC8932>Enemy:<-co>  30 - 40 militia with AK's, RPG's and Possible technicals.
+      <cFC8932>Friendly:<-co>  None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta Teams 4, 5, 160th SOAR, Ranger 4-2 (Transports)
+      <cFC8932>What:<-co> Helo insert. 5-1 provides security. 4-1 secures Habr Gedir officials.
+      <cFC8932>When:<-co> 1545 hours
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Provide security for assault force, aid extraction of prisoners.
+      <cFC8932>Concept of Operation:<-co>  Team Five-One will insert by Little Bird and cover Team Four's fast rope insert. Five-One will proceed to outlying building "A" and take it down to prevent reinforcements. Once clear, Five-One will clear the courtyard, regroup at the main target bldg. and provide security for extraction.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  CAR15/M203, Shotgun, Claymores, Night Vision Goggles
+
+5. <ucFC8932>Command and signal<-uco>
+Task Force chain of command in effect.  Command will coordinate from base. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI";
+
+'[WPNames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Oscar";
+STRWPNAME016 = "Papa";
+STRWPNAME017 = "Quebec";
+STRWPNAME018 = "Romeo";
+STRWPNAME019 = "Sierra";
+STRWPNAME020 = "Tango";
+STRWPNAME021 = "Uniform";
+STRWPNAME022 = "Victor";
+STRWPNAME023 = "Whiskey";
+STRWPNAME024 = "X-Ray";
+STRWPNAME025 = "Yankee";
+STRWPNAME026 = "Zulu";
+STRWPNAME027 = "Riot";
+STRWPNAME028 = "Rage";
+STRWPNAME029 = "Zebra";
+STRWPNAME030 = "Raven";
+STRWPNAME031 = "Zoom";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Secure building "A" at waypoint Echo by eliminating all enemies there";
+STRWINCOND002 = "Clear and cross the courtyard to building "B" at waypoint Hotel";
+STRWINCOND003 = "Protect Delta Team 4 while they infil building "B"";
+STRWINCOND004 = "Secure building "B" at waypoint Hotel by eliminating all enemies there";
+STRWINCOND005 = "Rendezvous with Delta Team Two and the captured Tier Ones at waypoint Romeo";
+STRWINCOND006 = "Select an M60 from the armory and move to the roof to cover Team Two's exfil";
+STRWINCOND007 = "Exfil on the little bird at waypoint X-Ray";
+STRWINDIRECTIVE000 = "null";
+STRWINDIRECTIVE001 = "Secure building "A" at waypoint Echo!";
+STRWINDIRECTIVE002 = "Clear and cross the courtyard to building "B" at waypoint Hotel!";
+STRWINDIRECTIVE003 = "Protect Delta Team 4 while they fastrope down and infil building "B"!";
+STRWINDIRECTIVE004 = "Secure building "B" at waypoint Hotel!";
+STRWINDIRECTIVE005 = "Link with Team Two and the captured Tier Ones at waypoint Romeo!";
+STRWINDIRECTIVE006 = "Select an M60 from the armory and move to the roof to cover Team Two's exfil!";
+STRWINDIRECTIVE007 = "Board the AH-60 Little Bird at waypoint X-Ray and get out of there!";
+STRWINMSG = "Good Job! Mission Complete!";
+STRWINMSG000 = "null";
+STRWINMSG001 = "Building "A" secure!";
+STRWINMSG003 = "Delta Team 4 has infilled successfully!";
+STRWINMSG004 = "Building "B" secure!";
+STRWINMSG006 = "Nice work!  Time to get out of here!";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Don't let Delta Team 4 take any casualties";
+STRLOSECOND002 = "Don't let the hostages get killed";
+STRLOSECOND003 = "Avoid civilian casualties";
+STRLOSECOND004 = "Stay on mission";
+STRLOSECOND005 = "Your team must not be overrun";
+STRLOSEDIRECTIVE = "Stay on mission soldier and don't wander away!";
+STRLOSEDIRECTIVE000 = "null";
+STRLOSEDIRECTIVE001 = "Make sure Delta Team 4 survives the mission!";
+STRLOSEDIRECTIVE002 = "Make sure the hostages all get out of there alive!";
+STRLOSEDIRECTIVE003 = "Avoid civilian casualties!";
+STRLOSEDIRECTIVE005 = "Your team must survive the mission!";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "Delta Team 4 is taking casualties, abort mission!";
+STRLOSEMSG002 = "We are losing hostages! Abort Mission!";
+STRLOSEMSG003 = "Too many civilians have died!";
+STRLOSEMSG004 = "You have wandered too far for too long soldier!  You are AWOL!";
+STRLOSEMSG005 = "Delta Team Five has been overrun!  Too many friendly casualties!";
+
+'[PeopleNames]'
+STRNAME000 = "null";
+
+'[CineText]'
+STRREGION = " ";
+STRTIME = " ";

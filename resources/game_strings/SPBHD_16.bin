@@ -1,0 +1,109 @@
+'[Mission Dialog]'
+
+'[info]'
+Title = "Lost Convoy";
+briefing = "Lost Convoy
+Date: October 3, 1993 - 1745 hours
+Location:  Mogadishu, Somalia 
+
+Situation:
+Super Six One has been hit with a rocket-propelled grenade and has gone down northeast of the target building. Take the convoy to the crash site and secure it. We need to get a team there before the Habr Gedir overrun their position. ";
+briefing2 = "<cFC8932>Lost Convoy<-co>
+FRAGO: 2 TFR  REF: OPORD 10-93 TFR Date Time: 031745 October 93 
+
+1. <ucFC8932>Situation<-uco>
+Super Six One has been hit with an RPG and has gone down near the target building. We have to get men to that position ASAP.
+      <cFC8932>Weather:<-co>  Clear, hot.
+      <cFC8932>Terrain:<-co>  Urban - City center.
+      <cFC8932>Enemy:<-co>  Estimated 500 Habr Gedir militia equipped with small arms and RPG's. Technicals w/ .50 caliber mounted weapons.
+      <cFC8932>Friendly:<-co>  None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta 5-1, Ranger 4-2
+      <cFC8932>What:<-co> Move by convoy to crash site, provide security and first aid.
+      <cFC8932>When:<-co> Immediately.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Get a team of men to the crash site. Assess the wounded and secure the area until extraction can be made.
+      <cFC8932>Concept of Operation:<-co>  Use the extraction convoy to get a team close to the crash. Move the rest of the way on foot and set up a secure perimeter. C-SAR is in route to provide medical attention.
+Coordinating instructions - C-SAR will radio in when they are nearing the site.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  M21, Colt .45, Claymores
+
+5. <ucFC8932>Command and signal<-uco>
+	CSAR, Five One and convoy lead will be in direct communication with command in aerial recon.";
+
+'[WPNames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Oscar";
+STRWPNAME016 = "Papa";
+STRWPNAME017 = "Quebec";
+STRWPNAME018 = "Romeo";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Protect the convoy from enemy militia while en route to the crash site";
+STRWINCOND002 = "Dismount from the Humvee and move out to the crash site on foot";
+STRWINCOND003 = "Set up a sniping position overlooking the crash site, on the roof of the bombed out building";
+STRWINCOND004 = "Defend soldiers at the crash site until they can be evacuated";
+STRWINCOND005 = "Move to the crash site on foot";
+STRWINCOND006 = "Take out all RPG militia on buildings surrounding the crash site";
+STRWINCOND007 = "null";
+STRWINDIRECTIVE000 = "null";
+STRWINDIRECTIVE001 = "Protect the convoy from enemy militia while en route to the crash site!";
+STRWINDIRECTIVE002 = "Dismount from the Humvee and move out to the crash site on foot!";
+STRWINDIRECTIVE003 = "Set up a sniping position overlooking the crash site, on the roof of the bombed out building!";
+STRWINDIRECTIVE004 = "Defend soldiers at the crash site until they can be evacuated!";
+STRWINDIRECTIVE005 = "Make your way to the crash site!";
+STRWINDIRECTIVE006 = "Take out all RPG militia on buildings surrounding the crash site!";
+STRWINDIRECTIVE007 = "null";
+STRWINMSG000 = "null";
+STRWINMSG001 = "The convoy can go no further but it has arrived safely!  Nice Work!";
+STRWINMSG002 = " ";
+STRWINMSG003 = " ";
+STRWINMSG004 = "CSAR Romeo-9 has arrived safely at the crash site!";
+STRWINMSG005 = " ";
+STRWINMSG006 = "RPG militia have been cleared!";
+STRWINMSG007 = "null";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "5-2 must survive the mission";
+STRLOSECOND002 = "CSAR Romeo-9 must not get shot down";
+STRLOSECOND003 = "The soldiers at the crash site must not be overrun by the enemy militia";
+STRLOSECOND004 = "The convoy must not be destroyed";
+STRLOSECOND005 = "Don't shoot friendly vehicles";
+STRLOSEDIRECTIVE000 = "null";
+STRLOSEDIRECTIVE001 = "5-2 must survive the mission!";
+STRLOSEDIRECTIVE002 = "CSAR Romeo-9 must not get shot down!";
+STRLOSEDIRECTIVE003 = "The soldiers at the crash site must not be overrun by the enemy militia!";
+STRLOSEDIRECTIVE004 = "Protect the convoy!  It must arrive intact!";
+STRLOSEDIRECTIVE005 = "Don't shoot friendly vehicles!";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "Mission Failed!  5-2 is down!  Repeat, 5-2 is down!  Stay there with him and we will dust off to get both of you!";
+STRLOSEMSG002 = "Mission Failed!  We have lost CSAR Romeo-9!";
+STRLOSEMSG003 = "Mission Failed!  The enemy has overrun the crash site!";
+STRLOSEMSG004 = "Mission failed!  The convoy has lost too many units!";
+STRLOSEMSG005 = "Don't shoot friendly vehicles!";
+
+'[PeopleNames]'
+STRNAME000 = "null";
+
+'[CineText]'
+STRREGION = " ";
+STRTIME = " ";

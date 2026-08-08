@@ -1,0 +1,96 @@
+'[Mission Dialog]'
+
+'[Triggered Text]'
+
+'[Info]'
+Title = "Gasoline Alley";
+briefing = "Gasoline Alley
+Date: August 27, 2003 - 2015 hours 
+Location:  Mogadishu Outskirts, Somalia
+
+Situation:
+We have our first mission for Task Force Ranger today. Aidid's financial chief, Osman Otto, operates a warehouse where they are outfitting trucks with fifty-caliber machine guns. We need to capture those technicals and destroy them.";
+briefing2 = "<cFC8932>Gasoline Alley<-co>
+OPORD: 1-93 TFR  Date Time: 272015 August 93  
+
+1. <ucFC8932>Situation<-uco>
+ Aidid's financial chief, Osman Otto, operates a warehouse in Mog. where they are outfitting pickup trucks with .50 caliber machine guns that pose a threat to UNOSOM II forces.
+      <cFC8932>Weather:<-co>  High clouds, low light.
+      <cFC8932>Terrain:<-co> Urban.
+      <cFC8932>Enemy:<-co>  Intel places guards at the perimeters and along your ingress, but no fortified positions. Strong Habr Gedir presence, possibility of reinforcements from neighboring area. Guard and possible roadblocks protect access routes.
+      <cFC8932>Friendly:<-co>  None
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Ranger Platoons 2 and 3
+      <cFC8932>What:<-co> Insert by Humvee, locate garage and destroy technicals inside.      <cFC8932>When:<-co> 2015 hours (dusk) depart Task Force Ranger base at Mogadishu Airport.
+
+3. <ucFC8932>Execution<-uco>
+Commander's Intent: Secure and destroy technicals. All forces return to base.
+      <cFC8932>Concept of Operation:<-co>  Two teams of Rangers will infil and make the final assault on foot along route red. Teams will get as deep into enemy territory as possible before enemy can raise an alarm. 
+      <cFC8932>Coordinating instructions:<-co>  Platoon 4 will extract all personnel once action on the objective is complete.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  M16, M9 Beretta, Satchel Charges, Night Vision Goggles
+
+5. <ucFC8932>Command and signal<-uco>
+Command Post (CP) Black will coordinate assault from TFR base. Task Force chain of command in effect. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI
+
+";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Plant satchel charges on techincals in garage";
+STRWINCOND002 = "Protect the convoy from enemy fire";
+STRWINCOND003 = "Advance on the garage, neutralize any resistance";
+STRWINCOND004 = "Clear the garage interior of militia";
+STRWINCOND005 = "Find any relevant documents";
+STRWINCOND006 = "Provide covering fire for Rangers until they reach garage";
+STRWINCOND007 = "Defend your position until convoy arrives";
+STRWINCOND008 = "Board the trucks and detonate your satchels";
+STRWINDIRECTIVE001 = "Plant satchel charges on any technicals in the garage.";
+STRWINDIRECTIVE002 = "Protect the convoy from enemy snipers.";
+STRWINDIRECTIVE003 = "Dismount and clear the perimeter. Wait to regroup with your squad and avoid the front of the garage.";
+STRWINDIRECTIVE004 = "Proceed around the back of the garage. Enter through the far side door and secure the building.";
+STRWINDIRECTIVE005 = "Search building for any documentation.";
+STRWINDIRECTIVE006 = "Protect friendly troops from the window until they reach your perimeter.";
+STRWINDIRECTIVE007 = "Secure the building and repel attackers until relief arrives.";
+STRWINDIRECTIVE008 = "Exfiltrate the garage and proceed directly to the waiting convoy. Detonate your satchels and board the trucks.";
+STRWINMSG002 = "Convoy has safely arrived at the perimeter area.";
+STRWINMSG004 = "Garage is clear.";
+STRWINMSG005 = "Documents recovered.";
+STRWINMSG006 = "Rangers have reached the building.";
+STRWINMSG007 = "Convoy is nearing perimeter.";
+STRWINMSG001 = "Satchel charges in place.";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Player is killed.";
+STRLOSECOND002 = "Player shoots teammates.";
+STRLOSEDIRECTIVE001 = "z";
+STRLOSEDIRECTIVE002 = "z";
+STRLOSEMSG001 = "Player has been killed. Mission Failure.";
+STRLOSEMSG002 = "Fratricide is not tolerated. Mission Failure.";
+
+'[WPnames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Insertion Point";
+STRWPNAME002 = "Alpha";
+STRWPNAME003 = "Bravo";
+STRWPNAME004 = "Charlie";
+STRWPNAME005 = "Delta";
+STRWPNAME006 = "Garage Side Entrance";
+STRWPNAME007 = "Garage Main Bay Door";
+STRWPNAME008 = "Garage Quarters Entrance";
+STRWPNAME009 = "Garage Stairs Bottom";
+STRWPNAME010 = "Garage Stairs Top";
+STRWPNAME011 = "Garage Upper Bay";
+STRWPNAME012 = "Garage Upper Office";
+STRWPNAME013 = "Garage Upper Bay West";
+STRWPNAME014 = "Garage Upper Bay East";
+STRWPNAME015 = "Garage Upper Bay";
+STRWPNAME016 = "Garage Main Bay";
+STRWPNAME017 = "Pickup Point";
+STRWPNAME018 = " ";
+STRWPNAME019 = " ";
+STRWPNAME020 = " ";
+STRWPNAME021 = " ";

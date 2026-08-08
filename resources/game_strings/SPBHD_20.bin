@@ -1,0 +1,101 @@
+'[Mission Dialog]'
+STRDLGLINE000 = "Proceed forward.  Find an Exit.";
+
+'[info]'
+Title = "Aidid Takedown";
+briefing = "Aidid Takedown
+Date: July 24, 1996 - 1545 hours
+Location:  Mogadishu, Somalia 
+
+Three years have passed since Task Force Ranger pulled out of Somalia. The country is still wracked with clan in-fighting. We've made an agreement with a clan that opposes Aidid, to create an opportunity to take him out. This is a Black Op that is designed to make it appear that Aidid died during clan fighting.";
+briefing2 = "<cFC8932>Aidid Takedown<-co>
+<cFC8932>Date: <-co> July 24, 1996 - 1545 hours
+<cFC8932>Location:<-co>  Mogadishu, Somalia
+
+It's been nearly three years since Task Force Ranger pulled out of Mogadishu. The political situation there hasn't gotten much better. The clans are still fighting and there is still no central government that controls a significant area of Somalia. Mohammed Farah Aidid is still a major obstacle to stability in the area, but we may have an opportunity to change that.
+
+One of the clans in Mogadishu has agreed to attack Aidid's militia as a cover for your operation. You'll insert via friendly ground transport and follow our informant to a safe house where they are digging a tunnel into Aidid's bunker. Infil, find Aidid and take him out. In all likelihood, it will appear as though he died in the fighting.
+
+Remember, this is a black op. You can't be caught, and if you fail, we won't acknowledge that you were working for us. Good luck.
+";
+
+'[WPNames]'
+STRWPNAME000 = "null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Juliet";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Oscar";
+STRWPNAME016 = "Papa";
+STRWPNAME017 = "Quebec";
+STRWPNAME018 = "Romeo";
+STRWPNAME019 = "Sierra";
+STRWPNAME020 = "Tango";
+STRWPNAME021 = "Uniform";
+STRWPNAME022 = "Victor";
+STRWPNAME023 = "Whiskey";
+STRWPNAME024 = "X-Ray";
+STRWPNAME025 = "Yankee";
+STRWPNAME026 = "Zulu";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Follow informant to nearby safehouse; protect him from the enemy";
+STRWINCOND002 = "Infiltrate Aidid's Underground Bunker";
+STRWINCOND003 = "Eliminate the warlord Aidid";
+STRWINCOND004 = "Exfilitrate yourself from the area";
+STRWINCOND005 = "Take out all enemy manning 50 cals";
+STRWINCOND006 = "Eliminate all enemy attacking safehouse";
+STRWINCOND007 = "Blow an entrance into Aidid's bunker";
+STRWINCOND008 = "Ride the truck to the drop off point";
+STRWINDIRECTIVE000 = "null";
+STRWINDIRECTIVE001 = "Follow the Informant to the nearby safehouse!  Prevent him from getting killed!";
+STRWINDIRECTIVE002 = "Proceed forward and infiltrate Aidid's bunker!";
+STRWINDIRECTIVE003 = "Eliminate the warlord Aidid!";
+STRWINDIRECTIVE004 = "Get yourself out of there and return to base!";
+STRWINDIRECTIVE005 = "Take out those enemies ahead to proceed!";
+STRWINDIRECTIVE006 = "Take out those enemies attacking the safehouse!";
+STRWINDIRECTIVE007 = "Blow that wall into Aidid's bunker with a grenade!";
+STRWINDIRECTIVE008 = "Stay on the truck until it gets to the drop off point!";
+STRWINMSG000 = "null";
+STRWINMSG001 = "Good job! Informant has been escorted to safehouse!";
+STRWINMSG002 = "Aidid's Underground Bunker has been infiltrated!";
+STRWINMSG003 = "Warlord Aidid taken is down!";
+STRWINMSG004 = "Five-One returning to base!";
+STRWINMSG005 = "Nice work! Get the informant and continue on!";
+STRWINMSG006 = "Nice work! Get the informant and move on!";
+STRWINMSG007 = "Find Aidid and take him out!";
+STRWINMSG008 = "Follow the informant!";
+
+'[LoseConditions]'
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "Don't let the Informant get killed";
+STRLOSECOND002 = "Don't get yourself killed";
+STRLOSECOND003 = "Don't kill the informant";
+STRLOSEDIRECTIVE000 = " ";
+STRLOSEDIRECTIVE001 = "The informant is an asset.  He must reach the safehouse alive!";
+STRLOSEDIRECTIVE002 = "You got killed!";
+STRLOSEDIRECTIVE003 = "Don't shoot the informant!";
+STRLOSEDIRECTIVE004 = " ";
+STRLOSEDIRECTIVE005 = " ";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "The informant's down! We can not get to the safehouse without him!";
+STRLOSEMSG002 = "Five One Down! Five One is Down!";
+STRLOSEMSG003 = "You killed the informant!  Mission failed!";
+
+'[PeopleNames]'
+STRNAME000 = "null";
+
+'[CineText]'
+STRREGION = " ";
+STRTIME = " ";

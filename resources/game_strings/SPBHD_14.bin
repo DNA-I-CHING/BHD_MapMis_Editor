@@ -1,0 +1,120 @@
+'[Mission Dialog]'
+
+'[info]'
+Title = "Shore Patrol";
+briefing = "Shore Patrol
+Time: October 1, 1993 - 1930 Hours
+Location: Port Area - Mogadishu, Somalia
+
+Situation:
+Aidid has taken control of a radio transmitter in Habr Gedir territory, near the Mogadishu docks, and is using it to coordinate attacks on U.N. relief efforts. Multiple guards protect the area and the shoreline has been mined.
+";
+briefing2 = "<cFC8932>Shore Patrol<-co>
+OPORD: 9-93 TFR    Date Time: 011900   October 93
+
+1. <ucFC8932>Situation<-uco> 
+Aidid has taken control of a radio transmitter in Habr Gedir territory, near the Mogadishu docks, and is using it to coordinate attacks on U.N. relief efforts. Multiple guards protect the area and the shoreline has been mined.
+      <cFC8932>Weather:<-co>  Clear, hot, low clouds.
+      <cFC8932>Terrain:<-co>  Port area, docks, coastline, warehouses.
+      <cFC8932>Enemy:<-co>  Unknown. Minimum 40-50 militia with shoulder arms. Emplaced weapons.
+
+2. <ucFC8932>Mission<-uco> 
+      <cFC8932>Who:<-co> Delta Team 5, 2 Ranger Chalks
+      <cFC8932>What:<-co> Insert by local boat. Destroy radio equipment. Return to base.
+      <cFC8932>When:<-co> 1900 hours, dusk.
+
+3. <ucFC8932>Execution<-uco>
+      <cFC8932>Commanders Intent:<-co>  Destroy radio station’s transmitting capabilities.
+      <cFC8932>Concept of Operation:<-co>  Your team will board a local fishing boat and make a beach insertion. Locate and destroy radio equipment. Extraction will be by Little Bird at the docks. Two Ranger chalks onboard helos will be available for contingencies.
+
+4. <ucFC8932>Service and Support<-uco>
+      <cFC8932>Basic Load:<-co>  CAR15, Shotgun, Satchel Charges
+
+5. <ucFC8932>Command and signal<-uco>
+	Task Force chain of command in effect.  Command will coordinate from base. Hand and arm signals TACSOP, with higher via FM primary and SATCOM alternate.  Standard unit CEOI
+
+";
+
+'[WPNames]'
+STRWPNAME000 = "Null";
+STRWPNAME001 = "Alpha";
+STRWPNAME002 = "Bravo";
+STRWPNAME003 = "Charlie";
+STRWPNAME004 = "Delta";
+STRWPNAME005 = "Echo";
+STRWPNAME006 = "Foxtrot";
+STRWPNAME007 = "Golf";
+STRWPNAME008 = "Hotel";
+STRWPNAME009 = "India";
+STRWPNAME010 = "Joker";
+STRWPNAME011 = "Kilo";
+STRWPNAME012 = "Lima";
+STRWPNAME013 = "Mike";
+STRWPNAME014 = "November";
+STRWPNAME015 = "Oscar";
+STRWPNAME016 = "Papa";
+STRWPNAME017 = "Quebec";
+STRWPNAME018 = "Romeo";
+STRWPNAME019 = "Sierra";
+STRWPNAME020 = "Tango";
+STRWPNAME021 = "Uniform";
+STRWPNAME022 = "Victor";
+STRWPNAME023 = "Whiskey";
+STRWPNAME024 = "X-Ray";
+STRWPNAME025 = "Yankee";
+STRWPNAME026 = "Zulu";
+
+'[WinConditions]'
+STRWINCOND000 = "null";
+STRWINCOND001 = "Land on beach";
+STRWINCOND002 = "Successfully navigate the minefield";
+STRWINCOND003 = "Make your way to the radio tower";
+STRWINCOND004 = "Destroy radio equipment";
+STRWINCOND005 = "Make your way to the pier";
+STRWINCOND006 = "Board cargo ship, and plant satchel charge
+below deck. ";
+STRWINCOND007 = "Destroy the cargo that was unloaded from the ship";
+STRWINDIRECTIVE000 = "null";
+STRWINDIRECTIVE001 = "Get your team to the beach head";
+STRWINDIRECTIVE002 = "Navigate through the mine field";
+STRWINDIRECTIVE003 = "Navigate your way to the radio tower";
+STRWINDIRECTIVE004 = "The radio tower is heavily guarded.  Destroy the communication equipment inside";
+STRWINDIRECTIVE005 = "Get down to the dock and secure the area";
+STRWINDIRECTIVE006 = "Board the cargo ship and plant your demolitions below deck";
+STRWINDIRECTIVE007 = "Destroy the cargo that was unloaded from the ship";
+STRWINMSG000 = "null";
+STRWINMSG001 = "Good Job!";
+STRWINMSG002 = "Good Job!";
+STRWINMSG003 = "Good Job!";
+STRWINMSG004 = "Good Job!";
+STRWINMSG005 = "Good Job!";
+STRWINMSG006 = "Good Job!";
+STRWINMSG007 = "Good Job!";
+STRWINCOND008 = "Get onto the Little Bird and detonate your satchel charge";
+STRWINDIRECTIVE008 = "Get onto the Little Bird and detonate your satchel charge";
+STRWINMSG008 = "Good Job!";
+
+'[LoseConditions]'
+STRLOSECOND004 = "You're offcourse! Mission aborted";
+STRLOSEMSG004 = "Get back on course";
+STRLOSECOND000 = "null";
+STRLOSECOND001 = "You have been killed";
+STRLOSECOND002 = "Too many civilians killed";
+STRLOSECOND003 = "Too many teammates lost";
+STRLOSECOND005 = "You failed to destroy the radio equipment";
+STRLOSEMSG000 = "null";
+STRLOSEMSG001 = "You have been killed";
+STRLOSEMSG002 = "Too many civilians have been killed";
+STRLOSEMSG003 = "Too many teammates have been lost";
+STRLOSEMSG005 = "You failed to destroy the radio equipment";
+STRLOSECOND006 = "Man overboard";
+STRLOSEMSG006 = "Man overboard";
+STRLOSECOND007 = "You did not clear the cargo ship explosion";
+STRLOSEMSG007 = "You did not clear the cargo ship explosion";
+
+'[PeopleNames]'
+
+'[CineText]'
+
+'[Triggered Text]'
+ID000 = "Go from rock to rock and lets avoid these mines!";
