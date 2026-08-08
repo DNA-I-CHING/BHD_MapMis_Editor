@@ -1145,9 +1145,9 @@
     #areaTrigBottomActions{ display:flex; gap:8px; justify-content:flex-end; margin-top:auto; }
     #sectionWindow[data-section-mode="areatrig"] #sectionEditor{ grid-template-rows:1fr auto; }
     #sectionWindow[data-section-mode="event"]{
-      width:min(736px,100%);
-      height:min(600px,100%);
-      max-height:min(600px,100%);
+      width:min(980px,100%);
+      height:min(720px,100%);
+      max-height:min(720px,100%);
     }
     #sectionWindow[data-section-mode="event"] #sectionTopControls{ display:none; }
     #sectionWindow[data-section-mode="event"] #sectionBody{ grid-template-columns:1fr; height:100%; }
@@ -1214,6 +1214,17 @@
     .eventSideBtns{ display:grid; gap:8px; }
     .eventFooterBtns{ display:grid; grid-template-columns:1fr 1fr 1fr 1fr 1fr auto; gap:14px; margin-top:8px; }
     .eventFooterBtns button{ min-height:34px; }
+    .eventListItem{ width:100%; border:0; text-align:left; color:inherit; }
+    .eventNestedRow{ display:block; padding:3px 5px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .eventNestedRow.active{ background:#2b3d8f; color:#fff; }
+    .eventNewRow{ color:var(--text-subtle); font-style:italic; }
+    .eventFlags{ display:flex; gap:6px; align-items:center; margin-top:4px; }
+    .eventRowEditor{ display:none; border:1px solid var(--line); padding:8px; margin:6px 0; background:var(--surface); }
+    .eventRowEditor.open{ display:block; }
+    .eventRawGrid{ display:grid; grid-template-columns:repeat(8,minmax(58px,1fr)); gap:6px; }
+    .eventRawGrid label{ display:grid; gap:2px; color:var(--text-subtle); }
+    .eventRawGrid input{ width:100%; box-sizing:border-box; }
+    .eventEditorActions{ display:flex; justify-content:flex-end; gap:8px; margin-top:7px; }
     #layerEditor{ display:none; gap:8px; align-content:start; }
     #sectionWindow[data-section-mode="layer"] #layerEditor{ display:grid; }
     .layerField{ display:grid; grid-template-columns:72px 1fr; gap:8px; align-items:center; }
@@ -1583,47 +1594,23 @@
             </div>
             <div id="eventEditorMock" aria-hidden="true">
               <div class="eventTopFields">
-                <div class="eventNameField">
-                  <div class="inlineLabel">Name</div>
-                  <input id="eventNameInput" value="" />
-                </div>
+                <div class="eventNameField"><div class="inlineLabel">Name</div><input id="eventNameInput" maxlength="59" /></div>
                 <div>
-                  <label class="eventCheckRow"><input type="checkbox" /><span>Reset after (seconds)</span><input value="0" /></label>
-                  <div class="eventDelayRow"><span>Delay (seconds)</span><input value="0" /></div>
+                  <label class="eventCheckRow"><input id="eventResetEnabled" type="checkbox" /><span>Reset after (seconds)</span><input id="eventResetValue" type="number" value="0" /></label>
+                  <label class="eventFlags"><input id="eventPreMission" type="checkbox" /> Pre Mission Event</label>
+                  <label class="eventFlags"><input id="eventPostMission" type="checkbox" /> Post Mission Event</label>
+                  <div class="eventDelayRow"><span>Delay (seconds)</span><input id="eventDelayValue" type="number" value="0" /></div>
                 </div>
               </div>
               <div class="eventGrid">
-                <div>
-                  <div class="eventMoveButtons"><button>Up</button><button>Down</button></div>
-                  <div class="eventListBox" id="eventListBox"></div>
-                </div>
+                <div><div class="eventMoveButtons"><button id="eventUpBtn">Up</button><button id="eventDownBtn">Down</button></div><div class="eventListBox" id="eventListBox"></div></div>
                 <div class="eventSplitPanel">
-                  <div class="eventGroup">
-                    <div class="eventLegend">IF ( Triggers )</div>
-                    <div class="eventGroupBody">
-                      <div class="eventNestedList">(0) SSN 3 is within area 1
-<< New Trigger >></div>
-                      <div class="eventSideBtns"><button>Delete</button><button>Copy</button><button disabled>Paste</button></div>
-                    </div>
-                  </div>
-                  <div class="eventGroup">
-                    <div class="eventLegend">THEN ( Actions )</div>
-                    <div class="eventGroupBody">
-                      <div class="eventNestedList">(0) Show Lose Subgoal 1
-<< New Action >></div>
-                      <div class="eventSideBtns"><button>Delete</button><button>Copy</button><button disabled>Paste</button></div>
-                    </div>
-                  </div>
+                  <div class="eventGroup"><div class="eventLegend">IF ( Triggers )</div><div class="eventGroupBody"><div class="eventNestedList" id="eventTriggerList"></div><div class="eventSideBtns"><button id="eventTriggerDelete">Delete</button><button id="eventTriggerCopy">Copy</button><button id="eventTriggerPaste">Paste</button></div></div></div>
+                  <div class="eventGroup"><div class="eventLegend">THEN ( Actions )</div><div class="eventGroupBody"><div class="eventNestedList" id="eventActionList"></div><div class="eventSideBtns"><button id="eventActionDelete">Delete</button><button id="eventActionCopy">Copy</button><button id="eventActionPaste">Paste</button></div></div></div>
                 </div>
               </div>
-              <div class="eventFooterBtns">
-                <button>Delete Event</button>
-                <button>Copy Event</button>
-                <button disabled>Paste Event</button>
-                <button>Print Event</button>
-                <button>Print All Events</button>
-                <button>OK</button>
-              </div>
+              <div class="eventRowEditor" id="eventRowEditor"><strong id="eventRowEditorTitle">Edit row</strong><div class="eventRawGrid" id="eventRawGrid"></div><div class="eventEditorActions"><button id="eventRowCancel">Cancel</button><button id="eventRowApply">Apply</button></div></div>
+              <div class="eventFooterBtns"><button id="eventDeleteBtn">Delete Event</button><button id="eventCopyBtn">Copy Event</button><button id="eventPasteBtn">Paste Event</button><button id="eventPrintBtn">Print Event</button><button id="eventPrintAllBtn">Print All Events</button><button id="eventOkBtn">OK</button></div>
             </div>
           </div>
         </div>
@@ -4883,6 +4870,14 @@
       const kv = { ...(it ? it.kv : liveSec.kv) };
       const srcLines = (it ? it.lines : liveSec.lines) || [];
 
+      // Event blocks contain nested trigger/action blocks. Treat their maintained
+      // lines as authoritative so the generic flat key/value writer cannot
+      // mistake "begin triggers" and "begin actions" for duplicate keys.
+      if (liveSec.kind === "event"){
+        newBlock.push(...srcLines, "end event");
+        return newBlock;
+      }
+
       if (liveSec.kind === "general_information"){
         kv.num_items = String(items.length);
         kv.num_events = String(sectionBlocks.filter(s => s.kind === "event").length);
@@ -5162,69 +5157,108 @@
   }
 
 
-  function ensureValidSelectedEvent(events){
-    if (!events.length){
-      state.sectionSelectedId = null;
-      return;
+  const EVENT_TRIGGER_TYPES = ["NULL","GROUP","SINGLE","EVENT","MISSION VARIABLE","SECOND TIME","TEAMMATES","PLAYER"];
+  const EVENT_ACTION_TYPES = ["NULL","Redirect Group To","Kill Group","Change Group AI","Vaporize Group","Mission Variable Change","Output Text","Play WAV List","Blue Win","Red Win","Green Win","Group Velocity","Area AI Red","Area AI Blue","Subgoal Won","Subgoal Lost","Change Group Team","Change Group Action","Group Teleport","Redirect Single To","Kill Single","Change Single AI","Vaporize Single","Single Velocity","Change Single Team","Single Change Group","Single Teleport","Particle Effect","Unknown 28","Unknown 29","Group Open Door","Group Close Door","Group Reset Has Visited","Single Reset Has Visited","Reset Event","Show Win Subgoal","Show Lose Subgoal","Attach To Emplaced","Set Light State","Teammates","Show Waypoints","Execute WAC","SSN Target SSN Priority","SSN Target SSN Exclude","SSN Target Group Priority","SSN Target Group Exclude","Group Target SSN Priority","Group Target SSN Exclude","Group Target Group Priority","Group Target Group Exclude"];
+  const EVENT_ROW_LABELS = { trigger:["Flags","Type","Condition","Var 1","Var 2","Var 3","Var 4","Reserved"], action:["Reserved","Type","Var 1","Var 2","Var 3","Var 4","Subtype / AI","Reserved"] };
+  const eventUi = { selectedTrigger:-1, selectedAction:-1, editKind:null, editIndex:-1, triggerClipboard:null, actionClipboard:null, eventClipboard:null };
+
+  function parseEventData(sec){
+    const data = { triggers:[], actions:[] };
+    let kind = null;
+    for (const raw of sec?.lines || []){
+      const t = String(raw).trim();
+      if (/^begin\s+triggers\b/i.test(t)){ kind="triggers"; continue; }
+      if (/^end\s+triggers$/i.test(t)){ kind=null; continue; }
+      if (/^begin\s+actions\b/i.test(t)){ kind="actions"; continue; }
+      if (/^end\s+actions$/i.test(t)){ kind=null; continue; }
+      if (kind && /^[-+]?\d+(?:\s+[-+]?\d+){7}$/.test(t)) data[kind].push(t.split(/\s+/).map(Number));
     }
-    if (!events.some(sec => sec.id === state.sectionSelectedId)){
-      state.sectionSelectedId = events[0].id;
-    }
+    return data;
   }
 
+  function writeEventData(sec, data, fields = {}){
+    if (!sec) return;
+    const old = sec.lines || [], kept=[];
+    let nested=null;
+    for (const raw of old){
+      const t=String(raw).trim();
+      if (/^begin\s+(triggers|actions)\b/i.test(t)){ nested=t.match(/^begin\s+(triggers|actions)/i)[1].toLowerCase(); continue; }
+      if (nested && new RegExp(`^end\\s+${nested}$`,"i").test(t)){ nested=null; continue; }
+      if (nested) continue;
+      if (/^(name|attrib|reset_value|delay_value)\b/i.test(t)) continue;
+      kept.push(raw);
+    }
+    const name=String(fields.name ?? sec.kv?.name ?? `Event ${getEventNumber(sec) ?? 0}`).replace(/["\r\n]/g,"").slice(0,59);
+    const attrib=Number.isFinite(Number(fields.attrib)) ? Math.trunc(Number(fields.attrib)) : (Math.trunc(Number(sec.kv?.attrib)) || 0);
+    const reset=Math.trunc(Number(fields.reset ?? sec.kv?.reset_value)) || 0;
+    const delay=Math.trunc(Number(fields.delay ?? sec.kv?.delay_value)) || 0;
+    const lines=[`  name "${name}"`];
+    if (attrib) lines.push(`  attrib ${attrib}`);
+    if (reset) lines.push(`  reset_value ${reset}`);
+    if (delay) lines.push(`  delay_value ${delay}`);
+    if (data.triggers.length){ lines.push(`  begin triggers ${data.triggers.length}`,...data.triggers.map(r=>`    ${r.join(" ")}`),"  end triggers"); }
+    if (data.actions.length){ lines.push(`  begin actions ${data.actions.length}`,...data.actions.map(r=>`    ${r.join(" ")}`),"  end actions"); }
+    sec.lines=[...lines,...kept];
+    sec.kv=parseBlockLinesToKV(sec.lines);
+    sec.kv.name=name;
+  }
+
+  function selectedEvent(){ return getSortedEvents().find(s=>s.id===state.sectionSelectedId) || null; }
+  function ensureValidSelectedEvent(events){
+    if (!events.length){ state.sectionSelectedId=null; return; }
+    if (!events.some(sec=>sec.id===state.sectionSelectedId)) state.sectionSelectedId=events[0].id;
+  }
+  function triggerDescription(row){
+    const flags=row[0]|0, logic=(flags&4)?"XOR":(flags&2)?"OR":"AND", truth=(flags&1)?"False":"True";
+    return `${truth} ${logic}: ${EVENT_TRIGGER_TYPES[row[1]] || `Unknown ${row[1]}`} / condition ${row[2]} [${row.slice(3,7).join(", ")}]`;
+  }
+  function actionDescription(row){ return `${EVENT_ACTION_TYPES[row[1]] || `Unknown ${row[1]}`} [${row.slice(2,7).join(", ")}]`; }
+  function renderEventRows(kind, rows){
+    const el=document.getElementById(kind==="trigger"?"eventTriggerList":"eventActionList"), selected=kind==="trigger"?eventUi.selectedTrigger:eventUi.selectedAction;
+    el.innerHTML=rows.map((r,i)=>`<span class="eventNestedRow ${selected===i?'active':''}" data-index="${i}">(${i}) ${escapeHtml(kind==='trigger'?triggerDescription(r):actionDescription(r))}</span>`).join("") + (rows.length<20?`<span class="eventNestedRow eventNewRow" data-index="new">&lt;&lt; New ${kind==='trigger'?'Trigger':'Action'} &gt;&gt;</span>`:"");
+    el.querySelectorAll('.eventNestedRow').forEach(row=>row.addEventListener('click',()=>{
+      if(row.dataset.index==='new') openEventRowEditor(kind,-1); else { const i=Number(row.dataset.index); if(kind==='trigger') eventUi.selectedTrigger=i; else eventUi.selectedAction=i; renderEventEditor(); }
+    }));
+    el.querySelectorAll('.eventNestedRow:not(.eventNewRow)').forEach(row=>row.addEventListener('dblclick',()=>openEventRowEditor(kind,Number(row.dataset.index))));
+  }
   function renderEventEditor(){
     if (!eventListBox || !eventNameInput) return;
-    const events = getSortedEvents();
-    ensureValidSelectedEvent(events);
-
-    if (!events.length){
-      eventListBox.innerHTML = '<div class="eventListHint">Nenhum evento no .mis.</div><div class="eventListNew">&lt;&lt; New Event &gt;&gt;</div>';
-      eventNameInput.value = "";
-      eventNameInput.disabled = true;
-      buildAdvancementEventOptions("");
-      return;
-    }
-
-    eventNameInput.disabled = false;
-    eventListBox.innerHTML = events.map((sec) => {
-      const eventNum = getEventNumber(sec);
-      const eventName = getEventName(sec) || `Event ${eventNum ?? "?"}`;
-      const prefix = eventNum === null ? '(?)' : `(${eventNum})`;
-      const isActive = sec.id === state.sectionSelectedId;
-      return `<button type="button" class="eventListItem ${isActive ? "active" : ""}" data-id="${sec.id}">${escapeHtml(`${prefix} ${eventName}`)}</button>`;
-    }).join('') + '<div class="eventListNew">&lt;&lt; New Event &gt;&gt;</div>';
-
-    eventListBox.querySelectorAll('.eventListItem').forEach((el) => {
-      el.addEventListener('click', () => selectSectionBlock(Number(el.dataset.id)));
-    });
-
-    const selectedEvent = events.find(sec => sec.id === state.sectionSelectedId) || events[0];
-    eventNameInput.value = getEventName(selectedEvent) || "";
-    buildAdvancementEventOptions(ui?.advEvent?.value || "");
+    const events=getSortedEvents(); ensureValidSelectedEvent(events); const sec=selectedEvent();
+    eventListBox.innerHTML=events.map(e=>{const n=getEventNumber(e), name=getEventName(e)||`Event ${n}`; return `<button type="button" class="eventListItem ${e.id===state.sectionSelectedId?'active':''}" data-id="${e.id}">${escapeHtml(`(${n}) ${name}`)}</button>`}).join('')+(events.length<256?'<button type="button" class="eventListItem eventNewRow" data-new="1">&lt;&lt; New Event &gt;&gt;</button>':'');
+    eventListBox.querySelectorAll('[data-id]').forEach(el=>el.addEventListener('click',()=>selectSectionBlock(Number(el.dataset.id))));
+    eventListBox.querySelector('[data-new]')?.addEventListener('click',()=>createEvent());
+    const disabled=!sec; [eventNameInput,document.getElementById('eventResetEnabled'),document.getElementById('eventResetValue'),document.getElementById('eventDelayValue'),document.getElementById('eventPreMission'),document.getElementById('eventPostMission')].forEach(x=>x.disabled=disabled);
+    if(!sec){ eventNameInput.value=''; renderEventRows('trigger',[]); renderEventRows('action',[]); return; }
+    const attr=Math.trunc(Number(sec.kv?.attrib))||0;
+    eventNameInput.value=getEventName(sec); document.getElementById('eventResetEnabled').checked=!!(attr&1); document.getElementById('eventPreMission').checked=!!(attr&2); document.getElementById('eventPostMission').checked=!!(attr&4); document.getElementById('eventResetValue').value=Math.trunc(Number(sec.kv?.reset_value))||0; document.getElementById('eventDelayValue').value=Math.trunc(Number(sec.kv?.delay_value))||0;
+    const data=parseEventData(sec); if(eventUi.selectedTrigger>=data.triggers.length) eventUi.selectedTrigger=-1; if(eventUi.selectedAction>=data.actions.length) eventUi.selectedAction=-1; renderEventRows('trigger',data.triggers); renderEventRows('action',data.actions);
+    document.getElementById('eventPasteBtn').disabled=!eventUi.eventClipboard||events.length>=256; document.getElementById('eventTriggerPaste').disabled=!eventUi.triggerClipboard||data.triggers.length>=20; document.getElementById('eventActionPaste').disabled=!eventUi.actionClipboard||data.actions.length>=20;
+    buildAdvancementEventOptions(ui?.advEvent?.value||"");
   }
-
-  function setEventName(sec, value){
-    if (!sec || sec.kind !== "event") return;
-    const cleanValue = String(value || "").replace(/"/g, "").trim();
-    sec.kv = sec.kv || {};
-    if (cleanValue) sec.kv.name = cleanValue;
-    else delete sec.kv.name;
-
-    const nameLine = `  name "${cleanValue}"`;
-    let replaced = false;
-    const nextLines = [];
-    for (const raw of sec.lines || []){
-      const trimmed = String(raw || "").trim();
-      if (!replaced && /^name\s+/i.test(trimmed)){
-        if (cleanValue) nextLines.push(nameLine);
-        replaced = true;
-        continue;
-      }
-      nextLines.push(raw);
-    }
-    if (!replaced && cleanValue) nextLines.unshift(nameLine);
-    sec.lines = nextLines;
+  function saveEventFields(){
+    const sec=selectedEvent(); if(!sec)return; let attr=Math.trunc(Number(sec.kv?.attrib))||0; attr=(attr&~7)|(document.getElementById('eventResetEnabled').checked?1:0)|(document.getElementById('eventPreMission').checked?2:0)|(document.getElementById('eventPostMission').checked?4:0);
+    writeEventData(sec,parseEventData(sec),{name:eventNameInput.value,attrib:attr,reset:document.getElementById('eventResetValue').value,delay:document.getElementById('eventDelayValue').value}); scheduleLiveMisRefresh();
   }
+  function createEvent(){
+    const events=getSortedEvents(); if(events.length>=256)return; const n=events.length?Math.max(...events.map(e=>getEventNumber(e)))+1:0, id=state.sectionBlocks.reduce((m,x)=>Math.max(m,x.id),0)+1;
+    const sec={id,kind:'event',label:String(n),start:Number.MAX_SAFE_INTEGER-id,end:Number.MAX_SAFE_INTEGER-id,beginLine:`begin event ${n}`,lines:[],kv:{}}; writeEventData(sec,{triggers:[],actions:[]},{name:`Event ${n}`,attrib:0}); state.sectionBlocks.push(sec); state.sectionSelectedId=id; markItemsChanged({structure:true}); renderEventEditor(); scheduleLiveMisRefresh();
+  }
+  function copyEventPayload(sec){ return {lines:structuredClone(sec.lines),kv:structuredClone(sec.kv)}; }
+  function setEventPayload(sec,p){ sec.lines=structuredClone(p.lines); sec.kv=structuredClone(p.kv); }
+  function updateEventReferences(mode,a,b=null){
+    for(const sec of getSortedEvents()){ const d=parseEventData(sec); let changed=false;
+      d.triggers=d.triggers.filter(r=>{if(r[1]!==3)return true; if(mode==='delete'&&r[3]===a){changed=true;return false} const old=r[3]; if(mode==='insert'&&old>=a)r[3]++; else if(mode==='delete'&&old>a)r[3]--; else if(mode==='swap'&&old===a)r[3]=b; else if(mode==='swap'&&old===b)r[3]=a; changed ||= old!==r[3]; return true;});
+      for(const r of d.actions){if(r[1]!==34)continue;const old=r[2];if(mode==='insert'&&old>=a)r[2]++;else if(mode==='delete'&&old>=a)r[2]--;else if(mode==='swap'&&old===a)r[2]=b;else if(mode==='swap'&&old===b)r[2]=a;changed ||= old!==r[2];} if(changed)writeEventData(sec,d);
+    }
+    for(const it of state.items){const key=Object.keys(it.kv||{}).find(k=>/^(wp_adv_trigger|adv_event)$/i.test(k));if(!key)continue;let v=Math.trunc(Number(it.kv[key])),nv=v;if(mode==='insert'&&v>=a)nv=v+1;else if(mode==='delete'&&v===a)nv=-1;else if(mode==='delete'&&v>a)nv=v-1;else if(mode==='swap'&&v===a)nv=b;else if(mode==='swap'&&v===b)nv=a;if(nv!==v){it.kv[key]=String(nv);it.lines=(it.lines||[]).map(raw=>new RegExp(`^\\s*${key}\\b`,'i').test(raw)?`  ${key} ${nv}`:raw);}}
+  }
+  function moveEvent(delta){const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId),j=i+delta;if(i<0||j<0||j>=ev.length)return;const p=copyEventPayload(ev[i]);setEventPayload(ev[i],copyEventPayload(ev[j]));setEventPayload(ev[j],p);updateEventReferences('swap',getEventNumber(ev[i]),getEventNumber(ev[j]));state.sectionSelectedId=ev[j].id;renderEventEditor();scheduleLiveMisRefresh();}
+  function deleteEvent(){let ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0)return;const num=getEventNumber(ev[i]);updateEventReferences('delete',num);for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));const last=ev.at(-1);state.sectionBlocks=state.sectionBlocks.filter(s=>s.id!==last.id);if(!state.sectionBlocks.some(s=>s.kind==='event'))createEvent();else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}markItemsChanged({structure:true});scheduleLiveMisRefresh();}
+  function pasteEvent(){if(!eventUi.eventClipboard)return;const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0||ev.length>=256)return;const insertedNumber=getEventNumber(ev[i]);const last=ev.at(-1),id=state.sectionBlocks.reduce((m,x)=>Math.max(m,x.id),0)+1,n=getEventNumber(last)+1,sec={...structuredClone(last),id,start:Number.MAX_SAFE_INTEGER-id,end:Number.MAX_SAFE_INTEGER-id,label:String(n),beginLine:`begin event ${n}`};state.sectionBlocks.push(sec);const all=getSortedEvents();for(let j=all.length-1;j>i;j--)setEventPayload(all[j],copyEventPayload(all[j-1]));setEventPayload(all[i],eventUi.eventClipboard);updateEventReferences('insert',insertedNumber);state.sectionSelectedId=all[i].id;markItemsChanged({structure:true});renderEventEditor();scheduleLiveMisRefresh();}
+  function openEventRowEditor(kind,index){const sec=selectedEvent();if(!sec)return;const rows=parseEventData(sec)[kind+'s'];if(index<0&&rows.length>=20)return;eventUi.editKind=kind;eventUi.editIndex=index;const values=index<0?[0,0,0,0,0,0,0,0]:rows[index];document.getElementById('eventRowEditorTitle').textContent=`${index<0?'New':'Edit'} ${kind==='trigger'?'Trigger':'Action'}`;document.getElementById('eventRawGrid').innerHTML=EVENT_ROW_LABELS[kind].map((label,i)=>`<label>${escapeHtml(label)}<input type="number" data-field="${i}" value="${values[i]}"></label>`).join('');document.getElementById('eventRowEditor').classList.add('open');}
+  function applyEventRow(){const sec=selectedEvent(),kind=eventUi.editKind;if(!sec||!kind)return;const d=parseEventData(sec),rows=d[kind+'s'],row=[...document.querySelectorAll('#eventRawGrid input')].map(x=>Math.trunc(Number(x.value))||0);if(eventUi.editIndex<0)rows.push(row);else rows[eventUi.editIndex]=row;writeEventData(sec,d);document.getElementById('eventRowEditor').classList.remove('open');if(kind==='trigger')eventUi.selectedTrigger=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);else eventUi.selectedAction=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);renderEventEditor();scheduleLiveMisRefresh();}
+  function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){rows.push(structuredClone(eventUi[clip]));eventUi[key]=rows.length-1;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
+  function printEvents(all){const secs=all?getSortedEvents():[selectedEvent()].filter(Boolean),text=secs.map(sec=>[sec.beginLine,...sec.lines,'end event'].join('\n')).join('\n\n');const w=window.open('','_blank');if(w){w.document.write(`<pre>${escapeHtml(text)}</pre>`);w.document.close();w.print();}}
 
 
   function getSectionWindowTitle(kind){
@@ -7061,14 +7095,19 @@
     renderSectionList();
   });
   sectionSearch.addEventListener("input", renderSectionList);
-  eventNameInput?.addEventListener("input", () => {
-    if (state.sectionKind !== "event") return;
-    const sec = state.sectionBlocks.find(s => s.id === state.sectionSelectedId && s.kind === "event");
-    if (!sec) return;
-    setEventName(sec, eventNameInput.value);
-    renderEventEditor();
-    scheduleLiveMisRefresh();
-  });
+  eventNameInput?.addEventListener("change", () => { if (state.sectionKind === "event") { saveEventFields(); renderEventEditor(); } });
+  ["eventResetEnabled","eventResetValue","eventDelayValue","eventPreMission","eventPostMission"].forEach(id => document.getElementById(id)?.addEventListener("change", () => { saveEventFields(); renderEventEditor(); }));
+  document.getElementById("eventUpBtn")?.addEventListener("click",()=>moveEvent(-1));
+  document.getElementById("eventDownBtn")?.addEventListener("click",()=>moveEvent(1));
+  document.getElementById("eventDeleteBtn")?.addEventListener("click",deleteEvent);
+  document.getElementById("eventCopyBtn")?.addEventListener("click",()=>{const sec=selectedEvent();if(sec){eventUi.eventClipboard=copyEventPayload(sec);renderEventEditor();}});
+  document.getElementById("eventPasteBtn")?.addEventListener("click",pasteEvent);
+  document.getElementById("eventPrintBtn")?.addEventListener("click",()=>printEvents(false));
+  document.getElementById("eventPrintAllBtn")?.addEventListener("click",()=>printEvents(true));
+  document.getElementById("eventOkBtn")?.addEventListener("click",()=>{saveEventFields();closeSectionEditor();});
+  document.getElementById("eventRowApply")?.addEventListener("click",applyEventRow);
+  document.getElementById("eventRowCancel")?.addEventListener("click",()=>document.getElementById("eventRowEditor").classList.remove("open"));
+  for (const kind of ["Trigger","Action"]){ for (const op of ["Delete","Copy","Paste"]){ document.getElementById(`event${kind}${op}`)?.addEventListener("click",()=>eventRowOp(kind.toLowerCase(),op.toLowerCase())); } }
   sectionApplyBtn.addEventListener("click", applySectionBlock);
   sectionDeleteBtn.addEventListener("click", deleteSectionBlock);
   layerOkBtn.addEventListener("click", () => {
