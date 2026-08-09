@@ -5521,6 +5521,16 @@
     if(!Object.prototype.hasOwnProperty.call(choices,String(value))) options.push(`<option value="${value}" selected>${escapeHtml(`${value} - Unknown (preserved)`)}</option>`);
     return `<label>${escapeHtml(label)}<select data-field="${field}">${options.join('')}</select></label>`;
   }
+  function eventGroupSelect(field,value,label){
+    const groups=getSectionsByKind("group")
+      .map(sec=>({number:parseGroupNumber(sec),description:getGroupDescription(sec)}))
+      .filter(group=>Number.isFinite(group.number))
+      .sort((a,b)=>a.number-b.number);
+    const hasValue=groups.some(group=>group.number===value);
+    const options=groups.map(group=>`<option value="${group.number}" ${group.number===value?'selected':''}>${escapeHtml(`${group.number} - ${group.description||`Group ${group.number}`}`)}</option>`);
+    if(!hasValue) options.unshift(`<option value="${value}" selected>${escapeHtml(`${value} - Unknown (preserved)`)}</option>`);
+    return `<label>${escapeHtml(label)}<select data-field="${field}">${options.join('')}</select></label>`;
+  }
   function eventSubgoalChoices(actionType){
     const kind=(actionType===14||actionType===35)?"win":"lose";
     return Object.fromEntries(getGeneralConditionOptions(kind).map(option=>[option.value,option.label]));
@@ -5539,7 +5549,9 @@
       html.push(`<div class="eventTriggerIf"><span>${escapeHtml(resolveStringKey("TRIGGER_IF")||"Trigger if:")}</span><div class="eventTriggerRadios">${eventRadioGroup("eventTriggerTruth",values[0]&1,{0:resolveStringKey("TRUE")||"True",1:resolveStringKey("FALSE")||"False"})}</div></div>`);
       const variableFields=[];
       for(let i=3;i<=6;i++) variableFields.push(vars[i-3]
-        ? `<label>${escapeHtml(vars[i-3])}<input type="number" data-field="${i}" value="${values[i]}"></label>`
+        ? /^Group(?:\s+\d+)?$/i.test(vars[i-3])
+          ? eventGroupSelect(i,values[i],vars[i-3])
+          : `<label>${escapeHtml(vars[i-3])}<input type="number" data-field="${i}" value="${values[i]}"></label>`
         : `<input type="hidden" data-field="${i}" value="${values[i]}">`);
       html.push(`<fieldset class="eventTriggerFieldset"><legend>${escapeHtml(resolveStringKey("TRIGGER_VARIABLES")||"Trigger Variables")}</legend>${variableFields.join('')}</fieldset>`);
       html.push(`<fieldset class="eventTriggerFieldset"><legend>${escapeHtml(resolveStringKey("LOGIC")||"Logic")}</legend><div class="eventTriggerRadios">${eventRadioGroup("eventTriggerLogic",logic,{0:resolveStringKey("AND")||"And",2:resolveStringKey("OR")||"Or",4:resolveStringKey("XOR")||"X-or"})}</div></fieldset>`);
