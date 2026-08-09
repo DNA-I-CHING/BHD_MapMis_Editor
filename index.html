@@ -248,6 +248,16 @@
       font-size:12px;
       white-space:pre;
       pointer-events:none;
+      display:none;
+    }
+    #sceneInfoHint{
+      position:absolute;
+      right:10px;
+      bottom:10px;
+      z-index:5;
+      color:#dfe9ff;
+      font-size:12px;
+      pointer-events:none;
     }
     .canvasFloatingToolbar{
       position:absolute;
@@ -293,9 +303,6 @@
       height:100%;
       background:transparent;
     }
-    .gizmoCtl{ display:flex; align-items:center; gap:4px; white-space:nowrap; }
-    .gizmoCtl select,.gizmoCtl input{ height:24px; padding:2px 4px; }
-    .gizmoCtl input[type="number"]{ width:58px; }
 
     .hint{
       color:var(--text-muted);
@@ -1339,13 +1346,6 @@
       <button id="modeC" class="modeBtn active" title="Colormap (R)">C</button>
       <button id="modeH" class="modeBtn" title="Heightmap (R)">H</button>
       <button id="modeD" class="modeBtn" title="Delta/Variation (R)">D</button>
-      <label class="gizmoCtl">Gizmo Pivot
-        <select id="transformPivot" title="Selection pivot"><option value="center">Selection center</option><option value="active">Active item</option><option value="individual">Individual origins</option></select>
-      </label>
-      <label class="tbCtl"><input id="mainArea" type="checkbox"> Main area</label>
-      <label class="tbCtl"><input id="showSectors" type="checkbox"> Show Sectors</label>
-      <label class="tbCtl"><input id="showStats" type="checkbox" checked> Map Info (I):</label>
-      <label class="tbCtl"><input id="showAnchorPoints" type="checkbox" checked> Anchor points (H)</label>
       <button id="exportBtn" type="button" class="modeBtn">Go to</button>
       <div id="status">No file loaded.</div>
     </div>
@@ -1366,6 +1366,7 @@
       </div>
       <canvas id="cv"></canvas>
       <div id="camDebug"></div>
+      <div id="sceneInfoHint">Show Scene Info (I)</div>
       <canvas id="gizmoCanvas" aria-hidden="true"></canvas>
 
       <div id="canvasShowPanel" aria-hidden="true">
@@ -1468,7 +1469,16 @@
         <section class="floatingPanelSection">
           <div class="floatingPanelTitle">Gizmo</div>
           <div class="floatingPanelFields">
-            <label>Space <span class="shortcutHint">X</span><select id="transformSpace" title="Transformation space (X)"><option value="global">Global</option><option value="local">Local</option></select></label>
+            <label>Transformation Mode <span class="shortcutHint">X</span><select id="transformSpace" title="Transformation space (X)"><option value="global">World</option><option value="local">Local</option></select></label>
+            <label>Gizmo Pivot <select id="transformPivot" title="Selection pivot"><option value="center">Selection center</option><option value="active">Active item</option><option value="individual">Individual origins</option></select></label>
+          </div>
+        </section>
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">Guides</div>
+          <div class="floatingPanelFields">
+            <label><span>Main area</span><input id="mainArea" type="checkbox"></label>
+            <label><span>Show Sectors</span><input id="showSectors" type="checkbox"></label>
+            <label><span>Anchor points (H)</span><input id="showAnchorPoints" type="checkbox" checked></label>
           </div>
         </section>
         <section class="floatingPanelSection">
@@ -2392,7 +2402,6 @@
   const radiusEl = document.getElementById("radius");
   const mainAreaEl = document.getElementById("mainArea");
   const showSectorsEl = document.getElementById("showSectors");
-  const showStatsEl = document.getElementById("showStats");
   const showAnchorPointsEl = document.getElementById("showAnchorPoints");
   const showAreaTriggersEl = document.getElementById("showAreaTriggers");
 
@@ -2404,7 +2413,7 @@
     drawRadius: parseFloat(radiusEl?.value || '12288') || 12288,
     mainArea: !!mainAreaEl?.checked,
     showSectors: !!showSectorsEl?.checked,
-    showStats: showStatsEl?.checked !== false,
+    showStats: false,
     showAnchorPoints: showAnchorPointsEl?.checked !== false,
     showAreaTriggers: showAreaTriggersEl?.checked !== false,
   };
@@ -2417,14 +2426,17 @@
     renderUiState.drawRadius = parseFloat(radiusEl?.value || '12288') || 12288;
     renderUiState.mainArea = !!mainAreaEl?.checked;
     renderUiState.showSectors = !!showSectorsEl?.checked;
-    renderUiState.showStats = showStatsEl?.checked !== false;
     renderUiState.showAnchorPoints = showAnchorPointsEl?.checked !== false;
     renderUiState.showAreaTriggers = showAreaTriggersEl?.checked !== false;
   }
 
-  for (const el of [speedLevelEl, speedScalarEl, groundClampEl, clearanceEl, radiusEl, mainAreaEl, showSectorsEl, showStatsEl, showAnchorPointsEl, showAreaTriggersEl]){
+  for (const el of [speedLevelEl, speedScalarEl, groundClampEl, clearanceEl, radiusEl, mainAreaEl, showSectorsEl, showAnchorPointsEl, showAreaTriggersEl]){
     el?.addEventListener('input', syncRenderUiState);
     el?.addEventListener('change', syncRenderUiState);
+  }
+
+  function toggleSceneInfo(){
+    renderUiState.showStats = !renderUiState.showStats;
   }
 
   const ui = {
@@ -7703,6 +7715,9 @@
     "file.saveAs": async () => {
       if (!await saveCurrentMap({ forcePicker: true })) return showNotImplemented("Save As");
     },
+    "file.save": async () => {
+      await saveCurrentMap();
+    },
     "file.setEditorFolder": async () => {
       if (!state.isLocalRuntime) return;
       if (!window.showDirectoryPicker){
@@ -7738,6 +7753,7 @@
     "edit.redo": redoLastChange,
     "edit.globalReplace": runGlobalReplace,
     "edit.weaponLoadouts": () => openSectionEditor("weapon_availability"),
+    "view.sceneInfo": toggleSceneInfo,
     "mis.liveChanges": openLiveMisWindow,
     "logs.open": openLogsWindow,
     "uiStyle.default": () => setTheme("default"),
@@ -7752,7 +7768,8 @@
       ] : []),
       { label: "Create New Map", command: "file.new" },
       { label: "Open", command: "file.open" },
-      { label: "Save As (.mis)", command: "file.saveAs" },
+      { label: "Save (.mis)", shortcut: "Ctrl + S", command: "file.save" },
+      { label: "Save As (.mis)", shortcut: "Ctrl + Shift + S", command: "file.saveAs" },
       { label: "Export Binary (.bms)", command: "file.exportBinaryMission" },
       { label: "Save (.mis) and export (.bms)", command: "file.saveAndExport" }
     ];
@@ -7789,6 +7806,8 @@
       {
         label: "View",
         children: [
+          { label: "Scene Info", shortcut: "I", command: "view.sceneInfo" },
+          { separator: true },
           { label: "View by Layer", command: "view.byLayer" },
           { label: "View by Type", command: "view.byType" },
           { label: "View by Side", command: "view.bySide" },
@@ -7931,6 +7950,14 @@
 
   renderMenuBar();
 
+  document.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== "s") return;
+    e.preventDefault();
+    if (e.repeat) return;
+    if (e.shiftKey) menuHandlers["file.saveAs"]();
+    else menuHandlers["file.save"]();
+  });
+
   document.addEventListener("click", (e) => {
     if (!menuBar.contains(e.target)) closeMenus();
     if (!itemContextMenu.contains(e.target)) closeItemContextMenu();
@@ -8001,6 +8028,7 @@
   // Canvas (WebGL terrain viewer + editor items)
   const cv = document.getElementById("cv");
   const camDebugEl = document.getElementById("camDebug");
+  const sceneInfoHintEl = document.getElementById("sceneInfoHint");
   const fpsCounterEl = document.getElementById("fpsCounter");
   const gizmoCanvasEl = document.getElementById("gizmoCanvas");
   const gizmoCtx = gizmoCanvasEl?.getContext("2d");
@@ -10382,6 +10410,7 @@
     const waterZUsedLabel = (waterRender.raw===0 || waterRender.raw) ? (waterRender.raw*0.5) : '-';
     const showStatsOn = renderUiState.showStats;
     camDebugEl.style.display = showStatsOn ? 'block' : 'none';
+    sceneInfoHintEl.style.display = showStatsOn ? 'none' : 'block';
     statsHudAccumTime += dt;
     if (showStatsOn && statsHudAccumTime >= 0.25) {
       const nextStatsText = `Loaded terrain: ${loadedTrnName||'none'}
@@ -10452,7 +10481,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
 
   cv.addEventListener('click',()=>{ if (!hasTypingFocus()) cv.focus(); });
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&showStatsEl){ showStatsEl.checked=!showStatsEl.checked; syncRenderUiState(); } if(k==='h'&&showAnchorPointsEl){ showAnchorPointsEl.checked=!showAnchorPointsEl.checked; syncRenderUiState(); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&showAnchorPointsEl){ showAnchorPointsEl.checked=!showAnchorPointsEl.checked; syncRenderUiState(); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;

@@ -39,13 +39,13 @@ R = Switches the view mode between colormap, heightmap, and depth map
 T = Switches to top view (like the original MED view)  
 E = Changes the item gizmo to rotation mode (yaw and pitch)  
 W = Changes the item gizmo to standard XYZ movement mode  
-Gizmo Space = Switches the transform axes between global and item-local orientation<br>
+Gizmo Space = Switches the transform axes between world and item-local orientation<br>
 Gizmo Pivot = Uses the selection center, active item, or individual item origins<br>
 Gizmo Snap = Quantizes translation and rotation to the configured increments<br>
 F = Toggles item wireframe view  
 G = Toggles grid lines  
 H = Toggles item anchor points  
-I = Toggles the map info box on the canvas  
+I = Toggles the scene info box on the canvas<br>
 
 ## Keep working on it.
 Feel free to continue what’s already been done.  
