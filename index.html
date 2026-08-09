@@ -382,10 +382,17 @@
     #canvasShowPanelControls button{ min-height:22px; padding:2px 8px; font-size:11px; }
     #canvasShowPanelList{ display:grid; grid-template-columns:1fr; gap:4px; font-size:12px; }
     #canvasShowPanelList label{ display:flex; align-items:center; gap:6px; }
-    #canvasShowPanelList label.showCategoryEmpty{ opacity:.42; }
+    #canvasShowPanelList label.showCategoryEmpty,
+    .visibilityItemEmpty{ opacity:.42; }
+    .visibilityItemCount{
+      color:var(--text-subtle);
+      font-size:.9em;
+      font-weight:400;
+    }
     #layerVisibilityPanel,
     #groupVisibilityPanel,
-    #waypointVisibilityPanel{
+    #waypointVisibilityPanel,
+    #areaTriggerVisibilityPanel{
       position:absolute;
       top:42px;
       left:72px;
@@ -405,20 +412,26 @@
     }
     #layerVisibilityPanel.open,
     #groupVisibilityPanel.open,
-    #waypointVisibilityPanel.open{ display:grid; }
+    #waypointVisibilityPanel.open,
+    #areaTriggerVisibilityPanel.open{ display:grid; }
     #layerVisibilityControls,
     #groupVisibilityControls,
-    #waypointVisibilityControls{ display:flex; align-items:center; gap:6px; }
+    #waypointVisibilityControls,
+    #areaTriggerVisibilityControls{ display:flex; align-items:center; gap:6px; }
     #layerVisibilityControls button,
     #groupVisibilityControls button,
-    #waypointVisibilityControls button{ min-height:22px; padding:2px 8px; font-size:11px; }
+    #waypointVisibilityControls button,
+    #areaTriggerVisibilityControls button{ min-height:22px; padding:2px 8px; font-size:11px; }
     #layerVisibilityList,
     #groupVisibilityList,
-    #waypointVisibilityList{ display:grid; grid-template-columns:1fr; gap:4px; font-size:12px; overflow:auto; min-height:0; }
+    #waypointVisibilityList,
+    #areaTriggerVisibilityList{ display:grid; grid-template-columns:1fr; gap:4px; font-size:12px; overflow:auto; min-height:0; }
     #layerVisibilityList label,
     #groupVisibilityList label,
-    #waypointVisibilityList label{ display:flex; align-items:center; gap:6px; }
-    .waypointColorSwatch{
+    #waypointVisibilityList label,
+    #areaTriggerVisibilityList label{ display:flex; align-items:center; gap:6px; }
+    .waypointColorSwatch,
+    .areaTriggerColorSwatch{
       width:12px;
       height:12px;
       flex:0 0 12px;
@@ -1343,6 +1356,7 @@
         <button id="showLayersBtn" type="button" class="modeBtn">Layers</button>
         <button id="showGroupsBtn" type="button" class="modeBtn">Groups</button>
         <button id="showWaypointsBtn" type="button" class="modeBtn">Waypoints</button>
+        <button id="showAreaTriggersBtn" type="button" class="modeBtn">Area Triggers</button>
       </div>
       <div id="canvasViewToolbar" class="canvasFloatingToolbar">
         <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
@@ -1361,17 +1375,17 @@
         </div>
         <div id="canvasShowPanelList">
           <label><input type="checkbox" id="showCharTiles"> Char Tiles</label>
-          <label data-show-category="foliage"><input type="checkbox" id="showFoliage" checked> <span>Foliage (0)</span></label>
-          <label data-show-category="vehicle"><input type="checkbox" id="showVehicles" checked> <span>Vehicles (0)</span></label>
-          <label data-show-category="people"><input type="checkbox" id="showPeople" checked> <span>People &amp; Person (0)</span></label>
-          <label data-show-category="building"><input type="checkbox" id="showBuildings" checked> <span>Buildings (0)</span></label>
-          <label data-show-category="object"><input type="checkbox" id="showObjects" checked> <span>Objects (0)</span></label>
-          <label data-show-category="decoration"><input type="checkbox" id="showDecorations" checked> <span>Decorations (0)</span></label>
-          <label data-show-category="markerGameplay"><input type="checkbox" id="showMarkers" checked> <span>Markers - Gameplay (0)</span></label>
-          <label data-show-category="markerWaypointArea"><input type="checkbox" id="showWaypointAreaMarkers" checked> <span>Markers - Waypoints &amp; Area Triggers (0)</span></label>
+          <label data-show-category="foliage"><input type="checkbox" id="showFoliage" checked> <span class="visibilityItemName">Foliage</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="vehicle"><input type="checkbox" id="showVehicles" checked> <span class="visibilityItemName">Vehicles</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="people"><input type="checkbox" id="showPeople" checked> <span class="visibilityItemName">People &amp; Person</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="building"><input type="checkbox" id="showBuildings" checked> <span class="visibilityItemName">Buildings</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="object"><input type="checkbox" id="showObjects" checked> <span class="visibilityItemName">Objects</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="decoration"><input type="checkbox" id="showDecorations" checked> <span class="visibilityItemName">Decorations</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="markerGameplay"><input type="checkbox" id="showMarkers" checked> <span class="visibilityItemName">Markers - Gameplay</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="markerWaypointArea"><input type="checkbox" id="showWaypointAreaMarkers" checked> <span class="visibilityItemName">Markers - Waypoints &amp; Area Triggers</span> <span class="visibilityItemCount">(0)</span></label>
           <label><input type="checkbox" id="showAreaTriggers" checked> Markers - Area Trigger Volumes</label>
-          <label data-show-category="markerSound"><input type="checkbox" id="showSoundMarkers" checked> <span>Markers - Sound (0)</span></label>
-          <label data-show-category="powerup"><input type="checkbox" id="showPowerups" checked> <span>Powerups (0)</span></label>
+          <label data-show-category="markerSound"><input type="checkbox" id="showSoundMarkers" checked> <span class="visibilityItemName">Markers - Sound</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="powerup"><input type="checkbox" id="showPowerups" checked> <span class="visibilityItemName">Powerups</span> <span class="visibilityItemCount">(0)</span></label>
           <label><input type="checkbox" id="showWpDistance"> WP Distance</label>
           <label><input type="checkbox" id="showFovCones"> FOV Cones</label>
           <label><input type="checkbox" id="showWater"> Water</label>
@@ -1405,6 +1419,14 @@
           <button id="showAllWaypointsBtn" type="button">Show All</button>
         </div>
         <div id="waypointVisibilityList"></div>
+      </div>
+
+      <div id="areaTriggerVisibilityPanel" aria-hidden="true">
+        <div id="areaTriggerVisibilityControls">
+          <button id="hideAllAreaTriggersBtn" type="button">Hide All</button>
+          <button id="showAllAreaTriggersBtn" type="button">Show All</button>
+        </div>
+        <div id="areaTriggerVisibilityList"></div>
       </div>
 
       <div id="viewModePanel" aria-hidden="true">
@@ -2108,6 +2130,7 @@
     layerVisibility: new Map(),
     groupVisibility: new Map(),
     waypointVisibility: new Map(),
+    areaTriggerVisibility: new Map(),
 
     glb: {
       THREE: null,
@@ -2231,6 +2254,7 @@
   const showLayersBtn = document.getElementById("showLayersBtn");
   const showGroupsBtn = document.getElementById("showGroupsBtn");
   const showWaypointsBtn = document.getElementById("showWaypointsBtn");
+  const showAreaTriggersBtn = document.getElementById("showAreaTriggersBtn");
   const viewportToolsBtn = document.getElementById("viewportToolsBtn");
   const viewModeBtn = document.getElementById("viewModeBtn");
   const debugFogBtn = document.getElementById("debugFogBtn");
@@ -2242,10 +2266,13 @@
   const showAllGroupsBtn = document.getElementById("showAllGroupsBtn");
   const hideAllWaypointsBtn = document.getElementById("hideAllWaypointsBtn");
   const showAllWaypointsBtn = document.getElementById("showAllWaypointsBtn");
+  const hideAllAreaTriggersBtn = document.getElementById("hideAllAreaTriggersBtn");
+  const showAllAreaTriggersBtn = document.getElementById("showAllAreaTriggersBtn");
   const canvasShowPanelEl = document.getElementById("canvasShowPanel");
   const layerVisibilityPanelEl = document.getElementById("layerVisibilityPanel");
   const groupVisibilityPanelEl = document.getElementById("groupVisibilityPanel");
   const waypointVisibilityPanelEl = document.getElementById("waypointVisibilityPanel");
+  const areaTriggerVisibilityPanelEl = document.getElementById("areaTriggerVisibilityPanel");
   const viewportToolsPanelEl = document.getElementById("viewportToolsPanel");
   const viewModePanelEl = document.getElementById("viewModePanel");
   const viewModeListEl = document.getElementById("viewModeList");
@@ -2266,6 +2293,7 @@
   const layerVisibilityListEl = document.getElementById("layerVisibilityList");
   const groupVisibilityListEl = document.getElementById("groupVisibilityList");
   const waypointVisibilityListEl = document.getElementById("waypointVisibilityList");
+  const areaTriggerVisibilityListEl = document.getElementById("areaTriggerVisibilityList");
   const canvasWrapEl = document.getElementById("canvasWrap");
   const statusEl = document.getElementById("status");
   const sectionOverlay = document.getElementById("sectionOverlay");
@@ -3419,8 +3447,10 @@
     }
     for (const [category, config] of Object.entries(SHOW_ITEM_CATEGORIES)){
       const label = canvasShowPanelEl?.querySelector(`[data-show-category="${category}"]`);
-      const text = label?.querySelector("span");
-      if (text) text.textContent = `${config.label} (${counts[category]})`;
+      const name = label?.querySelector(".visibilityItemName");
+      const count = label?.querySelector(".visibilityItemCount");
+      if (name) name.textContent = config.label;
+      if (count) count.textContent = `(${counts[category]})`;
       label?.classList.toggle("showCategoryEmpty", counts[category] === 0);
     }
   }
@@ -4481,6 +4511,7 @@
   }
 
   function isItemWaypointVisible(it){
+    if (isAreaTriggerItem(it)) return true;
     const waypointId = getItemWaypointId(it);
     if (waypointId == null){
       if (kvHas(it, "waypoint_id")) return true;
@@ -4492,19 +4523,41 @@
     return getWaypointVisibility(String(waypointId));
   }
 
+  function getAreaTriggerVisibility(areaTriggerId){
+    const key = String(areaTriggerId || "").trim();
+    if (!key) return true;
+    if (!state.areaTriggerVisibility.has(key)) state.areaTriggerVisibility.set(key, true);
+    return state.areaTriggerVisibility.get(key) !== false;
+  }
+
+  function isItemAreaTriggerVisible(it){
+    if (!isAreaTriggerItem(it)) return true;
+    const areaTriggerId = getItemWaypointNumber(it);
+    return areaTriggerId == null || areaTriggerId > 99
+      ? true
+      : getAreaTriggerVisibility(String(areaTriggerId));
+  }
+
   function isItemVisibilityFilterMatch(it){
-    return isItemLayerVisible(it) && isItemGroupVisible(it) && isItemWaypointVisible(it) && isItemShowCategoryVisible(it);
+    return isItemLayerVisible(it) && isItemGroupVisible(it) && isItemWaypointVisible(it) && isItemAreaTriggerVisible(it) && isItemShowCategoryVisible(it);
   }
 
   function renderLayerVisibilityPanel(){
     if (!layerVisibilityListEl) return;
+    const itemCountByLayer = new Map();
+    for (const it of state.items || []){
+      const layerNumber = Number(String(it?.kv?.layer ?? "").trim());
+      if (!Number.isInteger(layerNumber) || layerNumber < 0 || layerNumber > 31) continue;
+      itemCountByLayer.set(layerNumber, (itemCountByLayer.get(layerNumber) || 0) + 1);
+    }
     const rows = [];
     for (let n = 0; n <= 31; n++){
       const sec = getLayerSectionByNumber(n);
       const desc = String(sec?.kv?.description || "").trim();
       const label = desc ? `${n} - ${desc}` : String(n);
+      const count = itemCountByLayer.get(n) || 0;
       const checked = getLayerVisibility(String(n)) ? "checked" : "";
-      rows.push(`<label><input type="checkbox" data-layer-vis="${n}" ${checked}/> ${escapeHtml(label)}</label>`);
+      rows.push(`<label class="${count === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-layer-vis="${n}" ${checked}/><span>${escapeHtml(label)}</span><span class="visibilityItemCount">(${count})</span></label>`);
     }
     layerVisibilityListEl.innerHTML = rows.join("");
     layerVisibilityListEl.querySelectorAll('input[data-layer-vis]').forEach((el) => {
@@ -4541,9 +4594,10 @@
     const rows = [];
     for (let n = 1; n <= 63; n++){
       const desc = getGroupDescription(getGroupSectionByNumber(n));
-      const label = `${n} - ${desc || ""} (${itemCountByGroup.get(n) || 0})`;
+      const label = `${n} - ${desc || ""}`;
+      const count = itemCountByGroup.get(n) || 0;
       const checked = getGroupVisibility(String(n)) ? "checked" : "";
-      rows.push(`<label><input type="checkbox" data-group-vis="${n}" ${checked}/> ${escapeHtml(label)}</label>`);
+      rows.push(`<label class="${count === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-group-vis="${n}" ${checked}/><span>${escapeHtml(label)}</span><span class="visibilityItemCount">(${count})</span></label>`);
     }
     groupVisibilityListEl.innerHTML = rows.join("");
     groupVisibilityListEl.querySelectorAll('input[data-group-vis]').forEach((el) => {
@@ -4582,12 +4636,13 @@
     }
     const unlinkedPeopleChecked = getWaypointVisibility(UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY) ? "checked" : "";
     const rows = [
-      `<label><input type="checkbox" data-waypoint-vis="${UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY}" ${unlinkedPeopleChecked}/><span>Person Not Linked to Waypoints (${unlinkedPeopleCount})</span></label>`,
+      `<label class="${unlinkedPeopleCount === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-waypoint-vis="${UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY}" ${unlinkedPeopleChecked}/><span>Person Not Linked to Waypoints</span><span class="visibilityItemCount">(${unlinkedPeopleCount})</span></label>`,
     ];
     for (let n = 1; n <= 127; n++){
       const sec = getWaypointSectionByNumber(n);
       const desc = getWaypointDescription(sec);
-      const label = `${n} - ${desc || ""} (${itemCountByWaypoint.get(n) || 0})`;
+      const label = `${n} - ${desc || ""}`;
+      const count = itemCountByWaypoint.get(n) || 0;
       const checked = getWaypointVisibility(String(n)) ? "checked" : "";
       const hasDefinedColor = Object.prototype.hasOwnProperty.call(sec?.kv || {}, "color");
       const colorIndex = Number(sec?.kv?.color);
@@ -4597,7 +4652,7 @@
       const swatch = hasValidColor
         ? `<span class="waypointColorSwatch" style="background-color:${colorHex}" title="Color: ${escapeHtml(colorName)}" aria-label="Color: ${escapeHtml(colorName)}"></span>`
         : "";
-      rows.push(`<label><input type="checkbox" data-waypoint-vis="${n}" ${checked}/> ${swatch}<span>${escapeHtml(label)}</span></label>`);
+      rows.push(`<label class="${count === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-waypoint-vis="${n}" ${checked}/> ${swatch}<span>${escapeHtml(label)}</span><span class="visibilityItemCount">(${count})</span></label>`);
     }
     waypointVisibilityListEl.innerHTML = rows.join("");
     waypointVisibilityListEl.querySelectorAll('input[data-waypoint-vis]').forEach((el) => {
@@ -4622,6 +4677,52 @@
     showWaypointsBtn?.classList.toggle('active', visible);
   }
 
+  function renderAreaTriggerVisibilityPanel(){
+    if (!areaTriggerVisibilityListEl) return;
+    const markerCountByAreaTrigger = new Map();
+    for (const it of state.items || []){
+      if (!isAreaTriggerItem(it)) continue;
+      const areaTriggerId = getItemWaypointNumber(it);
+      if (areaTriggerId != null && areaTriggerId <= 99){
+        markerCountByAreaTrigger.set(areaTriggerId, (markerCountByAreaTrigger.get(areaTriggerId) || 0) + 1);
+      }
+    }
+    const rows = [];
+    for (let n = 1; n <= 99; n++){
+      const sec = getAreaTrigSectionByNumber(n);
+      const desc = getAreaTrigDescription(sec);
+      const label = `${n} - ${desc || ""}`;
+      const count = markerCountByAreaTrigger.get(n) || 0;
+      const checked = getAreaTriggerVisibility(String(n)) ? "checked" : "";
+      const colorIndex = getAreaTrigColorIndex(sec);
+      const colorHex = `#${AREA_TRIGGER_COLOR_HEX[colorIndex].toString(16).padStart(6, "0")}`;
+      const colorName = AREA_TRIGGER_COLORS[colorIndex];
+      const swatch = `<span class="areaTriggerColorSwatch" style="background-color:${colorHex}" title="Color: ${escapeHtml(colorName)}" aria-label="Color: ${escapeHtml(colorName)}"></span>`;
+      rows.push(`<label class="${count === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-area-trigger-vis="${n}" ${checked}/> ${swatch}<span>${escapeHtml(label)}</span><span class="visibilityItemCount">(${count})</span></label>`);
+    }
+    areaTriggerVisibilityListEl.innerHTML = rows.join("");
+    areaTriggerVisibilityListEl.querySelectorAll('input[data-area-trigger-vis]').forEach((el) => {
+      el.addEventListener('change', (ev) => {
+        const key = String(ev.target.dataset.areaTriggerVis || "");
+        if (!key) return;
+        state.areaTriggerVisibility.set(key, !!ev.target.checked);
+        requestRender();
+        syncGlbItems();
+      });
+    });
+  }
+
+  function setAreaTriggerVisibilityPanelOpen(open){
+    const visible = !!open;
+    if (visible){
+      renderAreaTriggerVisibilityPanel();
+      positionAreaTriggerVisibilityPanel();
+    }
+    areaTriggerVisibilityPanelEl?.classList.toggle('open', visible);
+    areaTriggerVisibilityPanelEl?.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    showAreaTriggersBtn?.classList.toggle('active', visible);
+  }
+
   function positionLayerVisibilityPanel(){
     if (!layerVisibilityPanelEl || !showLayersBtn || !canvasWrapEl) return;
     const wrapRect = canvasWrapEl.getBoundingClientRect();
@@ -4644,6 +4745,14 @@
     const btnRect = showWaypointsBtn.getBoundingClientRect();
     waypointVisibilityPanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
     waypointVisibilityPanelEl.style.left = `${Math.round(Math.max(8, btnRect.left - wrapRect.left))}px`;
+  }
+
+  function positionAreaTriggerVisibilityPanel(){
+    if (!areaTriggerVisibilityPanelEl || !showAreaTriggersBtn || !canvasWrapEl) return;
+    const wrapRect = canvasWrapEl.getBoundingClientRect();
+    const btnRect = showAreaTriggersBtn.getBoundingClientRect();
+    areaTriggerVisibilityPanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
+    areaTriggerVisibilityPanelEl.style.left = `${Math.round(Math.max(8, btnRect.left - wrapRect.left))}px`;
   }
 
   function positionViewModePanel(){
@@ -4706,6 +4815,15 @@
       state.waypointVisibility.set(String(n), !!visible);
     }
     renderWaypointVisibilityPanel();
+    requestRender();
+    syncGlbItems();
+  }
+
+  function setAllAreaTriggerVisibility(visible){
+    for (let n = 1; n <= 99; n++){
+      state.areaTriggerVisibility.set(String(n), !!visible);
+    }
+    renderAreaTriggerVisibilityPanel();
     requestRender();
     syncGlbItems();
   }
@@ -6727,7 +6845,16 @@
     if (e.key === "Escape" && state.modalOpen) closeModalCancel();
     if (e.key === "Escape" && state.sectionEditorOpen) closeSectionEditor();
     if (e.key === "Escape" && state.liveMisOpen) closeLiveMisWindow();
-    if (e.key === "Escape") { setCanvasShowPanelOpen(false); setLayerVisibilityPanelOpen(false); setGroupVisibilityPanelOpen(false); setWaypointVisibilityPanelOpen(false); setViewportToolsPanelOpen(false); setViewModePanelOpen(false); setDebugFogPanelOpen(false); }
+    if (e.key === "Escape") {
+      setCanvasShowPanelOpen(false);
+      setLayerVisibilityPanelOpen(false);
+      setGroupVisibilityPanelOpen(false);
+      setWaypointVisibilityPanelOpen(false);
+      setAreaTriggerVisibilityPanelOpen(false);
+      setViewportToolsPanelOpen(false);
+      setViewModePanelOpen(false);
+      setDebugFogPanelOpen(false);
+    }
     if (e.key === "Escape" && state.pastePlacementActive){
       state.pastePlacementActive = false;
       state.pastePreviewWorld = null;
@@ -7037,6 +7164,7 @@
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setAreaTriggerVisibilityPanelOpen(false);
       setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
@@ -7051,6 +7179,7 @@
       setCanvasShowPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setAreaTriggerVisibilityPanelOpen(false);
       setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
@@ -7065,6 +7194,7 @@
       setCanvasShowPanelOpen(false);
       setLayerVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setAreaTriggerVisibilityPanelOpen(false);
       setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
@@ -7079,11 +7209,27 @@
       setCanvasShowPanelOpen(false);
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
+      setAreaTriggerVisibilityPanelOpen(false);
       setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
     }
     setWaypointVisibilityPanelOpen(next);
+  });
+
+  showAreaTriggersBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const next = !areaTriggerVisibilityPanelEl?.classList.contains("open");
+    if (next){
+      setCanvasShowPanelOpen(false);
+      setLayerVisibilityPanelOpen(false);
+      setGroupVisibilityPanelOpen(false);
+      setWaypointVisibilityPanelOpen(false);
+      setViewportToolsPanelOpen(false);
+      setViewModePanelOpen(false);
+      setDebugFogPanelOpen(false);
+    }
+    setAreaTriggerVisibilityPanelOpen(next);
   });
 
   viewportToolsBtn?.addEventListener("click", (event) => {
@@ -7094,6 +7240,7 @@
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setAreaTriggerVisibilityPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
     }
@@ -7110,6 +7257,7 @@
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setAreaTriggerVisibilityPanelOpen(false);
       setViewportToolsPanelOpen(false);
       setDebugFogPanelOpen(false);
     }
@@ -7130,6 +7278,7 @@
       setLayerVisibilityPanelOpen(false);
       setGroupVisibilityPanelOpen(false);
       setWaypointVisibilityPanelOpen(false);
+      setAreaTriggerVisibilityPanelOpen(false);
       setViewportToolsPanelOpen(false);
       setViewModePanelOpen(false);
     }
@@ -7164,6 +7313,16 @@
   showAllWaypointsBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     setAllWaypointVisibility(true);
+  });
+
+  hideAllAreaTriggersBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setAllAreaTriggerVisibility(false);
+  });
+
+  showAllAreaTriggersBtn?.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setAllAreaTriggerVisibility(true);
   });
 
   function setAllShowOptions(visible){
@@ -7210,6 +7369,9 @@
     if (waypointVisibilityPanelEl?.classList.contains("open")){
       if (!(waypointVisibilityPanelEl.contains(event.target) || showWaypointsBtn?.contains(event.target))) setWaypointVisibilityPanelOpen(false);
     }
+    if (areaTriggerVisibilityPanelEl?.classList.contains("open")){
+      if (!(areaTriggerVisibilityPanelEl.contains(event.target) || showAreaTriggersBtn?.contains(event.target))) setAreaTriggerVisibilityPanelOpen(false);
+    }
     if (debugFogPanelEl?.classList.contains("open")){
       if (!(debugFogPanelEl.contains(event.target) || debugFogBtn?.contains(event.target))) setDebugFogPanelOpen(false);
     }
@@ -7226,6 +7388,7 @@
     if (layerVisibilityPanelEl?.classList.contains("open")) positionLayerVisibilityPanel();
     if (groupVisibilityPanelEl?.classList.contains("open")) positionGroupVisibilityPanel();
     if (waypointVisibilityPanelEl?.classList.contains("open")) positionWaypointVisibilityPanel();
+    if (areaTriggerVisibilityPanelEl?.classList.contains("open")) positionAreaTriggerVisibilityPanel();
     if (debugFogPanelEl?.classList.contains("open")) positionDebugFogPanel();
     if (viewModePanelEl?.classList.contains("open")) positionViewModePanel();
     if (viewportToolsPanelEl?.classList.contains("open")) positionViewportToolsPanel();
@@ -7587,14 +7750,11 @@
       ...(state.isLocalRuntime ? [
         { label: "Set Editor Folder", command: "file.setEditorFolder", attention: !state.editorFolderHandle },
       ] : []),
-      { label: "New", command: "file.new" },
+      { label: "Create New Map", command: "file.new" },
       { label: "Open", command: "file.open" },
-      { label: "Save As", command: "file.saveAs" },
-      { label: "Export Binary Mission", command: "file.exportBinaryMission" },
-      { label: "Save and Export", command: "file.saveAndExport" },
-      { label: "Save and Export w/Stats", command: "file.saveAndExportWithStats" },
-      { separator: true },
-      { label: "Exit", command: "app.exit" }
+      { label: "Save As (.mis)", command: "file.saveAs" },
+      { label: "Export Binary (.bms)", command: "file.exportBinaryMission" },
+      { label: "Save (.mis) and export (.bms)", command: "file.saveAndExport" }
     ];
 
     return [
