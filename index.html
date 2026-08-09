@@ -1248,6 +1248,7 @@
     .eventTriggerRadios{ display:flex; flex-wrap:wrap; gap:16px; color:var(--text); }
     .eventTriggerRadios label{ display:flex; flex-direction:row; align-items:center; gap:5px; color:inherit; }
     .eventTriggerRadios input[type="radio"]{ width:auto; min-width:auto; margin:0; }
+    .eventTriggerPreserved{ color:var(--text-subtle); font-style:italic; }
     .eventTriggerFieldset{ margin:0; padding:8px; display:grid; gap:8px; }
     .eventTriggerFieldset legend{ color:var(--text); padding:0 4px; }
     .eventEditorActions{ display:flex; justify-content:flex-end; gap:8px; margin-top:7px; }
@@ -5424,7 +5425,8 @@
         ? `<label>${escapeHtml(vars[i-3])}<input type="number" data-field="${i}" value="${values[i]}"></label>`
         : `<input type="hidden" data-field="${i}" value="${values[i]}">`);
       html.push(`<fieldset class="eventTriggerFieldset"><legend>${escapeHtml(resolveStringKey("TRIGGER_VARIABLES")||"Trigger Variables")}</legend>${variableFields.join('')}</fieldset>`);
-      html.push(`<fieldset class="eventTriggerFieldset"><legend>${escapeHtml(resolveStringKey("LOGIC")||"Logic")}</legend><div class="eventTriggerRadios">${eventRadioGroup("eventTriggerLogic",logic,{0:resolveStringKey("AND")||"And",2:resolveStringKey("OR")||"Or",4:resolveStringKey("XOR")||"X-or"})}</div></fieldset>`);
+      const preservedLogic=logic===4?`<span class="eventTriggerPreserved">${escapeHtml(`${resolveStringKey("XOR")||"X-or"} (preserved)`)}</span>`:"";
+      html.push(`<fieldset class="eventTriggerFieldset"><legend>${escapeHtml(resolveStringKey("LOGIC")||"Logic")}</legend><div class="eventTriggerRadios">${eventRadioGroup("eventTriggerLogic",logic,{0:resolveStringKey("AND")||"And",2:resolveStringKey("OR")||"Or"})}</div>${preservedLogic}</fieldset>`);
       html.push(`<input type="hidden" data-field="7" value="${values[7]}">`);
     }else{
       const type=values[1], aiAction=values[6];
@@ -5455,7 +5457,8 @@
     const values=Array(8).fill(0);
     document.querySelectorAll('#eventRawGrid [data-field]').forEach(el=>{if(/^\d+$/.test(el.dataset.field))values[Number(el.dataset.field)]=Math.trunc(Number(el.value))||0;});
     const truth=document.querySelector('#eventRawGrid input[name="eventTriggerTruth"]:checked'),logic=document.querySelector('#eventRawGrid input[name="eventTriggerLogic"]:checked');
-    if(truth&&logic)values[0]=(values[0]&~7)|(Number(truth.value)&1)|(Number(logic.value)&6);
+    if(truth)values[0]=(values[0]&~1)|(Number(truth.value)&1);
+    if(logic)values[0]=(values[0]&~6)|(Number(logic.value)&6);
     return values;
   }
   function openEventRowEditor(kind,index){
