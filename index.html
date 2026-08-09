@@ -923,7 +923,7 @@
       display:none;
       padding:4px 0;
     }
-    .menuRoot.open .menuDropdown{ display:block; }
+    .menuRoot.open > .menuDropdown{ display:block; }
     .menuSubmenu{
       position:relative;
     }
@@ -948,6 +948,16 @@
       font-size:12px;
     }
     .menuShortcut{ color:var(--muted); white-space:nowrap; }
+    .menuControl{
+      display:grid;
+      grid-template-columns:1fr auto;
+      align-items:center;
+      gap:8px;
+      padding:6px 10px;
+      font-size:12px;
+    }
+    .menuControl input[type="range"]{ grid-column:1 / -1; width:100%; }
+    .menuControlValue{ color:var(--muted); font-variant-numeric:tabular-nums; }
     .menuItemBtn:hover{ background:var(--accent-soft); }
     .menuItemBtn:active:not(:disabled){ background:var(--control-active-bg); }
     .menuItemBtn.attention{
@@ -1456,27 +1466,10 @@
 
       <div id="viewportToolsPanel" aria-hidden="true">
         <section class="floatingPanelSection">
-          <div class="floatingPanelTitle">Camera</div>
-          <div class="floatingPanelFields">
-            <label>Camera Speed <input id="speedLevel" type="range" min="1" max="8" step="1" value="4"></label>
-            <label>Speed Scalar <input id="speedScalar" type="range" min="0.1" max="4.0" step="0.1" value="1.0"></label>
-            <label><span>Ground clamp</span><input id="ground" type="checkbox" checked></label>
-            <label>Camera Ground Distance <input id="clear" type="range" min="1" max="200" step="1" value="1"></label>
-          </div>
-        </section>
-        <section class="floatingPanelSection">
           <div class="floatingPanelTitle">Gizmo</div>
           <div class="floatingPanelFields">
             <label>Transformation Mode <span class="shortcutHint">X</span><select id="transformSpace" title="Transformation space (X)"><option value="global">World</option><option value="local">Local</option></select></label>
             <label>Gizmo Pivot <select id="transformPivot" title="Selection pivot"><option value="center">Selection center</option><option value="active">Active item</option><option value="individual">Individual origins</option></select></label>
-          </div>
-        </section>
-        <section class="floatingPanelSection">
-          <div class="floatingPanelTitle">Guides</div>
-          <div class="floatingPanelFields">
-            <label><span>Main area</span><input id="mainArea" type="checkbox"></label>
-            <label><span>Show Sectors</span><input id="showSectors" type="checkbox"></label>
-            <label><span>Anchor points (H)</span><input id="showAnchorPoints" type="checkbox" checked></label>
           </div>
         </section>
         <section class="floatingPanelSection">
@@ -2393,48 +2386,41 @@
   const okBtn = document.getElementById("okBtn");
   const cancelBtn = document.getElementById("cancelBtn");
   const itemContextMenu = document.getElementById("itemContextMenu");
-  const speedLevelEl = document.getElementById("speedLevel");
-  const speedScalarEl = document.getElementById("speedScalar");
-  const groundClampEl = document.getElementById("ground");
-  const clearanceEl = document.getElementById("clear");
   const radiusEl = document.getElementById("radius");
-  const mainAreaEl = document.getElementById("mainArea");
-  const showSectorsEl = document.getElementById("showSectors");
-  const showAnchorPointsEl = document.getElementById("showAnchorPoints");
   const showAreaTriggersEl = document.getElementById("showAreaTriggers");
 
   const renderUiState = {
-    speedLevel: Math.max(1, Math.min(8, Math.round(parseFloat(speedLevelEl?.value || '4') || 4))),
-    speedScalar: parseFloat(speedScalarEl?.value || '1.0') || 1.0,
-    groundClamp: groundClampEl?.checked !== false,
-    clearance: parseFloat(clearanceEl?.value || '1') || 1,
+    speedLevel: 4,
+    speedScalar: 1.0,
+    groundClamp: true,
+    clearance: 1,
     drawRadius: parseFloat(radiusEl?.value || '12288') || 12288,
-    mainArea: !!mainAreaEl?.checked,
-    showSectors: !!showSectorsEl?.checked,
+    mainArea: true,
+    showSectors: false,
     showStats: false,
-    showAnchorPoints: showAnchorPointsEl?.checked !== false,
+    showGrid: true,
+    showAnchorPoints: true,
     showAreaTriggers: showAreaTriggersEl?.checked !== false,
   };
 
   function syncRenderUiState(){
-    renderUiState.speedLevel = Math.max(1, Math.min(8, Math.round(parseFloat(speedLevelEl?.value || '4') || 4)));
-    renderUiState.speedScalar = Math.max(0.1, parseFloat(speedScalarEl?.value || '1.0') || 1.0);
-    renderUiState.groundClamp = groundClampEl?.checked !== false;
-    renderUiState.clearance = parseFloat(clearanceEl?.value || '1') || 1;
     renderUiState.drawRadius = parseFloat(radiusEl?.value || '12288') || 12288;
-    renderUiState.mainArea = !!mainAreaEl?.checked;
-    renderUiState.showSectors = !!showSectorsEl?.checked;
-    renderUiState.showAnchorPoints = showAnchorPointsEl?.checked !== false;
     renderUiState.showAreaTriggers = showAreaTriggersEl?.checked !== false;
   }
 
-  for (const el of [speedLevelEl, speedScalarEl, groundClampEl, clearanceEl, radiusEl, mainAreaEl, showSectorsEl, showAnchorPointsEl, showAreaTriggersEl]){
+  for (const el of [radiusEl, showAreaTriggersEl]){
     el?.addEventListener('input', syncRenderUiState);
     el?.addEventListener('change', syncRenderUiState);
   }
 
   function toggleSceneInfo(){
     renderUiState.showStats = !renderUiState.showStats;
+  }
+
+  function toggleViewOption(setting){
+    renderUiState[setting] = !renderUiState[setting];
+    renderMenuBar();
+    requestRender();
   }
 
   const ui = {
@@ -7752,6 +7738,11 @@
     "edit.globalReplace": runGlobalReplace,
     "edit.weaponLoadouts": () => openSectionEditor("weapon_availability"),
     "view.sceneInfo": toggleSceneInfo,
+    "view.groundClamp": () => toggleViewOption("groundClamp"),
+    "view.mainArea": () => toggleViewOption("mainArea"),
+    "view.showSectors": () => toggleViewOption("showSectors"),
+    "view.showGrid": () => toggleViewOption("showGrid"),
+    "view.showAnchorPoints": () => toggleViewOption("showAnchorPoints"),
     "mis.liveChanges": openLiveMisWindow,
     "logs.open": openLogsWindow,
     "uiStyle.default": () => setTheme("default"),
@@ -7805,6 +7796,24 @@
         label: "View",
         children: [
           { label: "Scene Info", shortcut: "I", command: "view.sceneInfo" },
+          {
+            label: "Camera",
+            children: [
+              { label: "Camera Speed", control: "range", setting: "speedLevel", min: 1, max: 8, step: 1, value: renderUiState.speedLevel },
+              { label: "Speed Scalar", control: "range", setting: "speedScalar", min: 0.1, max: 4, step: 0.1, value: renderUiState.speedScalar },
+              { label: "Ground Clamp", command: "view.groundClamp", checked: renderUiState.groundClamp },
+              { label: "Camera Ground Distance", control: "range", setting: "clearance", min: 1, max: 200, step: 1, value: renderUiState.clearance }
+            ]
+          },
+          {
+            label: "Guides",
+            children: [
+              { label: "Main Area", command: "view.mainArea", checked: renderUiState.mainArea },
+              { label: "Show Sectors", command: "view.showSectors", checked: renderUiState.showSectors },
+              { label: "Show Grid", shortcut: "G", command: "view.showGrid", checked: renderUiState.showGrid },
+              { label: "Anchor Points", shortcut: "H", command: "view.showAnchorPoints", checked: renderUiState.showAnchorPoints }
+            ]
+          },
           { separator: true },
           { label: "View by Layer", command: "view.byLayer" },
           { label: "View by Type", command: "view.byType" },
@@ -7908,10 +7917,45 @@
             continue;
           }
 
+          if (child.control === "range"){
+            const control = document.createElement("label");
+            control.className = "menuControl";
+
+            const labelEl = document.createElement("span");
+            labelEl.textContent = child.label;
+            control.appendChild(labelEl);
+
+            const valueEl = document.createElement("span");
+            valueEl.className = "menuControlValue";
+            valueEl.textContent = String(child.value);
+            control.appendChild(valueEl);
+
+            const input = document.createElement("input");
+            input.type = "range";
+            input.min = String(child.min);
+            input.max = String(child.max);
+            input.step = String(child.step);
+            input.value = String(child.value);
+            input.setAttribute("aria-label", child.label);
+            input.addEventListener("input", () => {
+              const value = parseFloat(input.value);
+              renderUiState[child.setting] = value;
+              valueEl.textContent = input.value;
+              requestRender();
+            });
+            control.appendChild(input);
+            container.appendChild(control);
+            continue;
+          }
+
           const itemBtn = document.createElement("button");
           itemBtn.className = `menuItemBtn${child.attention ? " attention" : ""}`;
+          if (typeof child.checked === "boolean"){
+            itemBtn.setAttribute("role", "menuitemcheckbox");
+            itemBtn.setAttribute("aria-checked", child.checked ? "true" : "false");
+          }
           const labelEl = document.createElement("span");
-          labelEl.textContent = child.label;
+          labelEl.textContent = `${child.checked ? "✓ " : ""}${child.label}`;
           itemBtn.appendChild(labelEl);
           if (child.shortcut){
             const shortcutEl = document.createElement("span");
@@ -8094,7 +8138,6 @@
   let cam={pos:vec3(0,1500,400), yaw:Math.PI, pitch:-0.25}, move={w:0,a:0,s:0,d:0,q:0,e:0};
   let camVel=vec3(0,0,0);
   let renderMode='C';
-  let gridVisible=true;
   const MAX_GRID_LINES_PER_AXIS=1024;
   const TERRAIN_LOD_STEPS=[1,2,4];
   const TERRAIN_LOD_DISTANCE_FACTORS=[0.35,0.7];
@@ -8612,7 +8655,7 @@
     }
 
     const gridPositions = [];
-    if(gridVisible){
+    if(renderUiState.showGrid){
       const gridSize=gridSizeMeters();
       if(gridSize>0){
         const spanVisibleX=(overlayI1-overlayI0+1)*SECTOR_STRIDE;
@@ -10489,7 +10532,7 @@ water_source          ${waterRender.source}
 
 Mode: ${renderMode==='C' ? 'Colormap' : (renderMode==='H' ? 'Heightmap' : 'Delta')}
 Render backend: ${state.renderBackend}
-Grid: ${gridVisible ? formatGridValue(gridSizeMeters()) : 'off'}
+Grid: ${renderUiState.showGrid ? formatGridValue(gridSizeMeters()) : 'off'}
 Top view lock: ${topViewLocked?'on':'off'}
 Draw calls: ${drawCalls}
 Terrain cull (frustum/back): ${state.terrainPerf?.culledFrustum ?? '-'} / ${state.terrainPerf?.culledBackface ?? '-'}
@@ -10543,7 +10586,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
 
   cv.addEventListener('click',()=>{ if (!hasTypingFocus()) cv.focus(); });
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&showAnchorPointsEl){ showAnchorPointsEl.checked=!showAnchorPointsEl.checked; syncRenderUiState(); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
@@ -10640,7 +10683,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   cv.addEventListener("mousemove", (e) => { if(state.modalOpen) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; if(state.cameraLookPending){ const mask=state.cameraLookButton===2?2:1; if(e.buttons & mask){ const start=state.cameraLookStart||{sx,sy}; const moved=Math.hypot(sx-start.sx, sy-start.sy); if(moved>3){ state.cameraLookPending=false; if(state.cameraLookButton===1) state.pendingLeftClick=null; state.cameraLookActive=true; requestCameraPointerLock(); } } else if(!state.cameraLookActive){ state.cameraLookPending=false; state.cameraLookButton=0; } } if(state.pastePlacementActive){ const z=state.selectedId?rawToWorld(getSelected()?.z||0,'z'):0; state.pastePreviewWorld=screenToWorld(sx,sy,z); } if(state.boxSelecting&&state.boxStart) state.boxCurrent={sx,sy}; else if(state.draggingItem&&state.selectedId){ const active=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id)); const zPlane=rawToWorld((active[0]?.z)||0,'z'); const nowW=screenToWorld(sx,sy,zPlane); const prevW=state.dragAnchor||nowW; const dx=nowW.x-prevW.x, dy=nowW.y-prevW.y; for(const it of active){ if(!kvHas(it,'position')) continue; it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x'); it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y'); it.kv.position=`${it.x} ${it.y} ${it.z}`; markItemTransformDirty(it.id);} markItemsChanged({ structure: false }); state.dragAnchor=nowW; scheduleRenderList(); scheduleLiveMisRefresh(); } state.lastMouse={sx,sy}; });
   function stopDrag(){ const had=state.boxSelecting&&state.boxStart&&state.boxCurrent; const shouldFinalizeClick=!!state.pendingLeftClick && !state.cameraLookActive && !state.gizmoDrag && !state.draggingItem && !had; const x0=had?Math.min(state.boxStart.sx,state.boxCurrent.sx):0, x1=had?Math.max(state.boxStart.sx,state.boxCurrent.sx):0, y0=had?Math.min(state.boxStart.sy,state.boxCurrent.sy):0, y1=had?Math.max(state.boxStart.sy,state.boxCurrent.sy):0, add=state.boxSelectAdditive; state.draggingItem=false; state.boxSelecting=false; state.boxSelectAdditive=false; state.boxStart=null; state.boxCurrent=null; state.lastMouse=null; state.dragAnchor=null; state.cameraLookActive=false; state.cameraLookPending=false; state.cameraLookStart=null; state.cameraLookButton=0; if(document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock(); if(shouldFinalizeClick){ const pickedId=state.pendingLeftClick.pickedId; selectById(pickedId != null ? pickedId : null); } state.pendingLeftClick=null; if(had){ const worldA=screenToWorld(x0,y0,0); const worldB=screenToWorld(x1,y1,0); const minX=Math.min(worldA.x,worldB.x), maxX=Math.max(worldA.x,worldB.x), minY=Math.min(worldA.y,worldB.y), maxY=Math.max(worldA.y,worldB.y); const candidates=getSpatialCandidatesByWorldRect(minX,minY,maxX,maxY); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); const ids=[]; for(const it of candidates){ if(!filteredSet.has(it.id)||!isItemVisibilityFilterMatch(it)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(p.visible&&p.sx>=x0&&p.sx<=x1&&p.sy>=y0&&p.sy<=y1) ids.push(it.id); } if(!add) state.multiSelectedIds.clear(); for(const id of ids) state.multiSelectedIds.add(id); state.selectedId=state.multiSelectedIds.size?Array.from(state.multiSelectedIds).at(-1):null; renderList(); refreshLiveMisWindow(false, { force: true }); } }
   cv.addEventListener('mouseup',stopDrag); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; stopDrag(); });
-  cv.addEventListener('wheel',(e)=>{ e.preventDefault(); const lvl=speedLevelEl; if(!lvl) return; const cur=Math.round(parseFloat(lvl.value||'4')||4); const min=Math.round(parseFloat(lvl.min||'1')||1); const max=Math.round(parseFloat(lvl.max||'8')||8); const step=Math.round(parseFloat(lvl.step||'1')||1); const dir=e.deltaY<0?1:-1; const next=Math.max(min,Math.min(max,cur+dir*step)); lvl.value=String(next); syncRenderUiState(); },{passive:false});
+  cv.addEventListener('wheel',(e)=>{ e.preventDefault(); const dir=e.deltaY<0?1:-1; renderUiState.speedLevel=Math.max(1,Math.min(8,renderUiState.speedLevel+dir)); renderMenuBar(); requestRender(); },{passive:false});
 
   document.addEventListener("pointerlockchange", () => {
     if (document.pointerLockElement===cv) return;
