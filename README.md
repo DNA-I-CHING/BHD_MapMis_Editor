@@ -45,7 +45,7 @@ Gizmo Snap = Quantizes translation and rotation to the configured increments<br>
 F = Toggles item wireframe view  
 G = Toggles grid lines  
 H = Toggles item anchor points  
-I = Toggles the map info box on the canvas  
+I = Toggles the scene info box on the canvas<br>
 
 ## Keep working on it.
 Feel free to continue what’s already been done.  
