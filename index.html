@@ -1336,10 +1336,7 @@
       <button id="modeC" class="modeBtn active" title="Colormap (R)">C</button>
       <button id="modeH" class="modeBtn" title="Heightmap (R)">H</button>
       <button id="modeD" class="modeBtn" title="Delta/Variation (R)">D</button>
-      <label class="tbCtl"><input id="mainArea" type="checkbox"> Main area</label>
-      <label class="tbCtl"><input id="showSectors" type="checkbox"> Show Sectors</label>
       <label class="tbCtl"><input id="showStats" type="checkbox" checked> Map Info (I):</label>
-      <label class="tbCtl"><input id="showAnchorPoints" type="checkbox" checked> Anchor points (H)</label>
       <button id="exportBtn" type="button" class="modeBtn">Go to</button>
       <div id="status">No file loaded.</div>
     </div>
@@ -1464,6 +1461,14 @@
           <div class="floatingPanelFields">
             <label>Transformation Mode <span class="shortcutHint">X</span><select id="transformSpace" title="Transformation space (X)"><option value="global">World</option><option value="local">Local</option></select></label>
             <label>Gizmo Pivot <select id="transformPivot" title="Selection pivot"><option value="center">Selection center</option><option value="active">Active item</option><option value="individual">Individual origins</option></select></label>
+          </div>
+        </section>
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">Guides</div>
+          <div class="floatingPanelFields">
+            <label><span>Main area</span><input id="mainArea" type="checkbox"></label>
+            <label><span>Show Sectors</span><input id="showSectors" type="checkbox"></label>
+            <label><span>Anchor points (H)</span><input id="showAnchorPoints" type="checkbox" checked></label>
           </div>
         </section>
         <section class="floatingPanelSection">
