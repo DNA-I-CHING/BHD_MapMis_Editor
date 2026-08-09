@@ -1219,8 +1219,26 @@
     .eventNestedRow.active{ background:#2b3d8f; color:#fff; }
     .eventNewRow{ color:var(--text-subtle); font-style:italic; }
     .eventFlags{ display:flex; gap:6px; align-items:center; margin-top:4px; }
-    .eventRowEditor{ display:none; border:1px solid var(--line); padding:8px; margin:6px 0; background:var(--surface); }
-    .eventRowEditor.open{ display:block; }
+    #eventRowOverlay{
+      position:absolute;
+      inset:0;
+      background:var(--overlay);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:66;
+      padding:18px;
+    }
+    #eventRowOverlay.open{ display:flex; }
+    .eventRowEditor{
+      width:min(1040px,100%);
+      background:var(--panel-muted);
+      border:1px solid var(--line-heavy);
+      padding:10px;
+      box-shadow:var(--shadow-md);
+      box-sizing:border-box;
+    }
+    .eventRowEditor .windowTitle{ margin-bottom:10px; }
     .eventRawGrid{ display:grid; grid-template-columns:repeat(8,minmax(58px,1fr)); gap:6px; }
     .eventRawGrid label{ display:grid; gap:2px; color:var(--text-subtle); }
     .eventRawGrid input, .eventRawGrid select{ width:100%; min-width:0; box-sizing:border-box; }
@@ -1609,10 +1627,17 @@
                   <div class="eventGroup"><div class="eventLegend">THEN ( Actions )</div><div class="eventGroupBody"><div class="eventNestedList" id="eventActionList"></div><div class="eventSideBtns"><button id="eventActionDelete">Delete</button><button id="eventActionCopy">Copy</button><button id="eventActionPaste">Paste</button></div></div></div>
                 </div>
               </div>
-              <div class="eventRowEditor" id="eventRowEditor"><strong id="eventRowEditorTitle">Edit row</strong><div class="eventRawGrid" id="eventRawGrid"></div><div class="eventEditorActions"><button id="eventRowCancel">Cancel</button><button id="eventRowApply">Apply</button></div></div>
               <div class="eventFooterBtns"><button id="eventDeleteBtn">Delete Event</button><button id="eventCopyBtn">Copy Event</button><button id="eventPasteBtn">Paste Event</button><button id="eventPrintBtn">Print Event</button><button id="eventPrintAllBtn">Print All Events</button><button id="eventOkBtn">OK</button></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div id="eventRowOverlay" aria-hidden="true">
+        <div class="eventRowEditor" id="eventRowEditor" role="dialog" aria-modal="true" aria-labelledby="eventRowEditorTitle">
+          <div class="windowTitle"><span id="eventRowEditorTitle">Edit Trigger</span><span class="spacer"></span><button class="xbtn" id="eventRowClose" type="button" aria-label="Close">X</button></div>
+          <div class="eventRawGrid" id="eventRawGrid"></div>
+          <div class="eventEditorActions"><button id="eventRowCancel" type="button">Cancel</button><button id="eventRowApply" type="button">OK</button></div>
         </div>
       </div>
 
@@ -5370,10 +5395,13 @@
   function openEventRowEditor(kind,index){
     const sec=selectedEvent();if(!sec)return;const rows=parseEventData(sec)[kind+'s'];if(index<0&&rows.length>=20)return;
     eventUi.editKind=kind;eventUi.editIndex=index;const values=index<0?[0,0,0,0,0,0,0,0]:rows[index];
-    document.getElementById('eventRowEditorTitle').textContent=`${index<0?'New':'Edit'} ${kind==='trigger'?'Trigger':'Action'}`;
-    renderEventRowFields(kind,values);document.getElementById('eventRowEditor').classList.add('open');
+    document.getElementById('eventRowEditorTitle').textContent=`Edit ${kind==='trigger'?'Trigger':'Action'}`;
+    renderEventRowFields(kind,values);
+    const overlay=document.getElementById('eventRowOverlay');
+    overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
   }
-  function applyEventRow(){const sec=selectedEvent(),kind=eventUi.editKind;if(!sec||!kind)return;const d=parseEventData(sec),rows=d[kind+'s'],row=readEventRowFields();if(eventUi.editIndex<0)rows.push(row);else rows[eventUi.editIndex]=row;writeEventData(sec,d);document.getElementById('eventRowEditor').classList.remove('open');if(kind==='trigger')eventUi.selectedTrigger=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);else eventUi.selectedAction=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);renderEventEditor();scheduleLiveMisRefresh();}
+  function closeEventRowEditor(){const overlay=document.getElementById('eventRowOverlay');overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');eventUi.editKind=null;eventUi.editIndex=-1;}
+  function applyEventRow(){const sec=selectedEvent(),kind=eventUi.editKind;if(!sec||!kind)return;const d=parseEventData(sec),rows=d[kind+'s'],row=readEventRowFields();if(eventUi.editIndex<0)rows.push(row);else rows[eventUi.editIndex]=row;writeEventData(sec,d);if(kind==='trigger')eventUi.selectedTrigger=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);else eventUi.selectedAction=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);closeEventRowEditor();renderEventEditor();scheduleLiveMisRefresh();}
   function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){rows.push(structuredClone(eventUi[clip]));eventUi[key]=rows.length-1;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
   function printEvents(all){const secs=all?getSortedEvents():[selectedEvent()].filter(Boolean),text=secs.map(sec=>[sec.beginLine,...sec.lines,'end event'].join('\n')).join('\n\n');const w=window.open('','_blank');if(w){w.document.write(`<pre>${escapeHtml(text)}</pre>`);w.document.close();w.print();}}
 
@@ -5437,6 +5465,7 @@
   }
 
   function closeSectionEditor(){
+    closeEventRowEditor();
     state.sectionEditorOpen = false;
     sectionOverlay.classList.remove("open");
   }
@@ -7223,7 +7252,9 @@
   document.getElementById("eventPrintAllBtn")?.addEventListener("click",()=>printEvents(true));
   document.getElementById("eventOkBtn")?.addEventListener("click",()=>{saveEventFields();closeSectionEditor();});
   document.getElementById("eventRowApply")?.addEventListener("click",applyEventRow);
-  document.getElementById("eventRowCancel")?.addEventListener("click",()=>document.getElementById("eventRowEditor").classList.remove("open"));
+  document.getElementById("eventRowCancel")?.addEventListener("click",closeEventRowEditor);
+  document.getElementById("eventRowClose")?.addEventListener("click",closeEventRowEditor);
+  document.getElementById("eventRowOverlay")?.addEventListener("mousedown",e=>{if(e.target===e.currentTarget)closeEventRowEditor();});
   for (const kind of ["Trigger","Action"]){ for (const op of ["Delete","Copy","Paste"]){ document.getElementById(`event${kind}${op}`)?.addEventListener("click",()=>eventRowOp(kind.toLowerCase(),op.toLowerCase())); } }
   sectionApplyBtn.addEventListener("click", applySectionBlock);
   sectionDeleteBtn.addEventListener("click", deleteSectionBlock);
