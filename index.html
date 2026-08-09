@@ -1196,8 +1196,6 @@
     .eventNameField input{ width:100%; }
     .eventCheckRow{ display:grid; grid-template-columns:auto 1fr 56px; gap:8px; align-items:center; margin-top:2px; }
     .eventDelayRow{ display:grid; grid-template-columns:1fr 56px; gap:8px; align-items:center; margin-top:18px; }
-    .eventMoveButtons{ display:flex; gap:8px; margin:6px 0 6px 0; }
-    .eventMoveButtons button{ min-width:74px; }
     .eventGrid{ display:grid; grid-template-columns:7fr 13fr; gap:14px; margin-bottom:10px; }
     .eventListBox{
       height:322px;
@@ -1658,7 +1656,7 @@
                 </div>
               </div>
               <div class="eventGrid">
-                <div><div class="eventMoveButtons"><button id="eventUpBtn">Up</button><button id="eventDownBtn">Down</button></div><div class="eventListBox" id="eventListBox"></div></div>
+                <div><div class="eventListBox" id="eventListBox"></div></div>
                 <div class="eventSplitPanel">
                   <div class="eventGroup"><div class="eventLegend">IF ( Triggers )</div><div class="eventGroupBody"><div class="eventNestedList" id="eventTriggerList"></div><div class="eventSideBtns"><button id="eventTriggerDelete">Delete</button><button id="eventTriggerCopy">Copy</button><button id="eventTriggerPaste">Paste</button></div></div></div>
                   <div class="eventGroup"><div class="eventLegend">THEN ( Actions )</div><div class="eventGroupBody"><div class="eventNestedList" id="eventActionList"></div><div class="eventSideBtns"><button id="eventActionDelete">Delete</button><button id="eventActionCopy">Copy</button><button id="eventActionPaste">Paste</button></div></div></div>
@@ -5515,7 +5513,6 @@
     }
     for(const it of state.items){const key=Object.keys(it.kv||{}).find(k=>/^(wp_adv_trigger|adv_event)$/i.test(k));if(!key)continue;let v=Math.trunc(Number(it.kv[key])),nv=v;if(mode==='insert'&&v>=a)nv=v+1;else if(mode==='delete'&&v===a)nv=-1;else if(mode==='delete'&&v>a)nv=v-1;else if(mode==='swap'&&v===a)nv=b;else if(mode==='swap'&&v===b)nv=a;if(nv!==v){it.kv[key]=String(nv);it.lines=(it.lines||[]).map(raw=>new RegExp(`^\\s*${key}\\b`,'i').test(raw)?`  ${key} ${nv}`:raw);}}
   }
-  function moveEvent(delta){const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId),j=i+delta;if(i<0||j<0||j>=ev.length)return;const p=copyEventPayload(ev[i]);setEventPayload(ev[i],copyEventPayload(ev[j]));setEventPayload(ev[j],p);updateEventReferences('swap',getEventNumber(ev[i]),getEventNumber(ev[j]));state.sectionSelectedId=ev[j].id;renderEventEditor();scheduleLiveMisRefresh();}
   function deleteEvent(){let ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0)return;const num=getEventNumber(ev[i]);updateEventReferences('delete',num);for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));const last=ev.at(-1);state.sectionBlocks=state.sectionBlocks.filter(s=>s.id!==last.id);if(!state.sectionBlocks.some(s=>s.kind==='event'))createEvent();else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}markItemsChanged({structure:true});scheduleLiveMisRefresh();}
   function pasteEvent(){if(!eventUi.eventClipboard)return;const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0||ev.length>=256)return;const insertedNumber=getEventNumber(ev[i]);const last=ev.at(-1),id=state.sectionBlocks.reduce((m,x)=>Math.max(m,x.id),0)+1,n=getEventNumber(last)+1,sec={...structuredClone(last),id,start:Number.MAX_SAFE_INTEGER-id,end:Number.MAX_SAFE_INTEGER-id,label:String(n),beginLine:`begin event ${n}`};state.sectionBlocks.push(sec);const all=getSortedEvents();for(let j=all.length-1;j>i;j--)setEventPayload(all[j],copyEventPayload(all[j-1]));setEventPayload(all[i],eventUi.eventClipboard);updateEventReferences('insert',insertedNumber);state.sectionSelectedId=all[i].id;markItemsChanged({structure:true});renderEventEditor();scheduleLiveMisRefresh();}
   function eventSelect(field, value, choices, label){
@@ -7489,8 +7486,6 @@
   sectionSearch.addEventListener("input", renderSectionList);
   eventNameInput?.addEventListener("change", () => { if (state.sectionKind === "event") { saveEventFields(); renderEventEditor(); } });
   ["eventResetEnabled","eventResetValue","eventDelayValue","eventPreMission","eventPostMission"].forEach(id => document.getElementById(id)?.addEventListener("change", () => { saveEventFields(); renderEventEditor(); }));
-  document.getElementById("eventUpBtn")?.addEventListener("click",()=>moveEvent(-1));
-  document.getElementById("eventDownBtn")?.addEventListener("click",()=>moveEvent(1));
   document.getElementById("eventDeleteBtn")?.addEventListener("click",deleteEvent);
   document.getElementById("eventCopyBtn")?.addEventListener("click",()=>{const sec=selectedEvent();if(sec){eventUi.eventClipboard=copyEventPayload(sec);renderEventEditor();}});
   document.getElementById("eventPasteBtn")?.addEventListener("click",pasteEvent);
