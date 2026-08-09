@@ -5587,6 +5587,8 @@
           ? `<input type="hidden" data-field="${i}" value="${values[i]}">`
           : isSubgoal
           ? eventSelect(i,values[i],eventSubgoalChoices(type),label)
+          : /^Group(?:\s+\d+)?$/i.test(label)
+          ? eventGroupSelect(i,values[i],label)
           : /^Waypoint List$/i.test(label)
           ? eventWaypointSelect(i,values[i],label)
           : `<label>${escapeHtml(label)}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
