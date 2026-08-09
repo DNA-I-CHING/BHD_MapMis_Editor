@@ -7587,14 +7587,11 @@
       ...(state.isLocalRuntime ? [
         { label: "Set Editor Folder", command: "file.setEditorFolder", attention: !state.editorFolderHandle },
       ] : []),
-      { label: "New", command: "file.new" },
+      { label: "Create New Map", command: "file.new" },
       { label: "Open", command: "file.open" },
-      { label: "Save As", command: "file.saveAs" },
-      { label: "Export Binary Mission", command: "file.exportBinaryMission" },
-      { label: "Save and Export", command: "file.saveAndExport" },
-      { label: "Save and Export w/Stats", command: "file.saveAndExportWithStats" },
-      { separator: true },
-      { label: "Exit", command: "app.exit" }
+      { label: "Save As (.mis)", command: "file.saveAs" },
+      { label: "Export Binary (.bms)", command: "file.exportBinaryMission" },
+      { label: "Save (.mis) and export (.bms)", command: "file.saveAndExport" }
     ];
 
     return [
