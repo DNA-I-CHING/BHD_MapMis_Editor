@@ -382,7 +382,13 @@
     #canvasShowPanelControls button{ min-height:22px; padding:2px 8px; font-size:11px; }
     #canvasShowPanelList{ display:grid; grid-template-columns:1fr; gap:4px; font-size:12px; }
     #canvasShowPanelList label{ display:flex; align-items:center; gap:6px; }
-    #canvasShowPanelList label.showCategoryEmpty{ opacity:.42; }
+    #canvasShowPanelList label.showCategoryEmpty,
+    .visibilityItemEmpty{ opacity:.42; }
+    .visibilityItemCount{
+      color:var(--text-subtle);
+      font-size:.9em;
+      font-weight:400;
+    }
     #layerVisibilityPanel,
     #groupVisibilityPanel,
     #waypointVisibilityPanel,
@@ -1369,17 +1375,17 @@
         </div>
         <div id="canvasShowPanelList">
           <label><input type="checkbox" id="showCharTiles"> Char Tiles</label>
-          <label data-show-category="foliage"><input type="checkbox" id="showFoliage" checked> <span>Foliage (0)</span></label>
-          <label data-show-category="vehicle"><input type="checkbox" id="showVehicles" checked> <span>Vehicles (0)</span></label>
-          <label data-show-category="people"><input type="checkbox" id="showPeople" checked> <span>People &amp; Person (0)</span></label>
-          <label data-show-category="building"><input type="checkbox" id="showBuildings" checked> <span>Buildings (0)</span></label>
-          <label data-show-category="object"><input type="checkbox" id="showObjects" checked> <span>Objects (0)</span></label>
-          <label data-show-category="decoration"><input type="checkbox" id="showDecorations" checked> <span>Decorations (0)</span></label>
-          <label data-show-category="markerGameplay"><input type="checkbox" id="showMarkers" checked> <span>Markers - Gameplay (0)</span></label>
-          <label data-show-category="markerWaypointArea"><input type="checkbox" id="showWaypointAreaMarkers" checked> <span>Markers - Waypoints &amp; Area Triggers (0)</span></label>
+          <label data-show-category="foliage"><input type="checkbox" id="showFoliage" checked> <span class="visibilityItemName">Foliage</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="vehicle"><input type="checkbox" id="showVehicles" checked> <span class="visibilityItemName">Vehicles</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="people"><input type="checkbox" id="showPeople" checked> <span class="visibilityItemName">People &amp; Person</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="building"><input type="checkbox" id="showBuildings" checked> <span class="visibilityItemName">Buildings</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="object"><input type="checkbox" id="showObjects" checked> <span class="visibilityItemName">Objects</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="decoration"><input type="checkbox" id="showDecorations" checked> <span class="visibilityItemName">Decorations</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="markerGameplay"><input type="checkbox" id="showMarkers" checked> <span class="visibilityItemName">Markers - Gameplay</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="markerWaypointArea"><input type="checkbox" id="showWaypointAreaMarkers" checked> <span class="visibilityItemName">Markers - Waypoints &amp; Area Triggers</span> <span class="visibilityItemCount">(0)</span></label>
           <label><input type="checkbox" id="showAreaTriggers" checked> Markers - Area Trigger Volumes</label>
-          <label data-show-category="markerSound"><input type="checkbox" id="showSoundMarkers" checked> <span>Markers - Sound (0)</span></label>
-          <label data-show-category="powerup"><input type="checkbox" id="showPowerups" checked> <span>Powerups (0)</span></label>
+          <label data-show-category="markerSound"><input type="checkbox" id="showSoundMarkers" checked> <span class="visibilityItemName">Markers - Sound</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="powerup"><input type="checkbox" id="showPowerups" checked> <span class="visibilityItemName">Powerups</span> <span class="visibilityItemCount">(0)</span></label>
           <label><input type="checkbox" id="showWpDistance"> WP Distance</label>
           <label><input type="checkbox" id="showFovCones"> FOV Cones</label>
           <label><input type="checkbox" id="showWater"> Water</label>
@@ -3441,8 +3447,10 @@
     }
     for (const [category, config] of Object.entries(SHOW_ITEM_CATEGORIES)){
       const label = canvasShowPanelEl?.querySelector(`[data-show-category="${category}"]`);
-      const text = label?.querySelector("span");
-      if (text) text.textContent = `${config.label} (${counts[category]})`;
+      const name = label?.querySelector(".visibilityItemName");
+      const count = label?.querySelector(".visibilityItemCount");
+      if (name) name.textContent = config.label;
+      if (count) count.textContent = `(${counts[category]})`;
       label?.classList.toggle("showCategoryEmpty", counts[category] === 0);
     }
   }
@@ -4536,13 +4544,20 @@
 
   function renderLayerVisibilityPanel(){
     if (!layerVisibilityListEl) return;
+    const itemCountByLayer = new Map();
+    for (const it of state.items || []){
+      const layerNumber = Number(String(it?.kv?.layer ?? "").trim());
+      if (!Number.isInteger(layerNumber) || layerNumber < 0 || layerNumber > 31) continue;
+      itemCountByLayer.set(layerNumber, (itemCountByLayer.get(layerNumber) || 0) + 1);
+    }
     const rows = [];
     for (let n = 0; n <= 31; n++){
       const sec = getLayerSectionByNumber(n);
       const desc = String(sec?.kv?.description || "").trim();
       const label = desc ? `${n} - ${desc}` : String(n);
+      const count = itemCountByLayer.get(n) || 0;
       const checked = getLayerVisibility(String(n)) ? "checked" : "";
-      rows.push(`<label><input type="checkbox" data-layer-vis="${n}" ${checked}/> ${escapeHtml(label)}</label>`);
+      rows.push(`<label class="${count === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-layer-vis="${n}" ${checked}/><span>${escapeHtml(label)}</span><span class="visibilityItemCount">(${count})</span></label>`);
     }
     layerVisibilityListEl.innerHTML = rows.join("");
     layerVisibilityListEl.querySelectorAll('input[data-layer-vis]').forEach((el) => {
@@ -4579,9 +4594,10 @@
     const rows = [];
     for (let n = 1; n <= 63; n++){
       const desc = getGroupDescription(getGroupSectionByNumber(n));
-      const label = `${n} - ${desc || ""} (${itemCountByGroup.get(n) || 0})`;
+      const label = `${n} - ${desc || ""}`;
+      const count = itemCountByGroup.get(n) || 0;
       const checked = getGroupVisibility(String(n)) ? "checked" : "";
-      rows.push(`<label><input type="checkbox" data-group-vis="${n}" ${checked}/> ${escapeHtml(label)}</label>`);
+      rows.push(`<label class="${count === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-group-vis="${n}" ${checked}/><span>${escapeHtml(label)}</span><span class="visibilityItemCount">(${count})</span></label>`);
     }
     groupVisibilityListEl.innerHTML = rows.join("");
     groupVisibilityListEl.querySelectorAll('input[data-group-vis]').forEach((el) => {
@@ -4620,12 +4636,13 @@
     }
     const unlinkedPeopleChecked = getWaypointVisibility(UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY) ? "checked" : "";
     const rows = [
-      `<label><input type="checkbox" data-waypoint-vis="${UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY}" ${unlinkedPeopleChecked}/><span>Person Not Linked to Waypoints (${unlinkedPeopleCount})</span></label>`,
+      `<label class="${unlinkedPeopleCount === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-waypoint-vis="${UNLINKED_PEOPLE_WAYPOINT_VISIBILITY_KEY}" ${unlinkedPeopleChecked}/><span>Person Not Linked to Waypoints</span><span class="visibilityItemCount">(${unlinkedPeopleCount})</span></label>`,
     ];
     for (let n = 1; n <= 127; n++){
       const sec = getWaypointSectionByNumber(n);
       const desc = getWaypointDescription(sec);
-      const label = `${n} - ${desc || ""} (${itemCountByWaypoint.get(n) || 0})`;
+      const label = `${n} - ${desc || ""}`;
+      const count = itemCountByWaypoint.get(n) || 0;
       const checked = getWaypointVisibility(String(n)) ? "checked" : "";
       const hasDefinedColor = Object.prototype.hasOwnProperty.call(sec?.kv || {}, "color");
       const colorIndex = Number(sec?.kv?.color);
@@ -4635,7 +4652,7 @@
       const swatch = hasValidColor
         ? `<span class="waypointColorSwatch" style="background-color:${colorHex}" title="Color: ${escapeHtml(colorName)}" aria-label="Color: ${escapeHtml(colorName)}"></span>`
         : "";
-      rows.push(`<label><input type="checkbox" data-waypoint-vis="${n}" ${checked}/> ${swatch}<span>${escapeHtml(label)}</span></label>`);
+      rows.push(`<label class="${count === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-waypoint-vis="${n}" ${checked}/> ${swatch}<span>${escapeHtml(label)}</span><span class="visibilityItemCount">(${count})</span></label>`);
     }
     waypointVisibilityListEl.innerHTML = rows.join("");
     waypointVisibilityListEl.querySelectorAll('input[data-waypoint-vis]').forEach((el) => {
@@ -4674,13 +4691,14 @@
     for (let n = 1; n <= 99; n++){
       const sec = getAreaTrigSectionByNumber(n);
       const desc = getAreaTrigDescription(sec);
-      const label = `${n} - ${desc || ""} (${markerCountByAreaTrigger.get(n) || 0})`;
+      const label = `${n} - ${desc || ""}`;
+      const count = markerCountByAreaTrigger.get(n) || 0;
       const checked = getAreaTriggerVisibility(String(n)) ? "checked" : "";
       const colorIndex = getAreaTrigColorIndex(sec);
       const colorHex = `#${AREA_TRIGGER_COLOR_HEX[colorIndex].toString(16).padStart(6, "0")}`;
       const colorName = AREA_TRIGGER_COLORS[colorIndex];
       const swatch = `<span class="areaTriggerColorSwatch" style="background-color:${colorHex}" title="Color: ${escapeHtml(colorName)}" aria-label="Color: ${escapeHtml(colorName)}"></span>`;
-      rows.push(`<label><input type="checkbox" data-area-trigger-vis="${n}" ${checked}/> ${swatch}<span>${escapeHtml(label)}</span></label>`);
+      rows.push(`<label class="${count === 0 ? "visibilityItemEmpty" : ""}"><input type="checkbox" data-area-trigger-vis="${n}" ${checked}/> ${swatch}<span>${escapeHtml(label)}</span><span class="visibilityItemCount">(${count})</span></label>`);
     }
     areaTriggerVisibilityListEl.innerHTML = rows.join("");
     areaTriggerVisibilityListEl.querySelectorAll('input[data-area-trigger-vis]').forEach((el) => {
