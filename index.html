@@ -5533,6 +5533,16 @@
     if(!hasValue) options.unshift(`<option value="${value}" selected>${escapeHtml(`${value} - Unknown (preserved)`)}</option>`);
     return `<label>${escapeHtml(label)}<select data-field="${field}">${options.join('')}</select></label>`;
   }
+  function eventWaypointSelect(field,value,label){
+    const waypoints=getSectionsByKind("waypoint")
+      .map(sec=>({number:parseWaypointNumber(sec),description:getWaypointDescription(sec)}))
+      .filter(waypoint=>Number.isFinite(waypoint.number))
+      .sort((a,b)=>a.number-b.number);
+    const hasValue=value===0||waypoints.some(waypoint=>waypoint.number===value);
+    const options=[`<option value="0" ${value===0?'selected':''}>0 - None</option>`,...waypoints.map(waypoint=>`<option value="${waypoint.number}" ${waypoint.number===value?'selected':''}>${escapeHtml(`${waypoint.number} - ${waypoint.description||`Waypoint ${waypoint.number}`}`)}</option>`)];
+    if(!hasValue) options.unshift(`<option value="${value}" selected>${escapeHtml(`${value} - Unknown (preserved)`)}</option>`);
+    return `<label>${escapeHtml(label)}<select data-field="${field}">${options.join('')}</select></label>`;
+  }
   function eventSubgoalChoices(actionType){
     const kind=(actionType===14||actionType===35)?"win":"lose";
     return Object.fromEntries(getGeneralConditionOptions(kind).map(option=>[option.value,option.label]));
@@ -5553,6 +5563,8 @@
       for(let i=3;i<=6;i++) variableFields.push(vars[i-3]
         ? /^Group(?:\s+\d+)?$/i.test(vars[i-3])
           ? eventGroupSelect(i,values[i],vars[i-3])
+          : /^Waypoint List$/i.test(vars[i-3])
+          ? eventWaypointSelect(i,values[i],vars[i-3])
           : `<label>${escapeHtml(vars[i-3])}<input type="number" data-field="${i}" value="${values[i]}"></label>`
         : `<input type="hidden" data-field="${i}" value="${values[i]}">`);
       html.push(`<fieldset class="eventTriggerFieldset"><legend>${escapeHtml(resolveStringKey("TRIGGER_VARIABLES")||"Trigger Variables")}</legend>${variableFields.join('')}</fieldset>`);
@@ -5575,6 +5587,8 @@
           ? `<input type="hidden" data-field="${i}" value="${values[i]}">`
           : isSubgoal
           ? eventSelect(i,values[i],eventSubgoalChoices(type),label)
+          : /^Waypoint List$/i.test(label)
+          ? eventWaypointSelect(i,values[i],label)
           : `<label>${escapeHtml(label)}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
       }
       html.push(`<fieldset class="eventActionFieldset"><legend>${escapeHtml(resolveStringKey("ACTION_VARIABLES")||"Action Variables")}</legend>${variableFields.join('')}</fieldset>`);
