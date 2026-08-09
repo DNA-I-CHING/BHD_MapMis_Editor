@@ -7703,6 +7703,9 @@
     "file.saveAs": async () => {
       if (!await saveCurrentMap({ forcePicker: true })) return showNotImplemented("Save As");
     },
+    "file.save": async () => {
+      await saveCurrentMap();
+    },
     "file.setEditorFolder": async () => {
       if (!state.isLocalRuntime) return;
       if (!window.showDirectoryPicker){
@@ -7752,7 +7755,8 @@
       ] : []),
       { label: "Create New Map", command: "file.new" },
       { label: "Open", command: "file.open" },
-      { label: "Save As (.mis)", command: "file.saveAs" },
+      { label: "Save (.mis)", shortcut: "Ctrl + S", command: "file.save" },
+      { label: "Save As (.mis)", shortcut: "Ctrl + Shift + S", command: "file.saveAs" },
       { label: "Export Binary (.bms)", command: "file.exportBinaryMission" },
       { label: "Save (.mis) and export (.bms)", command: "file.saveAndExport" }
     ];
@@ -7930,6 +7934,14 @@
   }
 
   renderMenuBar();
+
+  document.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey || e.key.toLowerCase() !== "s") return;
+    e.preventDefault();
+    if (e.repeat) return;
+    if (e.shiftKey) menuHandlers["file.saveAs"]();
+    else menuHandlers["file.save"]();
+  });
 
   document.addEventListener("click", (e) => {
     if (!menuBar.contains(e.target)) closeMenus();
