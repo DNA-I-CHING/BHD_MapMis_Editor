@@ -1219,11 +1219,41 @@
     .eventNestedRow.active{ background:#2b3d8f; color:#fff; }
     .eventNewRow{ color:var(--text-subtle); font-style:italic; }
     .eventFlags{ display:flex; gap:6px; align-items:center; margin-top:4px; }
-    .eventRowEditor{ display:none; border:1px solid var(--line); padding:8px; margin:6px 0; background:var(--surface); }
-    .eventRowEditor.open{ display:block; }
+    #eventRowOverlay{
+      position:absolute;
+      inset:0;
+      background:var(--overlay);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      z-index:66;
+      padding:18px;
+    }
+    #eventRowOverlay.open{ display:flex; }
+    .eventRowEditor{
+      width:min(520px,100%);
+      background:var(--panel-muted);
+      border:1px solid var(--line-heavy);
+      padding:10px;
+      box-shadow:var(--shadow-md);
+      box-sizing:border-box;
+    }
+    .eventRowEditor .windowTitle{ margin-bottom:10px; }
     .eventRawGrid{ display:grid; grid-template-columns:repeat(8,minmax(58px,1fr)); gap:6px; }
     .eventRawGrid label{ display:grid; gap:2px; color:var(--text-subtle); }
     .eventRawGrid input, .eventRawGrid select{ width:100%; min-width:0; box-sizing:border-box; }
+    .eventRawGrid.triggerFieldLayout{ display:flex; flex-direction:column; gap:10px; }
+    .eventRawGrid.actionFieldLayout{ display:flex; flex-direction:column; gap:10px; }
+    .triggerFieldLayout > label{ width:100%; }
+    .actionFieldLayout > label{ width:100%; }
+    .eventTriggerIf{ display:grid; gap:5px; color:var(--text-subtle); }
+    .eventTriggerRadios{ display:flex; flex-wrap:wrap; gap:16px; color:var(--text); }
+    .eventTriggerRadios label{ display:flex; flex-direction:row; align-items:center; gap:5px; color:inherit; }
+    .eventTriggerRadios input[type="radio"]{ width:auto; min-width:auto; margin:0; }
+    .eventTriggerFieldset{ margin:0; padding:8px; display:grid; gap:8px; }
+    .eventTriggerFieldset legend{ color:var(--text); padding:0 4px; }
+    .eventActionFieldset{ margin:0; padding:8px; display:grid; gap:8px; }
+    .eventActionFieldset legend{ color:var(--text); padding:0 4px; }
     .eventEditorActions{ display:flex; justify-content:flex-end; gap:8px; margin-top:7px; }
     #layerEditor{ display:none; gap:8px; align-content:start; }
     #sectionWindow[data-section-mode="layer"] #layerEditor{ display:grid; }
@@ -1609,10 +1639,17 @@
                   <div class="eventGroup"><div class="eventLegend">THEN ( Actions )</div><div class="eventGroupBody"><div class="eventNestedList" id="eventActionList"></div><div class="eventSideBtns"><button id="eventActionDelete">Delete</button><button id="eventActionCopy">Copy</button><button id="eventActionPaste">Paste</button></div></div></div>
                 </div>
               </div>
-              <div class="eventRowEditor" id="eventRowEditor"><strong id="eventRowEditorTitle">Edit row</strong><div class="eventRawGrid" id="eventRawGrid"></div><div class="eventEditorActions"><button id="eventRowCancel">Cancel</button><button id="eventRowApply">Apply</button></div></div>
               <div class="eventFooterBtns"><button id="eventDeleteBtn">Delete Event</button><button id="eventCopyBtn">Copy Event</button><button id="eventPasteBtn">Paste Event</button><button id="eventPrintBtn">Print Event</button><button id="eventPrintAllBtn">Print All Events</button><button id="eventOkBtn">OK</button></div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div id="eventRowOverlay" aria-hidden="true">
+        <div class="eventRowEditor" id="eventRowEditor" role="dialog" aria-modal="true" aria-labelledby="eventRowEditorTitle">
+          <div class="windowTitle"><span id="eventRowEditorTitle">Edit Trigger</span><span class="spacer"></span><button class="xbtn" id="eventRowClose" type="button" aria-label="Close">X</button></div>
+          <div class="eventRawGrid" id="eventRawGrid"></div>
+          <div class="eventEditorActions"><button id="eventRowCancel" type="button">Cancel</button><button id="eventRowApply" type="button">OK</button></div>
         </div>
       </div>
 
@@ -1986,8 +2023,10 @@
     hoveredGizmoHandle: null,
 
     gameStrings: new Map(),
+    missionGameStrings: new Map(),
     weaponDefs: new Map(),
     wpNames: [],
+    defaultWpNames: [],
     aiTextfileNames: [],
     aiTextfileLabels: new Map(),
     isLocalRuntime: window.location.protocol === "file:",
@@ -3027,6 +3066,29 @@
     refreshGeneralConditionSelectOptions();
   }
 
+  async function loadMissionGameStrings(fileName){
+    state.missionGameStrings = new Map();
+    state.wpNames = state.defaultWpNames.slice();
+    const stem = String(fileName || "").replace(/\.[^.]+$/, "").toUpperCase();
+    if (!/^SPBHD_\d{2}$/.test(stem)){
+      buildWpNameOptions();
+      refreshGeneralConditionSelectOptions();
+      return;
+    }
+
+    const path = `resources/game_strings/${stem}.bin`;
+    const text = await loadTextResource(path);
+    if (text !== null){
+      state.missionGameStrings = parseStringTableLikeFile(text);
+      const wpNames = parseWpNamesFromMedmssn(text);
+      if (wpNames.length) state.wpNames = wpNames;
+    }
+    buildWpNameOptions();
+    addLog(`Loaded mission strings: ${path} (${state.missionGameStrings.size} keys)`);
+    refreshGeneralConditionSelectOptions();
+    if (state.sectionKind === "event" && state.sectionEditorOpen) renderEventEditor();
+  }
+
   async function loadWpNames(){
     const path = "resources/game_strings/medmssn.bin";
     const text = await loadTextResource(path);
@@ -3035,7 +3097,10 @@
       return;
     }
     const parsed = parseWpNamesFromMedmssn(text);
-    if (parsed.length) state.wpNames = parsed;
+    if (parsed.length){
+      state.wpNames = parsed;
+      state.defaultWpNames = parsed.slice();
+    }
     buildWpNameOptions();
     addLog(`Loaded WPNames from medmssn.bin (${state.wpNames.length} entries)`);
   }
@@ -3600,7 +3665,11 @@
     const isWin = kind === "win";
     const keyRegex = isWin ? /^STRWINCOND(\d{3})$/ : /^STRLOSECOND(\d{3})$/;
     const entries = [];
-    for (const [k, v] of state.gameStrings.entries()){
+    const missionEntries = [...state.missionGameStrings.entries()];
+    const source = missionEntries.some(([k]) => keyRegex.test(String(k)))
+      ? missionEntries
+      : [...state.gameStrings.entries()];
+    for (const [k, v] of source){
       const m = String(k).match(keyRegex);
       if (!m) continue;
       entries.push({ value: Number(m[1]), label: String(v) });
@@ -5175,6 +5244,20 @@
   const ACTION_VARIABLES = {1:["Group","Waypoint List","Waypoint Number"],2:["Group"],3:["Group","Parameter 1","Parameter 2","Parameter 3"],4:["Group"],5:["Mission Variable","Value"],6:["Text ID"],7:["Dialog ID","Play after mission end?"],11:["Group","Velocity (kph)"],12:["Area ID","Parameter 1","Parameter 2","Parameter 3"],13:["Area ID","Parameter 1","Parameter 2","Parameter 3"],14:["Sub Goal Number"],15:["Sub Goal Number"],16:["Group","Team"],17:["Group","Group"],18:["Group","Teleport target"],19:["SSN","Waypoint List","Waypoint Number"],20:["SSN"],21:["SSN","Parameter 1","Parameter 2","Parameter 3"],22:["SSN"],23:["SSN","Velocity (kph)"],24:["SSN","Team"],25:["SSN","Group"],26:["SSN","Teleport target"],27:["Teleport target"],30:["Group"],31:["Group"],32:["Group"],33:["SSN"],34:["Event Number"],35:["Sub Goal Number"],36:["Sub Goal Number"],37:["SSN"],38:["Variable Number","Variable Status"],39:["Teammates","Context Target"],40:["Show Waypoints"],42:["Person","SSN"],43:["Person","SSN"],44:["Person","Group"],45:["Person","Group"],46:["Group","SSN"],47:["Group","SSN"],48:["Group","Group"],49:["Group","Group"]};
   const ACTION_SUBTYPES = {5:{0:"Null",1:"Set Variable",2:"Increment Variable",3:"Decrement Variable",4:"Increment Variable by 1",5:"Decrement Variable by 1"},39:{0:"Null",1:"Call Medic for Teammate",2:"Evacuate Teammate to Teleport Target",3:"Evacuate Teammate to Area Trigger"}};
   const AI_ACTIONS = {0:"Null",1:"Unknown",2:"Guard Bit",3:"Unknown",4:"Unknown",5:"Red Alert",6:"Green Alert",7:"Unknown",8:"Accuracy",9:"Unknown",10:"Unknown",11:"Unknown",12:"Unknown",13:"Unknown",14:"Unknown",15:"Blind",16:"Berserk",17:"Climber",18:"Unknown",19:"Unknown",20:"Unknown",21:"Coward",22:"Yellow Alert",23:"Unknown",24:"Unknown",25:"Unknown",26:"Driver's Skill Level",27:"Gunner's Skill Level",28:"AI State",29:"Combat Speed",30:"Patrol Speed",31:"Find and Use SSN",32:"Use Waypoint Z",33:"Stop Using Waypoint Z",34:"Play Part Animation",35:"Unknown",36:"Unknown",37:"Unknown",38:"Unknown",39:"Unknown",40:"Autonomous Behavior",41:"Attack Distance",42:"Engagement Range",43:"Indestructable",44:"Target SSN",45:"Start Firing",46:"Firing Angle"};
+  // dfbhdmed.exe resolves these labels after the selected AI Action changes.
+  // Keep the spelling/capitalization from medtext.bin, including its original typos.
+  const AI_ACTION_VARIABLES = {
+    2:["Guard ( 0 or 1)"], 8:["Accuracy (100ths)"], 15:["Blind (0 or 1)"],
+    16:["Berserk (0 or 1)"], 17:["Climber (0 or 1)"], 21:["Coward (0 or 1)"],
+    26:["Skill Level"], 27:["Skill Level"], 28:["AI State"], 29:["Speed (km/h)"],
+    30:["Speed (km/h)"], 31:["Target SSN"],
+    34:["Animation Number","Animation Action","Animation Time"],
+    37:["HUD Item","Ticks (1/60s)"], 39:["Teammate Command Status"],
+    40:["Autonomous Behavior"], 41:["Attack Distance (meters)"],
+    42:["Min Engagement Distance (meters)","Max Engagement Distance (meters)"],
+    43:["Indestructable (On/Off)"], 44:["Target SSN"], 45:["Firing State"],
+    46:["Firing Angle"]
+  };
   const EVENT_ROW_LABELS = { trigger:["Flags","Trigger Type","Trigger Condition","Variable 1","Variable 2","Variable 3","Variable 4","Reserved"], action:["Reserved","Action Type","Variable 1","Variable 2","Variable 3","Variable 4","Action / AI","Reserved"] };
   const eventUi = { selectedTrigger:-1, selectedAction:-1, editKind:null, editIndex:-1, triggerClipboard:null, actionClipboard:null, eventClipboard:null };
 
@@ -5224,14 +5307,58 @@
     if (!events.length){ state.sectionSelectedId=null; return; }
     if (!events.some(sec=>sec.id===state.sectionSelectedId)) state.sectionSelectedId=events[0].id;
   }
+  function medFormat(key,args=[],fallback=""){
+    const template=resolveStringKey(key)||fallback||key;
+    let index=0;
+    return template.replace(/%%|%(?:\d+)?(?:\.\d+)?[disf]/g,token=>{
+      if(token==="%%")return "%";
+      const value=args[index++];
+      return value===undefined?token:String(value);
+    });
+  }
   function triggerDescription(row){
-    const flags=row[0]|0, logic=(flags&4)?"XOR":(flags&2)?"OR":"AND", truth=(flags&1)?"False":"True";
-    const condition=EVENT_CONDITIONS[row[1]]?.[row[2]] || `Unknown ${row[2]}`;
-    return `${truth} ${logic}: ${EVENT_TRIGGER_TYPES[row[1]] || `Unknown ${row[1]}`} / ${condition} [${row.slice(3,7).join(", ")}]`;
+    const isFalse=!!(row[0]&1),type=row[1],condition=row[2],v=row.slice(3,7);
+    let key="",args=[];
+    if(type===1){
+      const keys={1:["GROUP_SEES_GROUP","GROUP_NOT_SEES_GROUP"],2:["GROUP_HAS_TARGETED_GROUP","GROUP_HAS_NOT_TARGETED_GROUP"],3:["GROUP_AT_RED_ALERT","GROUP_NOT_AT_RED_ALERT"],4:["GROUP_DESTROYED","GROUP_NOT_DESTROYED"],5:["GROUP_ALIVE","GROUP_NOT_ALIVE"],6:["GROUP_HAS_LOST_MORE_UNITS","GROUP_HAS_NOT_LOST_MORE_UNITS"],7:["GROUP_AT_WAYPOINT","GROUP_NOT_AT_WAYPOINT"],9:["GROUP_INTACT","GROUP_NOT_INTACT"],10:["GROUP_IS_WITHIN_AREA","GROUP_IS_NOT_WITHIN_AREA"],11:["GROUP_HOLDING_GROUP","GROUP_NOT_HOLDING_GROUP"],12:["GROUP_HAS_MORE_UNITS","GROUP_LESS_THAN"],13:["GROUP_HAS_SHOT_GROUP","GROUP_HAS_NOT_SHOT_GROUP"],14:["GROUP_AT_YELLOW_ALERT","GROUP_NOT_AT_YELLOW_ALERT"],15:["GROUP_HAS_TARGETED_SINGLE","GROUP_HAS_NOT_TARGETED_SINGLE"],16:["GROUP_SEES_SINGLE","GROUP_NOT_SEES_SINGLE"],17:["GROUP_HAS_SHOT_SINGLE","GROUP_HAS_NOT_SHOT_SINGLE"]};
+      key=keys[condition]?.[isFalse?1:0];args=v;
+    }else if(type===2){
+      const keys={1:["SINGLE_SEES_GROUP","SINGLE_NOT_SEES_GROUP"],2:["SINGLE_HAS_TARGETED_GROUP","SINGLE_HAS_NOT_TARGETED_GROUP"],3:["SINGLE_AT_RED_ALERT","SINGLE_NOT_AT_RED_ALERT"],4:["SINGLE_DESTROYED","SINGLE_NOT_DESTROYED"],5:["SINGLE_ALIVE","SINGLE_NOT_ALIVE"],6:["SINGLE_HAS_LOST_MORE_UNITS","SINGLE_HAS_NOT_LOST_MORE_UNITS"],7:["SINGLE_AT_WAYPOINT","SINGLE_NOT_AT_WAYPOINT"],9:["SINGLE_INTACT","SINGLE_NOT_INTACT"],10:["SINGLE_IS_WITHIN_AREA","SINGLE_IS_NOT_WITHIN_AREA"],11:["SINGLE_HOLDING_GROUP","SINGLE_NOT_HOLDING_GROUP"],12:["SINGLE_HAS_MORE_UNITS","SINGLE_LESS_THAN"],13:["SINGLE_HAS_SHOT_GROUP","SINGLE_HAS_NOT_SHOT_GROUP"],14:["SINGLE_AT_YELLOW_ALERT","SINGLE_NOT_AT_YELLOW_ALERT"],15:["SINGLE_HAS_TARGETED_SINGLE","SINGLE_HAS_NOT_TARGETED_SINGLE"],16:["SINGLE_SEES_SINGLE","SINGLE_NOT_SEES_SINGLE"],17:["SINGLE_HAS_SHOT_SINGLE","SINGLE_HAS_NOT_SHOT_SINGLE"]};
+      key=keys[condition]?.[isFalse?1:0];args=v;
+    }else if(type===3){key=isFalse?"EVENT_NOT_TRIGGERED":"EVENT_TRIGGERED";args=[v[0]];
+    }else if(type===4){
+      const positive=["","MISVAR_IS_EQUAL","MISVAR_IS_LT","MISVAR_IS_GT","MISVAR_IS_LTE","MISVAR_IS_GTE"];
+      key=isFalse&&condition===1?"MISVAR_IS_NOT_EQUAL":positive[condition];args=v;
+    }else if(type===7){
+      const keys={18:["PLAYER_BERSERK","PLAYER_BERSERK_NOT"],19:["PLAYER_1STPERSON","PLAYER_1STPERSON_NOT"],20:["PLAYER_3RDPERSON","PLAYER_3RDPERSON_NOT"],21:["PLAYER_COCKPITVIEW","PLAYER_COCKPITVIEW_NOT"],34:["PLAYER_DLGDONE_NOT","PLAYER_DLGDONE"],35:["PLAYER_DLGFINISHED","PLAYER_DLGFINISHED_NOT"],36:["PLAYER_AWOL","PLAYER_AWOL_NOT"],37:["PLAYER_SATCHEL","PLAYER_SATCHEL_NOT"]};
+      key=keys[condition]?.[isFalse?1:0];args=v;
+    }
+    const description=key?medFormat(key,args):`${EVENT_TRIGGER_TYPES[type]||`Unknown ${type}`} - ${EVENT_CONDITIONS[type]?.[condition]||`Unknown ${condition}`}`;
+    const logic=(row[0]&4)?resolveStringKey("XOR")||"X-or":(row[0]&2)?resolveStringKey("OR")||"Or":resolveStringKey("AND")||"And";
+    return `${description} (${logic})`;
   }
   function actionDescription(row){
-    const type=row[1], subtype=(type===3||type===21)?AI_ACTIONS[row[6]]:ACTION_SUBTYPES[type]?.[row[6]];
-    return `${EVENT_ACTION_TYPES[type] || `Unknown ${type}`}${subtype?` / ${subtype}`:""} [${row.slice(2,6).join(", ")}]`;
+    const type=row[1],v=row.slice(2,6),sub=row[6],goalKind=[14,35].includes(type)?"win":"lose",goal=getGeneralConditionOptions(goalKind).find(x=>x.value===v[0])?.label||"";
+    const simple={1:[v[2]>=0?"GROUP_REDIRECT_TO_POINT":"GROUP_REDIRECT_TO",v],2:["KILL_GROUP_X",v],4:["VAPORIZE_GROUP_NUM",v],6:["TEXT_MESSAGE",v],14:["SUB_GOAL_NUM_WON",[v[0],goal]],15:["SUB_GOAL_NUM_LOST",[v[0],goal]],17:["CHANGE_GROUP_STRING",v],18:["GROUP_TELEPORT_STRING",v],19:[v[2]>=0?"SINGLE_REDIRECT_TO_POINT":"SINGLE_REDIRECT_TO",v],20:["KILL_SINGLE_X",v],22:["VAPORIZE_SINGLE_NUM",v],25:["CHANGE_SINGLE_STRING",v],26:["SINGLE_TELEPORT_STRING",v],27:["PARTICLE_EFFECT_STRING",v],30:["GROUP_OPEN_DOOR_STRING",v],31:["GROUP_CLOSE_DOOR_STRING",v],32:["GROUP_RESET_HASVISITED_TO",v],33:["SINGLE_RESET_HASVISITED_TO",v],34:["RESET_EVENT_TO",v],37:["ATTACH_TO_EMPLACED_TO",v],42:["SSN_TARGET_SSN_PRI_STR",v],43:["SSN_TARGET_SSN_EXC_STR",v],44:["SSN_TARGET_GROUP_PRI_STR",v],45:["SSN_TARGET_GROUP_EXC_STR",v],46:["GROUP_TARGET_SSN_PRI_STR",v],47:["GROUP_TARGET_SSN_EXC_STR",v],48:["GROUP_TARGET_GROUP_PRI_STR",v],49:["GROUP_TARGET_GROUP_EXC_STR",v]};
+    if(type===5){const keys=["", "MISVAR_SET","MISVAR_ADD","MISVAR_SUB","MISVAR_INC","MISVAR_DEC"];if(keys[sub])return medFormat(keys[sub],v);}
+    if(type===3||type===21){
+      const toggle={2:["GUARD_OFF","GUARD_ON"],15:["BLIND_OFF","BLIND_ON"],16:["BERSERK_OFF","BERSERK_ON"],17:["CLIMBER_OFF","CLIMBER_ON"],21:["COWARD_OFF","COWARD_ON"],43:["INDESTRUCTABLE_OFF","INDESTRUCTABLE_ON"]};
+      const detailKeys={8:"ACCURACY_TO",26:"AIDRIVESKILL_TO",27:"AIAIMSKILL_TO",28:"AISTATE_TO",29:"AICOMBAT_TO",30:"AIPATROL_TO",31:"FIND_AND_USE_SSN",32:"AIUSEWPZ_TO",33:"AICLEARWPZ_TO",40:v[1]?"AINODEPATH_ON":"AINODEPATH_OFF",41:"ATTACK_DISTANCE_TO",42:"ENGAGE_DISTANCE_TO",44:"AITARGET_TO",45:v[1]?"STARTFIRING_ON":"STARTFIRING_OFF",46:"FIRING_ANGLE_TO"};
+      let detail="";
+      if(toggle[sub])detail=resolveStringKey(toggle[sub][v[1]?1:0])||"";
+      else if(detailKeys[sub])detail=medFormat(detailKeys[sub],v.slice(1));
+      else detail=AI_ACTIONS[sub]||`Unknown ${sub}`;
+      return medFormat(type===3?"CHANGE_GROUP":"CHANGE_SINGLE",[v[0],detail]);
+    }
+    if(type===35||type===36)return medFormat((v[1]?"SHOW_":"HIDE_")+(type===35?"WIN":"LOSE")+"_SUBGOAL_TO",v);
+    if(type===7)return medFormat("PLAY_WAV_FILE_LIST",[v[0],v[1]?resolveStringKey("PLAYS_AFTER_END")||"(Plays after end)":""]);
+    if(type===11)return medFormat("SET_GROUP_TO_SPEED",v);
+    if(type===16)return medFormat("CHANGE_GTEAM_STRING",v)+v[1];
+    if(type===23)return medFormat("SET_SINGLE_TO_SPEED",v);
+    if(type===38)return medFormat("SET_LIGHT_STATE_TO",[v[0],v[1]?"On":"Off"]);
+    if(type===40)return resolveStringKey("SHOW_WAYPOINTS_TO")||"Show Waypoints";
+    if(simple[type])return medFormat(simple[type][0],simple[type][1]);
+    return EVENT_ACTION_TYPES[type]||medFormat("INVALID_ACTION",[],`Unknown ${type}`);
   }
   function renderEventRows(kind, rows){
     const el=document.getElementById(kind==="trigger"?"eventTriggerList":"eventActionList"), selected=kind==="trigger"?eventUi.selectedTrigger:eventUi.selectedAction;
@@ -5280,40 +5407,74 @@
     if(!Object.prototype.hasOwnProperty.call(choices,String(value))) options.push(`<option value="${value}" selected>${escapeHtml(`${value} - Unknown (preserved)`)}</option>`);
     return `<label>${escapeHtml(label)}<select data-field="${field}">${options.join('')}</select></label>`;
   }
+  function eventSubgoalChoices(actionType){
+    const kind=(actionType===14||actionType===35)?"win":"lose";
+    return Object.fromEntries(getGeneralConditionOptions(kind).map(option=>[option.value,option.label]));
+  }
+  function eventRadioGroup(name,value,choices){
+    return Object.entries(choices).map(([id,text])=>`<label><input type="radio" name="${name}" value="${id}" ${Number(id)===value?'checked':''}>${escapeHtml(text)}</label>`).join('');
+  }
   function renderEventRowFields(kind,values){
     const labels=EVENT_ROW_LABELS[kind]; let html=[];
     if(kind==='trigger'){
       const type=values[1], condition=values[2], vars=TRIGGER_VARIABLES[type]?.[condition]||[];
-      html.push(`<label>${labels[0]}<input type="number" data-field="0" value="${values[0]}" title="Bit 0: False; bit 1: OR; bit 2: X-or. Unknown bits are preserved."></label>`);
-      html.push(eventSelect(1,type,Object.fromEntries(EVENT_TRIGGER_TYPES.map((x,i)=>[i,x])),labels[1]));
-      html.push(eventSelect(2,condition,EVENT_CONDITIONS[type]||{0:'Null'},labels[2]));
-      for(let i=3;i<=6;i++) html.push(`<label>${escapeHtml(vars[i-3]||labels[i])}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
-      html.push(`<label>${labels[7]}<input type="number" data-field="7" value="${values[7]}" title="Reserved value; preserved for lossless round trips."></label>`);
+      const logic=(values[0]&4)?4:(values[0]&2)?2:0;
+      html.push(`<input type="hidden" data-field="0" value="${values[0]}">`);
+      html.push(eventSelect(1,type,Object.fromEntries(EVENT_TRIGGER_TYPES.map((x,i)=>[i,x])),resolveStringKey("TRIGGER_TYPE")||labels[1]));
+      html.push(eventSelect(2,condition,EVENT_CONDITIONS[type]||{0:'Null'},resolveStringKey("TRIGGER_CONDITION")||labels[2]));
+      html.push(`<div class="eventTriggerIf"><span>${escapeHtml(resolveStringKey("TRIGGER_IF")||"Trigger if:")}</span><div class="eventTriggerRadios">${eventRadioGroup("eventTriggerTruth",values[0]&1,{0:resolveStringKey("TRUE")||"True",1:resolveStringKey("FALSE")||"False"})}</div></div>`);
+      const variableFields=[];
+      for(let i=3;i<=6;i++) variableFields.push(vars[i-3]
+        ? `<label>${escapeHtml(vars[i-3])}<input type="number" data-field="${i}" value="${values[i]}"></label>`
+        : `<input type="hidden" data-field="${i}" value="${values[i]}">`);
+      html.push(`<fieldset class="eventTriggerFieldset"><legend>${escapeHtml(resolveStringKey("TRIGGER_VARIABLES")||"Trigger Variables")}</legend>${variableFields.join('')}</fieldset>`);
+      html.push(`<fieldset class="eventTriggerFieldset"><legend>${escapeHtml(resolveStringKey("LOGIC")||"Logic")}</legend><div class="eventTriggerRadios">${eventRadioGroup("eventTriggerLogic",logic,{0:resolveStringKey("AND")||"And",2:resolveStringKey("OR")||"Or",4:resolveStringKey("XOR")||"X-or"})}</div></fieldset>`);
+      html.push(`<input type="hidden" data-field="7" value="${values[7]}">`);
     }else{
-      const type=values[1], vars=ACTION_VARIABLES[type]||[];
-      html.push(`<label>${labels[0]}<input type="number" data-field="0" value="${values[0]}"></label>`);
-      html.push(eventSelect(1,type,Object.fromEntries(EVENT_ACTION_TYPES.map((x,i)=>[i,x])),labels[1]));
-      for(let i=2;i<=5;i++) html.push(`<label>${escapeHtml(vars[i-2]||labels[i])}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
+      const type=values[1], aiAction=values[6];
+      const vars=(type===3||type===21)
+        ? [ACTION_VARIABLES[type][0],...(AI_ACTION_VARIABLES[aiAction]||[])]
+        : (ACTION_VARIABLES[type]||[]);
+      html.push(`<input type="hidden" data-field="0" value="${values[0]}">`);
+      html.push(eventSelect(1,type,Object.fromEntries(EVENT_ACTION_TYPES.map((x,i)=>[i,x])),resolveStringKey("ACTION_TYPE")||labels[1]));
       const subtypeChoices=(type===3||type===21)?AI_ACTIONS:ACTION_SUBTYPES[type];
-      html.push(subtypeChoices?eventSelect(6,values[6],subtypeChoices,(type===3||type===21)?'AI Action':'Action'):`<label>${labels[6]}<input type="number" data-field="6" value="${values[6]}"></label>`);
-      html.push(`<label>${labels[7]}<input type="number" data-field="7" value="${values[7]}" title="Reserved value; preserved for lossless round trips."></label>`);
+      html.push(subtypeChoices?eventSelect(6,values[6],subtypeChoices,resolveStringKey("ACTION_SUBTYPE")||"Action Subtype"):`<input type="hidden" data-field="6" value="${values[6]}">`);
+      const variableFields=[];
+      for(let i=2;i<=5;i++){
+        const label=vars[i-2];
+        const isSubgoal=i===2&&[14,15,35,36].includes(type);
+        variableFields.push(!label
+          ? `<input type="hidden" data-field="${i}" value="${values[i]}">`
+          : isSubgoal
+          ? eventSelect(i,values[i],eventSubgoalChoices(type),label)
+          : `<label>${escapeHtml(label)}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
+      }
+      html.push(`<fieldset class="eventActionFieldset"><legend>${escapeHtml(resolveStringKey("ACTION_VARIABLES")||"Action Variables")}</legend>${variableFields.join('')}</fieldset>`);
+      html.push(`<input type="hidden" data-field="7" value="${values[7]}">`);
     }
-    const grid=document.getElementById('eventRawGrid'); grid.innerHTML=html.join('');
+    const grid=document.getElementById('eventRawGrid');grid.classList.toggle('triggerFieldLayout',kind==='trigger');grid.classList.toggle('actionFieldLayout',kind==='action');grid.innerHTML=html.join('');
     grid.querySelector('[data-field="1"]')?.addEventListener('change',()=>renderEventRowFields(kind,readEventRowFields()));
     if(kind==='trigger') grid.querySelector('[data-field="2"]')?.addEventListener('change',()=>renderEventRowFields(kind,readEventRowFields()));
+    if(kind==='action'&&(values[1]===3||values[1]===21)) grid.querySelector('[data-field="6"]')?.addEventListener('change',()=>renderEventRowFields(kind,readEventRowFields()));
   }
   function readEventRowFields(){
     const values=Array(8).fill(0);
-    document.querySelectorAll('#eventRawGrid [data-field]').forEach(el=>values[Number(el.dataset.field)]=Math.trunc(Number(el.value))||0);
+    document.querySelectorAll('#eventRawGrid [data-field]').forEach(el=>{if(/^\d+$/.test(el.dataset.field))values[Number(el.dataset.field)]=Math.trunc(Number(el.value))||0;});
+    const truth=document.querySelector('#eventRawGrid input[name="eventTriggerTruth"]:checked'),logic=document.querySelector('#eventRawGrid input[name="eventTriggerLogic"]:checked');
+    if(truth&&logic)values[0]=(values[0]&~7)|(Number(truth.value)&1)|(Number(logic.value)&6);
     return values;
   }
   function openEventRowEditor(kind,index){
     const sec=selectedEvent();if(!sec)return;const rows=parseEventData(sec)[kind+'s'];if(index<0&&rows.length>=20)return;
     eventUi.editKind=kind;eventUi.editIndex=index;const values=index<0?[0,0,0,0,0,0,0,0]:rows[index];
-    document.getElementById('eventRowEditorTitle').textContent=`${index<0?'New':'Edit'} ${kind==='trigger'?'Trigger':'Action'}`;
-    renderEventRowFields(kind,values);document.getElementById('eventRowEditor').classList.add('open');
+    document.getElementById('eventRowEditorTitle').textContent=`Edit ${kind==='trigger'?'Trigger':'Action'}`;
+    renderEventRowFields(kind,values);
+    const overlay=document.getElementById('eventRowOverlay');
+    document.getElementById('eventRowEditor').dataset.editKind=kind;
+    overlay.classList.add('open');overlay.setAttribute('aria-hidden','false');
   }
-  function applyEventRow(){const sec=selectedEvent(),kind=eventUi.editKind;if(!sec||!kind)return;const d=parseEventData(sec),rows=d[kind+'s'],row=readEventRowFields();if(eventUi.editIndex<0)rows.push(row);else rows[eventUi.editIndex]=row;writeEventData(sec,d);document.getElementById('eventRowEditor').classList.remove('open');if(kind==='trigger')eventUi.selectedTrigger=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);else eventUi.selectedAction=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);renderEventEditor();scheduleLiveMisRefresh();}
+  function closeEventRowEditor(){const overlay=document.getElementById('eventRowOverlay');overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');eventUi.editKind=null;eventUi.editIndex=-1;}
+  function applyEventRow(){const sec=selectedEvent(),kind=eventUi.editKind;if(!sec||!kind)return;const d=parseEventData(sec),rows=d[kind+'s'],row=readEventRowFields();if(eventUi.editIndex<0)rows.push(row);else rows[eventUi.editIndex]=row;writeEventData(sec,d);if(kind==='trigger')eventUi.selectedTrigger=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);else eventUi.selectedAction=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);closeEventRowEditor();renderEventEditor();scheduleLiveMisRefresh();}
   function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){rows.push(structuredClone(eventUi[clip]));eventUi[key]=rows.length-1;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
   function printEvents(all){const secs=all?getSortedEvents():[selectedEvent()].filter(Boolean),text=secs.map(sec=>[sec.beginLine,...sec.lines,'end event'].join('\n')).join('\n\n');const w=window.open('','_blank');if(w){w.document.write(`<pre>${escapeHtml(text)}</pre>`);w.document.close();w.print();}}
 
@@ -5377,6 +5538,7 @@
   }
 
   function closeSectionEditor(){
+    closeEventRowEditor();
     state.sectionEditorOpen = false;
     sectionOverlay.classList.remove("open");
   }
@@ -7163,7 +7325,9 @@
   document.getElementById("eventPrintAllBtn")?.addEventListener("click",()=>printEvents(true));
   document.getElementById("eventOkBtn")?.addEventListener("click",()=>{saveEventFields();closeSectionEditor();});
   document.getElementById("eventRowApply")?.addEventListener("click",applyEventRow);
-  document.getElementById("eventRowCancel")?.addEventListener("click",()=>document.getElementById("eventRowEditor").classList.remove("open"));
+  document.getElementById("eventRowCancel")?.addEventListener("click",closeEventRowEditor);
+  document.getElementById("eventRowClose")?.addEventListener("click",closeEventRowEditor);
+  document.getElementById("eventRowOverlay")?.addEventListener("mousedown",e=>{if(e.target===e.currentTarget)closeEventRowEditor();});
   for (const kind of ["Trigger","Action"]){ for (const op of ["Delete","Copy","Paste"]){ document.getElementById(`event${kind}${op}`)?.addEventListener("click",()=>eventRowOp(kind.toLowerCase(),op.toLowerCase())); } }
   sectionApplyBtn.addEventListener("click", applySectionBlock);
   sectionDeleteBtn.addEventListener("click", deleteSectionBlock);
@@ -7639,6 +7803,7 @@
     if (!file) return;
     state.filename = file.name;
     state.currentMisFileHandle = fileHandle;
+    await loadMissionGameStrings(file.name);
     const misBuffer = await file.arrayBuffer();
     const decodedMis = decodeMisTextFromFile(misBuffer);
     const text = decodedMis.text;
