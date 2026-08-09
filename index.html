@@ -1472,14 +1472,6 @@
           </div>
         </section>
         <section class="floatingPanelSection">
-          <div class="floatingPanelTitle">Guides</div>
-          <div class="floatingPanelFields">
-            <label><span>Main area</span><input id="mainArea" type="checkbox"></label>
-            <label><span>Show Sectors</span><input id="showSectors" type="checkbox"></label>
-            <label><span>Anchor points (H)</span><input id="showAnchorPoints" type="checkbox" checked></label>
-          </div>
-        </section>
-        <section class="floatingPanelSection">
           <div class="floatingPanelTitle">Snapping</div>
           <div class="floatingPanelFields">
             <label><span>Enable Snap</span><input id="transformSnapEnabled" type="checkbox"></label>
@@ -2398,9 +2390,6 @@
   const groundClampEl = document.getElementById("ground");
   const clearanceEl = document.getElementById("clear");
   const radiusEl = document.getElementById("radius");
-  const mainAreaEl = document.getElementById("mainArea");
-  const showSectorsEl = document.getElementById("showSectors");
-  const showAnchorPointsEl = document.getElementById("showAnchorPoints");
   const showAreaTriggersEl = document.getElementById("showAreaTriggers");
 
   const renderUiState = {
@@ -2409,10 +2398,10 @@
     groundClamp: groundClampEl?.checked !== false,
     clearance: parseFloat(clearanceEl?.value || '1') || 1,
     drawRadius: parseFloat(radiusEl?.value || '12288') || 12288,
-    mainArea: !!mainAreaEl?.checked,
-    showSectors: !!showSectorsEl?.checked,
+    mainArea: false,
+    showSectors: false,
     showStats: false,
-    showAnchorPoints: showAnchorPointsEl?.checked !== false,
+    showAnchorPoints: true,
     showAreaTriggers: showAreaTriggersEl?.checked !== false,
   };
 
@@ -2422,19 +2411,22 @@
     renderUiState.groundClamp = groundClampEl?.checked !== false;
     renderUiState.clearance = parseFloat(clearanceEl?.value || '1') || 1;
     renderUiState.drawRadius = parseFloat(radiusEl?.value || '12288') || 12288;
-    renderUiState.mainArea = !!mainAreaEl?.checked;
-    renderUiState.showSectors = !!showSectorsEl?.checked;
-    renderUiState.showAnchorPoints = showAnchorPointsEl?.checked !== false;
     renderUiState.showAreaTriggers = showAreaTriggersEl?.checked !== false;
   }
 
-  for (const el of [speedLevelEl, speedScalarEl, groundClampEl, clearanceEl, radiusEl, mainAreaEl, showSectorsEl, showAnchorPointsEl, showAreaTriggersEl]){
+  for (const el of [speedLevelEl, speedScalarEl, groundClampEl, clearanceEl, radiusEl, showAreaTriggersEl]){
     el?.addEventListener('input', syncRenderUiState);
     el?.addEventListener('change', syncRenderUiState);
   }
 
   function toggleSceneInfo(){
     renderUiState.showStats = !renderUiState.showStats;
+  }
+
+  function toggleGuide(setting){
+    renderUiState[setting] = !renderUiState[setting];
+    renderMenuBar();
+    requestRender();
   }
 
   const ui = {
@@ -7752,6 +7744,9 @@
     "edit.globalReplace": runGlobalReplace,
     "edit.weaponLoadouts": () => openSectionEditor("weapon_availability"),
     "view.sceneInfo": toggleSceneInfo,
+    "view.mainArea": () => toggleGuide("mainArea"),
+    "view.showSectors": () => toggleGuide("showSectors"),
+    "view.showAnchorPoints": () => toggleGuide("showAnchorPoints"),
     "mis.liveChanges": openLiveMisWindow,
     "logs.open": openLogsWindow,
     "uiStyle.default": () => setTheme("default"),
@@ -7805,6 +7800,14 @@
         label: "View",
         children: [
           { label: "Scene Info", shortcut: "I", command: "view.sceneInfo" },
+          {
+            label: "Guides",
+            children: [
+              { label: "Main Area", command: "view.mainArea", checked: renderUiState.mainArea },
+              { label: "Show Sectors", command: "view.showSectors", checked: renderUiState.showSectors },
+              { label: "Anchor Points", shortcut: "H", command: "view.showAnchorPoints", checked: renderUiState.showAnchorPoints }
+            ]
+          },
           { separator: true },
           { label: "View by Layer", command: "view.byLayer" },
           { label: "View by Type", command: "view.byType" },
@@ -7910,8 +7913,12 @@
 
           const itemBtn = document.createElement("button");
           itemBtn.className = `menuItemBtn${child.attention ? " attention" : ""}`;
+          if (typeof child.checked === "boolean"){
+            itemBtn.setAttribute("role", "menuitemcheckbox");
+            itemBtn.setAttribute("aria-checked", child.checked ? "true" : "false");
+          }
           const labelEl = document.createElement("span");
-          labelEl.textContent = child.label;
+          labelEl.textContent = `${child.checked ? "✓ " : ""}${child.label}`;
           itemBtn.appendChild(labelEl);
           if (child.shortcut){
             const shortcutEl = document.createElement("span");
@@ -10543,7 +10550,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
 
   cv.addEventListener('click',()=>{ if (!hasTypingFocus()) cv.focus(); });
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&showAnchorPointsEl){ showAnchorPointsEl.checked=!showAnchorPointsEl.checked; syncRenderUiState(); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'){ gridVisible=!gridVisible; } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleGuide('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
