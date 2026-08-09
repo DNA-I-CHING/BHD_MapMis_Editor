@@ -5527,7 +5527,7 @@
       .filter(group=>Number.isFinite(group.number))
       .sort((a,b)=>a.number-b.number);
     const hasValue=groups.some(group=>group.number===value);
-    const options=groups.map(group=>`<option value="${group.number}" ${group.number===value?'selected':''}>${escapeHtml(`(${group.number}) ${group.description||`Group ${group.number}`}`)}</option>`);
+    const options=groups.map(group=>`<option value="${group.number}" ${group.number===value?'selected':''}>${escapeHtml(`${group.number} - ${group.description||`Group ${group.number}`}`)}</option>`);
     if(!hasValue) options.unshift(`<option value="${value}" selected>${escapeHtml(`${value} - Unknown (preserved)`)}</option>`);
     return `<label>${escapeHtml(label)}<select data-field="${field}">${options.join('')}</select></label>`;
   }
