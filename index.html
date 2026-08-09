@@ -8242,9 +8242,18 @@
     const height=Math.max(1,rect.height||cv.clientHeight||cv.height||1);
     return {rect,width,height,aspect:width/height};
   }
-  function currentPV(){ const {forward,forwardXY}=cameraBasis(); const {aspect}=getViewportMetrics(); const P=mat4Perspective(Math.PI/3, aspect, 1.0, 1000000.0); const V=mat4LookAt(cam.pos, vec3Add(cam.pos,forward), (Math.abs(forward.z)>0.999)?forwardXY:vec3(0,0,1)); return {P,V,PV:mat4Mul(P,V)}; }
+  const CAMERA_REFERENCE_ASPECT=16/9;
+  const CAMERA_REFERENCE_VERTICAL_FOV=Math.PI/3;
+  const CAMERA_HORIZONTAL_FOV=2*Math.atan(Math.tan(CAMERA_REFERENCE_VERTICAL_FOV/2)*CAMERA_REFERENCE_ASPECT);
+  function getCameraProjection(){
+    const viewport=getViewportMetrics();
+    const tanHalfVerticalFov=Math.tan(CAMERA_HORIZONTAL_FOV/2)/viewport.aspect;
+    const verticalFov=2*Math.atan(tanHalfVerticalFov);
+    return {...viewport,verticalFov,tanHalfVerticalFov};
+  }
+  function currentPV(){ const {forward,forwardXY}=cameraBasis(); const {aspect,verticalFov}=getCameraProjection(); const P=mat4Perspective(verticalFov, aspect, 1.0, 1000000.0); const V=mat4LookAt(cam.pos, vec3Add(cam.pos,forward), (Math.abs(forward.z)>0.999)?forwardXY:vec3(0,0,1)); return {P,V,PV:mat4Mul(P,V)}; }
   function worldToScreen(x,y,z=0){ const {PV}=currentPV(); const px=PV[0]*x+PV[4]*y+PV[8]*z+PV[12], py=PV[1]*x+PV[5]*y+PV[9]*z+PV[13], pw=PV[3]*x+PV[7]*y+PV[11]*z+PV[15]; if(pw<=0) return {sx:-999,sy:-999,visible:false}; const nx=px/pw, ny=py/pw, r=cv.getBoundingClientRect(); return {sx:(nx*0.5+0.5)*r.width, sy:(1-(ny*0.5+0.5))*r.height, visible:true}; }
-  function screenRay(sx,sy){ const {width,height,aspect}=getViewportMetrics(), nx=(sx/width)*2-1, ny=1-(sy/height)*2, t=Math.tan(Math.PI/6); const {forward,right}=cameraBasis(); const up=vec3Norm(vec3Cross(right,forward)); const dir=vec3Norm(vec3Add(vec3Add(forward,vec3Scale(right,nx*t*aspect)),vec3Scale(up,ny*t))); return {origin:cam.pos,dir}; }
+  function screenRay(sx,sy){ const {width,height,aspect,tanHalfVerticalFov}=getCameraProjection(), nx=(sx/width)*2-1, ny=1-(sy/height)*2; const {forward,right}=cameraBasis(); const up=vec3Norm(vec3Cross(right,forward)); const dir=vec3Norm(vec3Add(vec3Add(forward,vec3Scale(right,nx*tanHalfVerticalFov*aspect)),vec3Scale(up,ny*tanHalfVerticalFov))); return {origin:cam.pos,dir}; }
   function screenToWorld(sx,sy,zPlane=0){ const ray=screenRay(sx,sy), dz=ray.dir.z; if(Math.abs(dz)<1e-6) return {x:ray.origin.x,y:ray.origin.y,z:zPlane}; const t=(zPlane-ray.origin.z)/dz; return {x:ray.origin.x+ray.dir.x*Math.max(t,0), y:ray.origin.y+ray.dir.y*Math.max(t,0), z:zPlane}; }
 
 
@@ -9869,7 +9878,8 @@
     if(!it||!center||state.modalOpen||!isItemVisibilityFilterMatch(it)){group.visible=false;state.gizmoVisual=null;return;}
     group.visible=true;group.position.set(center.x,center.y,center.z);
     const basis=state.gizmoDrag?.handle?.kind==='ring'?state.gizmoDrag.basis:itemTransformBasis(it),THREE=state.glb.THREE,m=new THREE.Matrix4().makeBasis(new THREE.Vector3(basis.x.x,basis.x.y,basis.x.z),new THREE.Vector3(basis.y.x,basis.y.y,basis.y.z),new THREE.Vector3(basis.z.x,basis.z.y,basis.z.z));group.quaternion.setFromRotationMatrix(m);
-    const distance=Math.max(.01,Math.hypot(center.x-cam.pos.x,center.y-cam.pos.y,center.z-cam.pos.z)),viewportH=Math.max(1,rect.height),worldPerPixel=2*distance*Math.tan(Math.PI/6)/viewportH,scale=worldPerPixel*GIZMO_STYLE.screenSizePx;group.scale.setScalar(scale);
+    const {tanHalfVerticalFov}=getCameraProjection();
+    const distance=Math.max(.01,Math.hypot(center.x-cam.pos.x,center.y-cam.pos.y,center.z-cam.pos.z)),viewportH=Math.max(1,rect.height),worldPerPixel=2*distance*tanHalfVerticalFov/viewportH,scale=worldPerPixel*GIZMO_STYLE.screenSizePx;group.scale.setScalar(scale);
     for(const [name,root] of state.glb.gizmoHandles)root.visible=state.transformMode==='translate'?name.startsWith('move'):name.startsWith('rot');
     updateGizmoMaterials();
     state.gizmoVisual={mode:state.transformMode,center:{world:center},basis,handles:{moveX:{kind:'axis',axis:basis.x},moveY:{kind:'axis',axis:basis.y},moveZ:{kind:'axis',axis:basis.z},moveXY:{kind:'plane',axisA:basis.x,axisB:basis.y},moveXZ:{kind:'plane',axisA:basis.x,axisB:basis.z},moveYZ:{kind:'plane',axisA:basis.y,axisB:basis.z},rotX:{kind:'ring',axis:basis.x},rotZ:{kind:'ring',axis:basis.z}}};
