@@ -5295,14 +5295,58 @@
     if (!events.length){ state.sectionSelectedId=null; return; }
     if (!events.some(sec=>sec.id===state.sectionSelectedId)) state.sectionSelectedId=events[0].id;
   }
+  function medFormat(key,args=[],fallback=""){
+    const template=resolveStringKey(key)||fallback||key;
+    let index=0;
+    return template.replace(/%%|%(?:\d+)?(?:\.\d+)?[disf]/g,token=>{
+      if(token==="%%")return "%";
+      const value=args[index++];
+      return value===undefined?token:String(value);
+    });
+  }
   function triggerDescription(row){
-    const flags=row[0]|0, logic=(flags&4)?"XOR":(flags&2)?"OR":"AND", truth=(flags&1)?"False":"True";
-    const condition=EVENT_CONDITIONS[row[1]]?.[row[2]] || `Unknown ${row[2]}`;
-    return `${truth} ${logic}: ${EVENT_TRIGGER_TYPES[row[1]] || `Unknown ${row[1]}`} / ${condition} [${row.slice(3,7).join(", ")}]`;
+    const isFalse=!!(row[0]&1),type=row[1],condition=row[2],v=row.slice(3,7);
+    let key="",args=[];
+    if(type===1){
+      const keys={1:["GROUP_SEES_GROUP","GROUP_NOT_SEES_GROUP"],2:["GROUP_HAS_TARGETED_GROUP","GROUP_HAS_NOT_TARGETED_GROUP"],3:["GROUP_AT_RED_ALERT","GROUP_NOT_AT_RED_ALERT"],4:["GROUP_DESTROYED","GROUP_NOT_DESTROYED"],5:["GROUP_ALIVE","GROUP_NOT_ALIVE"],6:["GROUP_HAS_LOST_MORE_UNITS","GROUP_HAS_NOT_LOST_MORE_UNITS"],7:["GROUP_AT_WAYPOINT","GROUP_NOT_AT_WAYPOINT"],9:["GROUP_INTACT","GROUP_NOT_INTACT"],10:["GROUP_IS_WITHIN_AREA","GROUP_IS_NOT_WITHIN_AREA"],11:["GROUP_HOLDING_GROUP","GROUP_NOT_HOLDING_GROUP"],12:["GROUP_HAS_MORE_UNITS","GROUP_LESS_THAN"],13:["GROUP_HAS_SHOT_GROUP","GROUP_HAS_NOT_SHOT_GROUP"],14:["GROUP_AT_YELLOW_ALERT","GROUP_NOT_AT_YELLOW_ALERT"],15:["GROUP_HAS_TARGETED_SINGLE","GROUP_HAS_NOT_TARGETED_SINGLE"],16:["GROUP_SEES_SINGLE","GROUP_NOT_SEES_SINGLE"],17:["GROUP_HAS_SHOT_SINGLE","GROUP_HAS_NOT_SHOT_SINGLE"]};
+      key=keys[condition]?.[isFalse?1:0];args=v;
+    }else if(type===2){
+      const keys={1:["SINGLE_SEES_GROUP","SINGLE_NOT_SEES_GROUP"],2:["SINGLE_HAS_TARGETED_GROUP","SINGLE_HAS_NOT_TARGETED_GROUP"],3:["SINGLE_AT_RED_ALERT","SINGLE_NOT_AT_RED_ALERT"],4:["SINGLE_DESTROYED","SINGLE_NOT_DESTROYED"],5:["SINGLE_ALIVE","SINGLE_NOT_ALIVE"],6:["SINGLE_HAS_LOST_MORE_UNITS","SINGLE_HAS_NOT_LOST_MORE_UNITS"],7:["SINGLE_AT_WAYPOINT","SINGLE_NOT_AT_WAYPOINT"],9:["SINGLE_INTACT","SINGLE_NOT_INTACT"],10:["SINGLE_IS_WITHIN_AREA","SINGLE_IS_NOT_WITHIN_AREA"],11:["SINGLE_HOLDING_GROUP","SINGLE_NOT_HOLDING_GROUP"],12:["SINGLE_HAS_MORE_UNITS","SINGLE_LESS_THAN"],13:["SINGLE_HAS_SHOT_GROUP","SINGLE_HAS_NOT_SHOT_GROUP"],14:["SINGLE_AT_YELLOW_ALERT","SINGLE_NOT_AT_YELLOW_ALERT"],15:["SINGLE_HAS_TARGETED_SINGLE","SINGLE_HAS_NOT_TARGETED_SINGLE"],16:["SINGLE_SEES_SINGLE","SINGLE_NOT_SEES_SINGLE"],17:["SINGLE_HAS_SHOT_SINGLE","SINGLE_HAS_NOT_SHOT_SINGLE"]};
+      key=keys[condition]?.[isFalse?1:0];args=v;
+    }else if(type===3){key=isFalse?"EVENT_NOT_TRIGGERED":"EVENT_TRIGGERED";args=[v[0]];
+    }else if(type===4){
+      const positive=["","MISVAR_IS_EQUAL","MISVAR_IS_LT","MISVAR_IS_GT","MISVAR_IS_LTE","MISVAR_IS_GTE"];
+      key=isFalse&&condition===1?"MISVAR_IS_NOT_EQUAL":positive[condition];args=v;
+    }else if(type===7){
+      const keys={18:["PLAYER_BERSERK","PLAYER_BERSERK_NOT"],19:["PLAYER_1STPERSON","PLAYER_1STPERSON_NOT"],20:["PLAYER_3RDPERSON","PLAYER_3RDPERSON_NOT"],21:["PLAYER_COCKPITVIEW","PLAYER_COCKPITVIEW_NOT"],34:["PLAYER_DLGDONE_NOT","PLAYER_DLGDONE"],35:["PLAYER_DLGFINISHED","PLAYER_DLGFINISHED_NOT"],36:["PLAYER_AWOL","PLAYER_AWOL_NOT"],37:["PLAYER_SATCHEL","PLAYER_SATCHEL_NOT"]};
+      key=keys[condition]?.[isFalse?1:0];args=v;
+    }
+    const description=key?medFormat(key,args):`${EVENT_TRIGGER_TYPES[type]||`Unknown ${type}`} - ${EVENT_CONDITIONS[type]?.[condition]||`Unknown ${condition}`}`;
+    const logic=(row[0]&4)?resolveStringKey("XOR")||"X-or":(row[0]&2)?resolveStringKey("OR")||"Or":resolveStringKey("AND")||"And";
+    return `${description} (${logic})`;
   }
   function actionDescription(row){
-    const type=row[1], subtype=(type===3||type===21)?AI_ACTIONS[row[6]]:ACTION_SUBTYPES[type]?.[row[6]];
-    return `${EVENT_ACTION_TYPES[type] || `Unknown ${type}`}${subtype?` / ${subtype}`:""} [${row.slice(2,6).join(", ")}]`;
+    const type=row[1],v=row.slice(2,6),sub=row[6],goalKind=[14,35].includes(type)?"win":"lose",goal=getGeneralConditionOptions(goalKind).find(x=>x.value===v[0])?.label||"";
+    const simple={1:[v[2]>=0?"GROUP_REDIRECT_TO_POINT":"GROUP_REDIRECT_TO",v],2:["KILL_GROUP_X",v],4:["VAPORIZE_GROUP_NUM",v],6:["TEXT_MESSAGE",v],14:["SUB_GOAL_NUM_WON",[v[0],goal]],15:["SUB_GOAL_NUM_LOST",[v[0],goal]],17:["CHANGE_GROUP_STRING",v],18:["GROUP_TELEPORT_STRING",v],19:[v[2]>=0?"SINGLE_REDIRECT_TO_POINT":"SINGLE_REDIRECT_TO",v],20:["KILL_SINGLE_X",v],22:["VAPORIZE_SINGLE_NUM",v],25:["CHANGE_SINGLE_STRING",v],26:["SINGLE_TELEPORT_STRING",v],27:["PARTICLE_EFFECT_STRING",v],30:["GROUP_OPEN_DOOR_STRING",v],31:["GROUP_CLOSE_DOOR_STRING",v],32:["GROUP_RESET_HASVISITED_TO",v],33:["SINGLE_RESET_HASVISITED_TO",v],34:["RESET_EVENT_TO",v],37:["ATTACH_TO_EMPLACED_TO",v],42:["SSN_TARGET_SSN_PRI_STR",v],43:["SSN_TARGET_SSN_EXC_STR",v],44:["SSN_TARGET_GROUP_PRI_STR",v],45:["SSN_TARGET_GROUP_EXC_STR",v],46:["GROUP_TARGET_SSN_PRI_STR",v],47:["GROUP_TARGET_SSN_EXC_STR",v],48:["GROUP_TARGET_GROUP_PRI_STR",v],49:["GROUP_TARGET_GROUP_EXC_STR",v]};
+    if(type===5){const keys=["", "MISVAR_SET","MISVAR_ADD","MISVAR_SUB","MISVAR_INC","MISVAR_DEC"];if(keys[sub])return medFormat(keys[sub],v);}
+    if(type===3||type===21){
+      const toggle={2:["GUARD_OFF","GUARD_ON"],15:["BLIND_OFF","BLIND_ON"],16:["BERSERK_OFF","BERSERK_ON"],17:["CLIMBER_OFF","CLIMBER_ON"],21:["COWARD_OFF","COWARD_ON"],43:["INDESTRUCTABLE_OFF","INDESTRUCTABLE_ON"]};
+      const detailKeys={8:"ACCURACY_TO",26:"AIDRIVESKILL_TO",27:"AIAIMSKILL_TO",28:"AISTATE_TO",29:"AICOMBAT_TO",30:"AIPATROL_TO",31:"FIND_AND_USE_SSN",32:"AIUSEWPZ_TO",33:"AICLEARWPZ_TO",40:v[1]?"AINODEPATH_ON":"AINODEPATH_OFF",41:"ATTACK_DISTANCE_TO",42:"ENGAGE_DISTANCE_TO",44:"AITARGET_TO",45:v[1]?"STARTFIRING_ON":"STARTFIRING_OFF",46:"FIRING_ANGLE_TO"};
+      let detail="";
+      if(toggle[sub])detail=resolveStringKey(toggle[sub][v[1]?1:0])||"";
+      else if(detailKeys[sub])detail=medFormat(detailKeys[sub],v.slice(1));
+      else detail=AI_ACTIONS[sub]||`Unknown ${sub}`;
+      return medFormat(type===3?"CHANGE_GROUP":"CHANGE_SINGLE",[v[0],detail]);
+    }
+    if(type===35||type===36)return medFormat((v[1]?"SHOW_":"HIDE_")+(type===35?"WIN":"LOSE")+"_SUBGOAL_TO",v);
+    if(type===7)return medFormat("PLAY_WAV_FILE_LIST",[v[0],v[1]?resolveStringKey("PLAYS_AFTER_END")||"(Plays after end)":""]);
+    if(type===11)return medFormat("SET_GROUP_TO_SPEED",v);
+    if(type===16)return medFormat("CHANGE_GTEAM_STRING",v)+v[1];
+    if(type===23)return medFormat("SET_SINGLE_TO_SPEED",v);
+    if(type===38)return medFormat("SET_LIGHT_STATE_TO",[v[0],v[1]?"On":"Off"]);
+    if(type===40)return resolveStringKey("SHOW_WAYPOINTS_TO")||"Show Waypoints";
+    if(simple[type])return medFormat(simple[type][0],simple[type][1]);
+    return EVENT_ACTION_TYPES[type]||medFormat("INVALID_ACTION",[],`Unknown ${type}`);
   }
   function renderEventRows(kind, rows){
     const el=document.getElementById(kind==="trigger"?"eventTriggerList":"eventActionList"), selected=kind==="trigger"?eventUi.selectedTrigger:eventUi.selectedAction;
@@ -5359,28 +5403,35 @@
     const labels=EVENT_ROW_LABELS[kind]; let html=[];
     if(kind==='trigger'){
       const type=values[1], condition=values[2], vars=TRIGGER_VARIABLES[type]?.[condition]||[];
-      html.push(`<label>${labels[0]}<input type="number" data-field="0" value="${values[0]}" title="Bit 0: False; bit 1: OR; bit 2: X-or. Unknown bits are preserved."></label>`);
-      html.push(eventSelect(1,type,Object.fromEntries(EVENT_TRIGGER_TYPES.map((x,i)=>[i,x])),labels[1]));
-      html.push(eventSelect(2,condition,EVENT_CONDITIONS[type]||{0:'Null'},labels[2]));
-      for(let i=3;i<=6;i++) html.push(`<label>${escapeHtml(vars[i-3]||labels[i])}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
-      html.push(`<label>${labels[7]}<input type="number" data-field="7" value="${values[7]}" title="Reserved value; preserved for lossless round trips."></label>`);
+      const logic=(values[0]&4)?4:(values[0]&2)?2:0;
+      html.push(`<input type="hidden" data-field="0" value="${values[0]}">`);
+      html.push(eventSelect("trigger-truth",values[0]&1,{0:resolveStringKey("TRUE")||"True",1:resolveStringKey("FALSE")||"False"},resolveStringKey("TRIGGER_IF")||"Trigger if:"));
+      html.push(eventSelect("trigger-logic",logic,{0:resolveStringKey("AND")||"And",2:resolveStringKey("OR")||"Or",4:resolveStringKey("XOR")||"X-or"},resolveStringKey("LOGIC")||"Logic"));
+      html.push(eventSelect(1,type,Object.fromEntries(EVENT_TRIGGER_TYPES.map((x,i)=>[i,x])),resolveStringKey("TRIGGER_TYPE")||labels[1]));
+      html.push(eventSelect(2,condition,EVENT_CONDITIONS[type]||{0:'Null'},resolveStringKey("TRIGGER_CONDITION")||labels[2]));
+      for(let i=3;i<=6;i++) html.push(vars[i-3]
+        ? `<label>${escapeHtml(vars[i-3])}<input type="number" data-field="${i}" value="${values[i]}"></label>`
+        : `<input type="hidden" data-field="${i}" value="${values[i]}">`);
+      html.push(`<input type="hidden" data-field="7" value="${values[7]}">`);
     }else{
       const type=values[1], aiAction=values[6];
       const vars=(type===3||type===21)
         ? [ACTION_VARIABLES[type][0],...(AI_ACTION_VARIABLES[aiAction]||[])]
         : (ACTION_VARIABLES[type]||[]);
-      html.push(`<label>${labels[0]}<input type="number" data-field="0" value="${values[0]}"></label>`);
-      html.push(eventSelect(1,type,Object.fromEntries(EVENT_ACTION_TYPES.map((x,i)=>[i,x])),labels[1]));
+      html.push(`<input type="hidden" data-field="0" value="${values[0]}">`);
+      html.push(eventSelect(1,type,Object.fromEntries(EVENT_ACTION_TYPES.map((x,i)=>[i,x])),resolveStringKey("ACTION_TYPE")||labels[1]));
       for(let i=2;i<=5;i++){
-        const label=vars[i-2]||labels[i];
+        const label=vars[i-2];
         const isSubgoal=i===2&&[14,15,35,36].includes(type);
-        html.push(isSubgoal
+        html.push(!label
+          ? `<input type="hidden" data-field="${i}" value="${values[i]}">`
+          : isSubgoal
           ? eventSelect(i,values[i],eventSubgoalChoices(type),label)
           : `<label>${escapeHtml(label)}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
       }
       const subtypeChoices=(type===3||type===21)?AI_ACTIONS:ACTION_SUBTYPES[type];
-      html.push(subtypeChoices?eventSelect(6,values[6],subtypeChoices,(type===3||type===21)?'AI Action':'Action'):`<label>${labels[6]}<input type="number" data-field="6" value="${values[6]}"></label>`);
-      html.push(`<label>${labels[7]}<input type="number" data-field="7" value="${values[7]}" title="Reserved value; preserved for lossless round trips."></label>`);
+      html.push(subtypeChoices?eventSelect(6,values[6],subtypeChoices,resolveStringKey("ACTION_SUBTYPE")||"Action Subtype"):`<input type="hidden" data-field="6" value="${values[6]}">`);
+      html.push(`<input type="hidden" data-field="7" value="${values[7]}">`);
     }
     const grid=document.getElementById('eventRawGrid'); grid.innerHTML=html.join('');
     grid.querySelector('[data-field="1"]')?.addEventListener('change',()=>renderEventRowFields(kind,readEventRowFields()));
@@ -5389,7 +5440,9 @@
   }
   function readEventRowFields(){
     const values=Array(8).fill(0);
-    document.querySelectorAll('#eventRawGrid [data-field]').forEach(el=>values[Number(el.dataset.field)]=Math.trunc(Number(el.value))||0);
+    document.querySelectorAll('#eventRawGrid [data-field]').forEach(el=>{if(/^\d+$/.test(el.dataset.field))values[Number(el.dataset.field)]=Math.trunc(Number(el.value))||0;});
+    const truth=document.querySelector('#eventRawGrid [data-field="trigger-truth"]'),logic=document.querySelector('#eventRawGrid [data-field="trigger-logic"]');
+    if(truth&&logic)values[0]=(values[0]&~7)|(Number(truth.value)&1)|(Number(logic.value)&6);
     return values;
   }
   function openEventRowEditor(kind,index){
