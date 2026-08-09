@@ -1244,13 +1244,17 @@
     .eventRawGrid label{ display:grid; gap:2px; color:var(--text-subtle); }
     .eventRawGrid input, .eventRawGrid select{ width:100%; min-width:0; box-sizing:border-box; }
     .eventRawGrid.triggerFieldLayout{ display:flex; flex-direction:column; gap:10px; }
+    .eventRawGrid.actionFieldLayout{ display:flex; flex-direction:column; gap:10px; }
     .triggerFieldLayout > label{ width:100%; }
+    .actionFieldLayout > label{ width:100%; }
     .eventTriggerIf{ display:grid; gap:5px; color:var(--text-subtle); }
     .eventTriggerRadios{ display:flex; flex-wrap:wrap; gap:16px; color:var(--text); }
     .eventTriggerRadios label{ display:flex; flex-direction:row; align-items:center; gap:5px; color:inherit; }
     .eventTriggerRadios input[type="radio"]{ width:auto; min-width:auto; margin:0; }
     .eventTriggerFieldset{ margin:0; padding:8px; display:grid; gap:8px; }
     .eventTriggerFieldset legend{ color:var(--text); padding:0 4px; }
+    .eventActionFieldset{ margin:0; padding:8px; display:grid; gap:8px; }
+    .eventActionFieldset legend{ color:var(--text); padding:0 4px; }
     .eventEditorActions{ display:flex; justify-content:flex-end; gap:8px; margin-top:7px; }
     #layerEditor{ display:none; gap:8px; align-content:start; }
     #sectionWindow[data-section-mode="layer"] #layerEditor{ display:grid; }
@@ -5434,20 +5438,22 @@
         : (ACTION_VARIABLES[type]||[]);
       html.push(`<input type="hidden" data-field="0" value="${values[0]}">`);
       html.push(eventSelect(1,type,Object.fromEntries(EVENT_ACTION_TYPES.map((x,i)=>[i,x])),resolveStringKey("ACTION_TYPE")||labels[1]));
+      const subtypeChoices=(type===3||type===21)?AI_ACTIONS:ACTION_SUBTYPES[type];
+      html.push(subtypeChoices?eventSelect(6,values[6],subtypeChoices,resolveStringKey("ACTION_SUBTYPE")||"Action Subtype"):`<input type="hidden" data-field="6" value="${values[6]}">`);
+      const variableFields=[];
       for(let i=2;i<=5;i++){
         const label=vars[i-2];
         const isSubgoal=i===2&&[14,15,35,36].includes(type);
-        html.push(!label
+        variableFields.push(!label
           ? `<input type="hidden" data-field="${i}" value="${values[i]}">`
           : isSubgoal
           ? eventSelect(i,values[i],eventSubgoalChoices(type),label)
           : `<label>${escapeHtml(label)}<input type="number" data-field="${i}" value="${values[i]}"></label>`);
       }
-      const subtypeChoices=(type===3||type===21)?AI_ACTIONS:ACTION_SUBTYPES[type];
-      html.push(subtypeChoices?eventSelect(6,values[6],subtypeChoices,resolveStringKey("ACTION_SUBTYPE")||"Action Subtype"):`<input type="hidden" data-field="6" value="${values[6]}">`);
+      html.push(`<fieldset class="eventActionFieldset"><legend>${escapeHtml(resolveStringKey("ACTION_VARIABLES")||"Action Variables")}</legend>${variableFields.join('')}</fieldset>`);
       html.push(`<input type="hidden" data-field="7" value="${values[7]}">`);
     }
-    const grid=document.getElementById('eventRawGrid'); grid.classList.toggle('triggerFieldLayout',kind==='trigger');grid.innerHTML=html.join('');
+    const grid=document.getElementById('eventRawGrid');grid.classList.toggle('triggerFieldLayout',kind==='trigger');grid.classList.toggle('actionFieldLayout',kind==='action');grid.innerHTML=html.join('');
     grid.querySelector('[data-field="1"]')?.addEventListener('change',()=>renderEventRowFields(kind,readEventRowFields()));
     if(kind==='trigger') grid.querySelector('[data-field="2"]')?.addEventListener('change',()=>renderEventRowFields(kind,readEventRowFields()));
     if(kind==='action'&&(values[1]===3||values[1]===21)) grid.querySelector('[data-field="6"]')?.addEventListener('change',()=>renderEventRowFields(kind,readEventRowFields()));
