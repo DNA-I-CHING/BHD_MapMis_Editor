@@ -1086,7 +1086,7 @@
     }
     #sectionWindow[data-section-mode="waypoint"] #sectionBody{ grid-template-columns:300px 1fr; }
     #sectionWindow[data-section-mode="areatrig"] #sectionBody{ grid-template-columns:300px 1fr; }
-    #sectionWindow[data-section-mode="group"] #sectionEditor{ grid-template-rows:auto auto auto auto; align-content:start; }
+    #sectionWindow[data-section-mode="group"] #sectionEditor{ grid-template-rows:auto minmax(0,1fr) auto; align-content:stretch; }
     #sectionWindow[data-section-mode="group"] #sectionMeta,
     #sectionWindow[data-section-mode="group"] #sectionHint{ display:none; }
     #sectionWindow[data-section-mode="group"] #sectionKindSelect,
@@ -1106,6 +1106,13 @@
     #groupNameField{ display:none; align-self:start; }
     #groupNameInput{ width:100%; }
     #sectionWindow[data-section-mode="group"] #groupNameField{ display:block; }
+    #groupMembersPanel{ display:none; min-height:0; }
+    #sectionWindow[data-section-mode="group"] #groupMembersPanel{ display:grid; grid-template-rows:auto minmax(0,1fr); gap:5px; }
+    #groupMembersTitle{ font-size:12px; font-weight:600; }
+    #groupMembersList{ min-height:0; overflow:auto; border:1px solid var(--line-muted); background:var(--surface); padding:4px; }
+    .groupMemberItem{ display:block; width:100%; border:0; background:transparent; color:inherit; padding:5px 6px; text-align:left; }
+    .groupMemberItem:hover{ background:var(--accent-soft); }
+    .groupMembersEmpty{ color:var(--text-subtle); padding:6px; }
     #sectionWindow[data-section-mode="group"] #sectionText{ display:none; }
     #groupSelectMembersBtn,
     #groupSaveAsTextBtn{ display:none; }
@@ -1574,6 +1581,10 @@
               <div id="groupNameField">
                 <div class="inlineLabel">Group name</div>
                 <input id="groupNameInput" type="text" />
+              </div>
+              <div id="groupMembersPanel">
+                <div id="groupMembersTitle">Group members</div>
+                <div id="groupMembersList"></div>
               </div>
               <div id="generalInfoEditor">
                 <div class="giLayout">
@@ -2348,6 +2359,8 @@
   const sectionMeta = document.getElementById("sectionMeta");
   const sectionText = document.getElementById("sectionText");
   const groupNameInput = document.getElementById("groupNameInput");
+  const groupMembersTitle = document.getElementById("groupMembersTitle");
+  const groupMembersList = document.getElementById("groupMembersList");
   const sectionApplyBtn = document.getElementById("sectionApplyBtn");
   const sectionDeleteBtn = document.getElementById("sectionDeleteBtn");
   const groupSelectMembersBtn = document.getElementById("groupSelectMembersBtn");
@@ -4349,6 +4362,30 @@
     return "";
   }
 
+  function getGroupMemberDisplayName(item){
+    const def=getCatalogDefForItem(item);
+    return String(def?.description||def?.name||readKvValue(item,"name","description","iai_name")||`Item ${item.id}`).trim();
+  }
+
+  function renderGroupMembers(groupNumber){
+    if(!groupMembersList||!groupMembersTitle) return;
+    const members=state.items
+      .filter(item=>Math.trunc(Number(readKvValue(item,"group_id","group")))===groupNumber)
+      .map(item=>({item,ssn:Math.trunc(Number(readKvValue(item,"id","ssn","social_security_number"))),name:getGroupMemberDisplayName(item)}))
+      .sort((a,b)=>(Number.isFinite(a.ssn)?a.ssn:Number.MAX_SAFE_INTEGER)-(Number.isFinite(b.ssn)?b.ssn:Number.MAX_SAFE_INTEGER)||a.name.localeCompare(b.name));
+    groupMembersTitle.textContent=`Group members (${members.length})`;
+    groupMembersList.innerHTML=members.length
+      ? members.map(member=>`<button type="button" class="groupMemberItem" data-item-id="${member.item.id}" title="Frame SSN ${Number.isFinite(member.ssn)?member.ssn:'?'} on the map">${escapeHtml(`SSN ${Number.isFinite(member.ssn)?member.ssn:'?'} — ${member.name}`)}</button>`).join('')
+      : '<div class="groupMembersEmpty">No SSNs in this group.</div>';
+    groupMembersList.querySelectorAll('.groupMemberItem').forEach(button=>button.addEventListener('click',()=>{
+      const item=state.items.find(candidate=>candidate.id===Number(button.dataset.itemId));
+      if(!item) return;
+      selectById(item.id);
+      focusCameraNearItem(item);
+      statusEl.textContent=`Framed SSN ${readKvValue(item,"id","ssn","social_security_number")} from Group ${groupNumber}.`;
+    }));
+  }
+
   function buildGroupOptions(){
     const vals = [];
     for (let n = 1; n <= 63; n++) vals.push(n);
@@ -6278,6 +6315,7 @@
       const sec = getGroupSectionByNumber(state.groupSelectedNumber);
       sectionMeta.textContent = `begin group ${state.groupSelectedNumber}`;
       groupNameInput.value = sec ? getGroupDescription(sec) : '';
+      renderGroupMembers(state.groupSelectedNumber);
       return;
     }
 
