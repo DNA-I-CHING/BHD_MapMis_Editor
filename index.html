@@ -186,12 +186,18 @@
       grid-template-columns:420px 1fr;
       min-height:0;
     }
+    #appLayout.sidebarClosed{ grid-template-columns:0 minmax(0,1fr); }
     #sidebar{
       border-right:1px solid var(--line);
       background:var(--bg);
       padding:10px;
       overflow:auto;
     }
+    #appLayout.sidebarClosed #sidebar{ display:none; }
+    #sidebarHeaderActions{ display:flex; justify-content:flex-end; margin-bottom:4px; }
+    #sidebarCloseBtn,#sidebarOpenBtn{ font-size:16px; line-height:1; }
+    #sidebarOpenBtn{ display:none; }
+    #appLayout.sidebarClosed #sidebarOpenBtn{ display:inline-flex; align-items:center; justify-content:center; }
     #main{
       display:grid;
       grid-template-rows:auto 1fr;
@@ -1356,6 +1362,10 @@
   <div id="sidebar">
     <input id="fileMis" type="file" accept=".mis,.txt" style="display:none;" />
 
+    <div id="sidebarHeaderActions">
+      <button id="sidebarCloseBtn" type="button" class="modeBtn" title="Close sidebar" aria-label="Close sidebar">&#x2039;</button>
+    </div>
+
 <div class="hint" id="defStatus" style="margin-top:6px;">Item catalog loaded (embedded ITEMS.DEF).</div>
 
     <div class="row" style="margin-top:10px;">
@@ -1385,6 +1395,7 @@
 
   <div id="main">
     <div id="topbar">
+      <button id="sidebarOpenBtn" type="button" class="modeBtn" title="Open sidebar" aria-label="Open sidebar">&#x203A;</button>
             <label class="tbCtl gridCtl">Grid (G):
         <button id="gridPlus" type="button" class="modeBtn" title="Increase grid size">+</button>
         <button id="gridMinus" type="button" class="modeBtn" title="Decrease grid size">-</button>
@@ -2305,6 +2316,9 @@
   const misRealtimeConsoleEl = document.getElementById("misRealtimeConsole");
   const misRealtimeClearBtn = document.getElementById("misRealtimeClearBtn");
   const exportBtn = document.getElementById("exportBtn");
+  const appLayoutEl = document.getElementById("appLayout");
+  const sidebarCloseBtn = document.getElementById("sidebarCloseBtn");
+  const sidebarOpenBtn = document.getElementById("sidebarOpenBtn");
   const showPanelBtn = document.getElementById("showPanelBtn");
   const showLayersBtn = document.getElementById("showLayersBtn");
   const showGroupsBtn = document.getElementById("showGroupsBtn");
@@ -7463,6 +7477,22 @@
     showPanelBtn?.classList.toggle("active", visible);
   }
 
+  function setSidebarOpen(open,{persist=true}={}){
+    const isOpen=!!open;
+    appLayoutEl?.classList.toggle("sidebarClosed",!isOpen);
+    sidebarOpenBtn?.setAttribute("aria-expanded",String(isOpen));
+    if(persist){
+      try{ localStorage.setItem("dz.sidebarOpen",isOpen?"1":"0"); }catch(_){ }
+    }
+    scheduleResizeCanvas();
+    requestRender();
+  }
+
+  sidebarCloseBtn?.addEventListener("click",()=>setSidebarOpen(false));
+  sidebarOpenBtn?.addEventListener("click",()=>setSidebarOpen(true));
+  let initialSidebarOpen=true;
+  try{ initialSidebarOpen=localStorage.getItem("dz.sidebarOpen")!=="0"; }catch(_){ }
+
   function positionDebugFogPanel(){
     if (!debugFogPanelEl || !debugFogBtn || !canvasWrapEl) return;
     const wrapRect = canvasWrapEl.getBoundingClientRect();
@@ -11197,6 +11227,8 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     const saved = localStorage.getItem("dz-theme") || "default";
     applyTheme(saved);
   }
+
+  setSidebarOpen(initialSidebarOpen,{persist:false});
 
   // Boot: load embedded ITEMS.DEF + optional resources (weapon.def + game strings).
   (async function boot(){
