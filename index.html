@@ -10355,8 +10355,10 @@
     if(!it||!center||state.modalOpen||!isItemVisibilityFilterMatch(it)){group.visible=false;state.gizmoVisual=null;return;}
     group.visible=true;group.position.set(center.x,center.y,center.z);
     const basis=state.gizmoDrag?.handle?.kind==='ring'?state.gizmoDrag.basis:itemTransformBasis(it),THREE=state.glb.THREE,m=new THREE.Matrix4().makeBasis(new THREE.Vector3(basis.x.x,basis.x.y,basis.x.z),new THREE.Vector3(basis.y.x,basis.y.y,basis.y.z),new THREE.Vector3(basis.z.x,basis.z.y,basis.z.z));group.quaternion.setFromRotationMatrix(m);
-    const {tanHalfVerticalFov}=getCameraProjection();
-    const distance=Math.max(.01,Math.hypot(center.x-cam.pos.x,center.y-cam.pos.y,center.z-cam.pos.z)),viewportH=Math.max(1,rect.height),worldPerPixel=2*distance*tanHalfVerticalFov/viewportH,scale=worldPerPixel*GIZMO_STYLE.screenSizePx;group.scale.setScalar(scale);
+    const {tanHalfVerticalFov,orthographic,orthographicHalfHeight}=getCameraProjection();
+    const viewportH=Math.max(1,rect.height),distance=Math.max(.01,Math.hypot(center.x-cam.pos.x,center.y-cam.pos.y,center.z-cam.pos.z));
+    const worldPerPixel=orthographic?(2*orthographicHalfHeight/viewportH):(2*distance*tanHalfVerticalFov/viewportH);
+    group.scale.setScalar(worldPerPixel*GIZMO_STYLE.screenSizePx);
     for(const [name,root] of state.glb.gizmoHandles)root.visible=state.transformMode==='translate'?name.startsWith('move'):name.startsWith('rot');
     updateGizmoMaterials();
     state.gizmoVisual={mode:state.transformMode,center:{world:center},basis,handles:{moveX:{kind:'axis',axis:basis.x},moveY:{kind:'axis',axis:basis.y},moveZ:{kind:'axis',axis:basis.z},moveXY:{kind:'plane',axisA:basis.x,axisB:basis.y},moveXZ:{kind:'plane',axisA:basis.x,axisB:basis.z},moveYZ:{kind:'plane',axisA:basis.y,axisB:basis.z},rotX:{kind:'ring',axis:basis.x},rotZ:{kind:'ring',axis:basis.z}}};
@@ -11160,9 +11162,12 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
 
   function pickGizmoModeAt(clientX,clientY){
     if(!state.gizmoVisual||!state.glb.gizmoGroup?.visible||!state.glb.gizmoRaycaster)return null;
-    const rect=cv.getBoundingClientRect(),nx=((clientX-rect.left)/rect.width)*2-1,ny=1-((clientY-rect.top)/rect.height)*2;
+    const rect=cv.getBoundingClientRect(),sx=clientX-rect.left,sy=clientY-rect.top,nx=(sx/rect.width)*2-1,ny=1-(sy/rect.height)*2;
     state.glb.gizmoPointerNdc.set(nx,ny);state.glb.gizmoGroup.updateMatrixWorld(true);
-    state.glb.gizmoRaycaster.setFromCamera(state.glb.gizmoPointerNdc,state.glb.camera);
+    if(topViewLocked){
+      const ray=screenRay(sx,sy),THREE=state.glb.THREE;
+      state.glb.gizmoRaycaster.set(new THREE.Vector3(ray.origin.x,ray.origin.y,ray.origin.z),new THREE.Vector3(ray.dir.x,ray.dir.y,ray.dir.z));
+    } else state.glb.gizmoRaycaster.setFromCamera(state.glb.gizmoPointerNdc,state.glb.camera);
     const activeRoots=Array.from(state.glb.gizmoHandles.entries()).filter(([name])=>isGizmoHandleInteractive(name)).flatMap(([,root])=>root.userData.gizmoPickMeshes||[root]);
     const hits=state.glb.gizmoRaycaster.intersectObjects(activeRoots,true);
     for(const hit of hits){let node=hit.object;while(node&&node!==state.glb.gizmoGroup){const name=node.userData?.gizmoHandle;if(isGizmoHandleInteractive(name))return name;node=node.parent;}}
