@@ -1527,7 +1527,11 @@
           <div class="floatingPanelTitle">Snapping</div>
           <div class="floatingPanelFields">
             <label><span>Enable Snap</span><input id="transformSnapEnabled" type="checkbox"></label>
-            <label>Translation <input id="translationSnap" type="number" min="0.01" step="0.25" value="1" title="Translation snap, world units"></label>
+            <label><span>Link to visual grid</span><input id="linkTranslationGrid" type="checkbox" checked></label>
+            <label>Translation <input id="translationSnap" type="number" min="0.00390625" step="0.25" value="512" title="Translation snap, world units"></label>
+            <label>Snap Mode <select id="translationSnapMode" title="Absolute aligns the gizmo pivot to the grid; Relative quantizes only the drag distance"><option value="absolute">Absolute grid</option><option value="relative">Relative increment</option></select></label>
+            <label>Grid Plane <select id="gridPlane" title="Visual grid work plane"><option value="XY">XY (Top)</option><option value="XZ">XZ (Front)</option><option value="YZ">YZ (Side)</option></select></label>
+            <label><span>Infinite work grid</span><input id="infiniteWorkGrid" type="checkbox" checked></label>
             <label>Rotation <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees"></label>
           </div>
         </section>
@@ -2107,7 +2111,9 @@
     transformSpace: "global",
     transformPivot: "center",
     transformSnapEnabled: false,
-    translationSnap: 1,
+    translationSnap: 512,
+    linkTranslationGrid: true,
+    translationSnapMode: "absolute",
     rotationSnap: 15,
     hoveredGizmoHandle: null,
 
@@ -2470,6 +2476,8 @@
     showSectors: false,
     showStats: false,
     showGrid: true,
+    gridPlane: 'XY',
+    infiniteWorkGrid: true,
     showAnchorPoints: true,
     showAreaTriggers: showAreaTriggersEl?.checked !== false,
   };
@@ -8606,7 +8614,14 @@
   const GRID_EXP_MIN=-8, GRID_EXP_MAX=12;
   function gridSizeMeters(){ return Math.pow(2, gridExponent); }
   function formatGridValue(m){ if(m<1) return (m*100).toFixed(3)+'cm'; if(m>=1024) return m.toFixed(0)+'m'; if(Number.isInteger(m)) return m.toFixed(0)+'m'; return m.toFixed(3)+'m'; }
-  function updateGridUi(){ const el=document.getElementById('gridValue'); if(el) el.textContent=formatGridValue(gridSizeMeters()); const p=document.getElementById('gridPlus'); const n=document.getElementById('gridMinus'); if(p) p.disabled=gridExponent>=GRID_EXP_MAX; if(n) n.disabled=gridExponent<=GRID_EXP_MIN; }
+  function updateGridUi(){
+    const size=gridSizeMeters(),el=document.getElementById('gridValue');
+    if(el) el.textContent=formatGridValue(size);
+    const p=document.getElementById('gridPlus'),n=document.getElementById('gridMinus');
+    if(p) p.disabled=gridExponent>=GRID_EXP_MAX;
+    if(n) n.disabled=gridExponent<=GRID_EXP_MIN;
+    if(state.linkTranslationGrid){state.translationSnap=size;const input=document.getElementById('translationSnap');if(input)input.value=String(size);}
+  }
   function stepGridExponent(d){ gridExponent=Math.max(GRID_EXP_MIN,Math.min(GRID_EXP_MAX,gridExponent+d)); updateGridUi(); }
   function setRenderMode(mode){ if(!['C','H','D'].includes(mode)) return; renderMode=mode; const c=document.getElementById('modeC'),h=document.getElementById('modeH'),d=document.getElementById('modeD'); if(c)c.classList.toggle('active',mode==='C'); if(h)h.classList.toggle('active',mode==='H'); if(d)d.classList.toggle('active',mode==='D'); }
   function terrainSpanX(){ return sectorCount*SECTOR_STRIDE; } function terrainSpanY(){ return sectorCount*SECTOR_STRIDE; } function originWorldX(){ return terrainOrigin.x*SECTOR_STRIDE; } function originWorldY(){ return terrainOrigin.y*SECTOR_STRIDE; }
@@ -9001,7 +9016,7 @@
 
     const gridGeom = new THREE.BufferGeometry();
     gridGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x000000, depthTest: false, depthWrite: false, transparent: false, fog: false });
+    const gridMat = new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, depthWrite: false, transparent: true, opacity: 0.78, fog: false });
     overlays.gridLines = new THREE.LineSegments(gridGeom, gridMat);
     overlays.gridLines.frustumCulled = false;
     overlays.scene.add(overlays.gridLines);
@@ -9110,27 +9125,44 @@
     }
 
     const gridPositions = [];
+    const gridColors = [];
     if(renderUiState.showGrid){
       const gridSize=gridSizeMeters();
       if(gridSize>0){
-        const spanVisibleX=(overlayI1-overlayI0+1)*SECTOR_STRIDE;
-        const spanVisibleY=(overlayJ1-overlayJ0+1)*SECTOR_STRIDE;
-        let gridMinX=ox + overlayI0*SECTOR_STRIDE;
-        let gridMaxX=gridMinX + spanVisibleX;
-        let gridMinY=oy + overlayJ0*SECTOR_STRIDE;
-        let gridMaxY=gridMinY + spanVisibleY;
+        const plane=renderUiState.gridPlane||'XY';
+        const axes=plane==='XZ'?['x','z']:plane==='YZ'?['y','z']:['x','y'];
+        const origin={x:ox,y:oy,z:0},center={x:cam.pos.x,y:cam.pos.y,z:cam.pos.z};
+        const renderOrigin={...origin};
+        if(plane==='XY')renderOrigin.z=.2;
+        else if(plane==='XZ')renderOrigin.y+=.2;
+        else renderOrigin.x+=.2;
+        const terrainMin={x:ox+overlayI0*SECTOR_STRIDE,y:oy+overlayJ0*SECTOR_STRIDE,z:0};
+        const terrainMax={x:ox+(overlayI1+1)*SECTOR_STRIDE,y:oy+(overlayJ1+1)*SECTOR_STRIDE,z:0};
         const maxSpan=gridSize*MAX_GRID_LINES_PER_AXIS;
-        if((gridMaxX-gridMinX)>maxSpan){ const cx=cam.pos.x; gridMinX=Math.max(gridMinX, cx-maxSpan*0.5); gridMaxX=Math.min(gridMaxX, cx+maxSpan*0.5); }
-        if((gridMaxY-gridMinY)>maxSpan){ const cy=cam.pos.y; gridMinY=Math.max(gridMinY, cy-maxSpan*0.5); gridMaxY=Math.min(gridMaxY, cy+maxSpan*0.5); }
-        const firstX=ox + Math.ceil((gridMinX-ox)/gridSize)*gridSize;
-        const firstY=oy + Math.ceil((gridMinY-oy)/gridSize)*gridSize;
-        const countX=Math.max(0, Math.floor((gridMaxX-firstX)/gridSize)+1);
-        const countY=Math.max(0, Math.floor((gridMaxY-firstY)/gridSize)+1);
-        for(let i=0;i<countX;i++){ const x=firstX+i*gridSize; gridPositions.push(x, gridMinY, 0.2, x, gridMaxY, 0.2); }
-        for(let i=0;i<countY;i++){ const y=firstY+i*gridSize; gridPositions.push(gridMinX, y, 0.2, gridMaxX, y, 0.2); }
+        const workSpan=Math.min(maxSpan,Math.max(SECTOR_STRIDE*4,radius*OVERLAY_RADIUS_FACTOR*2));
+        const ranges={};
+        for(const axis of axes){
+          if(!renderUiState.infiniteWorkGrid&&plane==='XY') ranges[axis]=[terrainMin[axis],terrainMax[axis]];
+          else ranges[axis]=[center[axis]-workSpan*.5,center[axis]+workSpan*.5];
+          if(ranges[axis][1]-ranges[axis][0]>maxSpan) ranges[axis]=[center[axis]-maxSpan*.5,center[axis]+maxSpan*.5];
+        }
+        const axisColor={x:[.85,.18,.18],y:[.18,.72,.28],z:[.2,.45,.95]};
+        const appendLine=(a,b,color)=>{gridPositions.push(a.x,a.y,a.z,b.x,b.y,b.z);gridColors.push(...color,...color);};
+        const addParallelLines=(fixedAxis,alongAxis)=>{
+          const [minFixed,maxFixed]=ranges[fixedAxis], [minAlong,maxAlong]=ranges[alongAxis];
+          const first=origin[fixedAxis]+Math.ceil((minFixed-origin[fixedAxis])/gridSize)*gridSize;
+          const count=Math.min(MAX_GRID_LINES_PER_AXIS,Math.max(0,Math.floor((maxFixed-first)/gridSize)+1));
+          for(let i=0;i<count;i++){
+            const value=first+i*gridSize,index=Math.round((value-origin[fixedAxis])/gridSize);
+            const color=index===0?axisColor[alongAxis]:(index%8===0?[.34,.37,.42]:[.16,.18,.22]);
+            const a={...renderOrigin},b={...renderOrigin};a[fixedAxis]=value;b[fixedAxis]=value;a[alongAxis]=minAlong;b[alongAxis]=maxAlong;appendLine(a,b,color);
+          }
+        };
+        addParallelLines(axes[0],axes[1]);
+        addParallelLines(axes[1],axes[0]);
       }
     }
-    updateThreeLineGeometry(overlays.gridLines, new Float32Array(gridPositions));
+    updateThreeLineGeometry(overlays.gridLines, new Float32Array(gridPositions), new Float32Array(gridColors));
 
     const rectPos=[];
     const rectColors=[];
@@ -11122,17 +11154,26 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   const transformSpaceEl=document.getElementById('transformSpace');
   const transformPivotEl=document.getElementById('transformPivot');
   const transformSnapEnabledEl=document.getElementById('transformSnapEnabled');
+  const linkTranslationGridEl=document.getElementById('linkTranslationGrid');
   const translationSnapEl=document.getElementById('translationSnap');
+  const translationSnapModeEl=document.getElementById('translationSnapMode');
+  const gridPlaneEl=document.getElementById('gridPlane');
+  const infiniteWorkGridEl=document.getElementById('infiniteWorkGrid');
   const rotationSnapEl=document.getElementById('rotationSnap');
   transformSpaceEl?.addEventListener('change',()=>{state.transformSpace=transformSpaceEl.value;updateItemGizmo();});
   transformPivotEl?.addEventListener('change',()=>{state.transformPivot=transformPivotEl.value;updateItemGizmo();});
   transformSnapEnabledEl?.addEventListener('change',()=>{state.transformSnapEnabled=transformSnapEnabledEl.checked;updateItemGizmo();});
-  translationSnapEl?.addEventListener('change',()=>{state.translationSnap=Math.max(.01,Number(translationSnapEl.value)||1);translationSnapEl.value=String(state.translationSnap);});
+  linkTranslationGridEl?.addEventListener('change',()=>{state.linkTranslationGrid=linkTranslationGridEl.checked;translationSnapEl.disabled=state.linkTranslationGrid;if(state.linkTranslationGrid)updateGridUi();});
+  translationSnapEl?.addEventListener('change',()=>{state.translationSnap=Math.max(Math.pow(2,GRID_EXP_MIN),Number(translationSnapEl.value)||1);if(state.linkTranslationGrid){gridExponent=Math.max(GRID_EXP_MIN,Math.min(GRID_EXP_MAX,Math.round(Math.log2(state.translationSnap))));updateGridUi();}else translationSnapEl.value=String(state.translationSnap);});
+  translationSnapModeEl?.addEventListener('change',()=>{state.translationSnapMode=translationSnapModeEl.value;});
+  gridPlaneEl?.addEventListener('change',()=>{renderUiState.gridPlane=gridPlaneEl.value;requestRender();});
+  infiniteWorkGridEl?.addEventListener('change',()=>{renderUiState.infiniteWorkGrid=infiniteWorkGridEl.checked;requestRender();});
   rotationSnapEl?.addEventListener('change',()=>{state.rotationSnap=Math.max(.1,Number(rotationSnapEl.value)||15);rotationSnapEl.value=String(state.rotationSnap);});
   document.getElementById('gridPlus')?.addEventListener('click',()=>stepGridExponent(1));
   document.getElementById('gridMinus')?.addEventListener('click',()=>stepGridExponent(-1));
   document.getElementById('step')?.addEventListener('change',()=>rebuildTerrain());
   updateGridUi();
+  if(translationSnapEl)translationSnapEl.disabled=state.linkTranslationGrid;
   syncRenderUiState();
   setRenderMode('C');
 
@@ -11246,6 +11287,13 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     return hit?vec3Dot(vec3Sub(hit,point),axis):0;
   }
   function snapValue(value,step){return step>0?Math.round(value/step)*step:value;}
+  function snapTranslationComponent(value,pivot,axis){
+    if(state.translationSnapMode!=='absolute')return snapValue(value,state.translationSnap);
+    const origin=vec3(originWorldX(),originWorldY(),0);
+    const pivotFromOrigin=vec3Sub(pivot,origin);
+    const initial=vec3Dot(pivotFromOrigin,axis);
+    return snapValue(initial+value,state.translationSnap)-initial;
+  }
   function applyTranslationDelta(it,start,delta){
     if(Math.abs(delta.x)>1e-9)it.x=worldToRaw(start.world.x+delta.x,'x');else it.x=start.x;
     if(Math.abs(delta.y)>1e-9)it.y=worldToRaw(start.world.y+delta.y,'y');else it.y=start.y;
@@ -11271,10 +11319,10 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     const d=state.gizmoDrag,rect=cv.getBoundingClientRect(),ray=screenRay(e.clientX-rect.left,e.clientY-rect.top),snapOn=state.transformSnapEnabled;
     if(!isGizmoHandleInteractive(d.mode)||state.modalOpen||!d.snapshots.every(start=>getItemByIdFast(start.id))){state.gizmoDrag=null;state.hoveredGizmoHandle=null;endUndoTransaction();updateItemGizmo();return;}
     if(d.handle.kind==='axis'){
-      let delta=rayAxisParameter(ray,d.pivot,d.handle.axis)-d.startScalar;if(snapOn)delta=snapValue(delta,state.translationSnap);d.label=`${delta.toFixed(2)}`;
+      let delta=rayAxisParameter(ray,d.pivot,d.handle.axis)-d.startScalar;if(snapOn)delta=snapTranslationComponent(delta,d.pivot,d.handle.axis);d.label=`${delta.toFixed(2)}`;
       for(const start of d.snapshots){const it=getItemByIdFast(start.id),move=vec3Scale(d.handle.axis,delta);if(!it)continue;applyTranslationDelta(it,start,move);}
     }else if(d.handle.kind==='plane'){
-      const hit=rayPlanePoint(ray,d.pivot,d.planeNormal);if(!hit||!d.startPoint)return;let delta=vec3Sub(hit,d.startPoint),da=vec3Dot(delta,d.handle.axisA),db=vec3Dot(delta,d.handle.axisB);if(snapOn){da=snapValue(da,state.translationSnap);db=snapValue(db,state.translationSnap);}delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));d.label=`${da.toFixed(2)}, ${db.toFixed(2)}`;
+      const hit=rayPlanePoint(ray,d.pivot,d.planeNormal);if(!hit||!d.startPoint)return;let delta=vec3Sub(hit,d.startPoint),da=vec3Dot(delta,d.handle.axisA),db=vec3Dot(delta,d.handle.axisB);if(snapOn){da=snapTranslationComponent(da,d.pivot,d.handle.axisA);db=snapTranslationComponent(db,d.pivot,d.handle.axisB);}delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));d.label=`${da.toFixed(2)}, ${db.toFixed(2)}`;
       for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;applyTranslationDelta(it,start,delta);}
     }else if(d.handle.kind==='ring'){
       const hit=rayPlanePoint(ray,d.pivot,d.handle.axis);if(!hit||!d.lastVector)return;const cur=vec3Norm(vec3Sub(hit,d.pivot)),deltaAngle=Math.atan2(vec3Dot(d.handle.axis,vec3Cross(d.lastVector,cur)),vec3Dot(d.lastVector,cur));d.accumulatedAngle+=deltaAngle;d.lastVector=cur;let angle=d.accumulatedAngle,deg=angle*180/Math.PI;if(snapOn){deg=snapValue(deg,state.rotationSnap);angle=deg*Math.PI/180;}d.appliedAngle=angle;d.currentVector=vec3Norm(rotateAroundAxis(d.startVector,d.handle.axis,angle));d.label=`${deg.toFixed(1)}°`;
