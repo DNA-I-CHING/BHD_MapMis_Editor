@@ -1110,7 +1110,9 @@
     #sectionWindow[data-section-mode="group"] #groupMembersPanel{ display:grid; grid-template-rows:auto minmax(0,1fr); gap:5px; }
     #groupMembersTitle{ font-size:12px; font-weight:600; }
     #groupMembersList{ min-height:0; overflow:auto; border:1px solid var(--line-muted); background:var(--surface); padding:4px; }
-    .groupMemberItem{ display:block; width:100%; border:0; background:transparent; color:inherit; padding:5px 6px; text-align:left; }
+    .groupMemberItem{ display:block; width:100%; border:1px solid var(--line-soft); border-radius:3px; background:var(--surface-subtle); color:inherit; padding:6px 7px; text-align:left; cursor:pointer; }
+    .groupMemberItem + .groupMemberItem{ margin-top:3px; }
+    .groupMemberItem:nth-child(even){ background:var(--panel-subtle); }
     .groupMemberItem:hover{ background:var(--accent-soft); }
     .groupMembersEmpty{ color:var(--text-subtle); padding:6px; }
     #sectionWindow[data-section-mode="group"] #sectionText{ display:none; }
