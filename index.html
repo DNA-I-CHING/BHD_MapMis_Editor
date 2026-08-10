@@ -8507,6 +8507,7 @@
   function mat4TranslateInto(out,x,y,z){ out[0]=1; out[1]=0; out[2]=0; out[3]=0; out[4]=0; out[5]=1; out[6]=0; out[7]=0; out[8]=0; out[9]=0; out[10]=1; out[11]=0; out[12]=x; out[13]=y; out[14]=z; out[15]=1; return out; }
   function mat4Mul(a,b){ const o=new Float32Array(16); for(let c=0;c<4;c++) for(let r=0;r<4;r++) o[c*4+r]=a[0*4+r]*b[c*4+0]+a[1*4+r]*b[c*4+1]+a[2*4+r]*b[c*4+2]+a[3*4+r]*b[c*4+3]; return o; }
   function mat4Perspective(fovy,aspect,near,far){ const f=1/Math.tan(fovy/2), nf=1/(near-far); const o=new Float32Array(16); o[0]=f/aspect;o[5]=f;o[10]=(far+near)*nf;o[11]=-1;o[14]=(2*far*near)*nf; return o; }
+  function mat4Orthographic(left,right,bottom,top,near,far){ const lr=1/(left-right),bt=1/(bottom-top),nf=1/(near-far); const o=mat4Identity(); o[0]=-2*lr;o[5]=-2*bt;o[10]=2*nf;o[12]=(left+right)*lr;o[13]=(top+bottom)*bt;o[14]=(far+near)*nf; return o; }
   function vec3(x,y,z){return {x,y,z};} function vec3Add(a,b){return vec3(a.x+b.x,a.y+b.y,a.z+b.z);} function vec3Sub(a,b){return vec3(a.x-b.x,a.y-b.y,a.z-b.z);} function vec3Scale(a,s){return vec3(a.x*s,a.y*s,a.z*s);} function vec3Dot(a,b){return a.x*b.x+a.y*b.y+a.z*b.z;} function vec3Cross(a,b){return vec3(a.y*b.z-a.z*b.y,a.z*b.x-a.x*b.z,a.x*b.y-a.y*b.x);} function vec3Len(a){return Math.hypot(a.x,a.y,a.z);} function vec3Norm(a){const l=vec3Len(a)||1;return vec3(a.x/l,a.y/l,a.z/l);}
   function mat4LookAt(eye,center,up){ const f=vec3Norm(vec3Sub(center,eye)); let upRef=up; if(Math.abs(vec3Dot(f,upRef))>0.999) upRef=vec3(0,1,0); const s=vec3Norm(vec3Cross(f,upRef)); const u=vec3Cross(s,f); const out=mat4Identity(); out[0]=s.x; out[4]=s.y; out[8]=s.z; out[1]=u.x; out[5]=u.y; out[9]=u.z; out[2]=-f.x; out[6]=-f.y; out[10]=-f.z; out[12]=-vec3Dot(s,eye); out[13]=-vec3Dot(u,eye); out[14]=vec3Dot(f,eye); return out; }
   function posMod(a,m){ return ((a%m)+m)%m; }
@@ -8558,7 +8559,8 @@
   const AREA_TRIGGER_TERRAIN_OFFSET=0.05;
   const AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE=0.01;
   let topViewLocked=false;
-  let topViewRestore={yaw:Math.PI,pitch:-0.25};
+  let topViewScale=512;
+  let topViewRestore={pos:null,yaw:Math.PI,pitch:-0.25,scale:topViewScale};
   let gridExponent=9;
   const GRID_EXP_MIN=-8, GRID_EXP_MAX=12;
   function gridSizeMeters(){ return Math.pow(2, gridExponent); }
@@ -8701,11 +8703,11 @@
     const viewport=getViewportMetrics();
     const verticalFov=CAMERA_REFERENCE_VERTICAL_FOV;
     const tanHalfVerticalFov=Math.tan(verticalFov/2);
-    return {...viewport,verticalFov,tanHalfVerticalFov};
+    return {...viewport,verticalFov,tanHalfVerticalFov,orthographic:topViewLocked,orthographicHalfHeight:topViewScale};
   }
-  function currentPV(){ const {forward,forwardXY}=cameraBasis(); const {aspect,verticalFov}=getCameraProjection(); const P=mat4Perspective(verticalFov, aspect, 1.0, 1000000.0); const V=mat4LookAt(cam.pos, vec3Add(cam.pos,forward), (Math.abs(forward.z)>0.999)?forwardXY:vec3(0,0,1)); return {P,V,PV:mat4Mul(P,V)}; }
+  function currentPV(){ const {forward,forwardXY}=cameraBasis(); const projection=getCameraProjection(); const {aspect,verticalFov,orthographic,orthographicHalfHeight}=projection; const P=orthographic?mat4Orthographic(-orthographicHalfHeight*aspect,orthographicHalfHeight*aspect,-orthographicHalfHeight,orthographicHalfHeight,1.0,1000000.0):mat4Perspective(verticalFov,aspect,1.0,1000000.0); const V=mat4LookAt(cam.pos,vec3Add(cam.pos,forward),(Math.abs(forward.z)>0.999)?forwardXY:vec3(0,0,1)); return {P,V,PV:mat4Mul(P,V)}; }
   function worldToScreen(x,y,z=0){ const {PV}=currentPV(); const px=PV[0]*x+PV[4]*y+PV[8]*z+PV[12], py=PV[1]*x+PV[5]*y+PV[9]*z+PV[13], pw=PV[3]*x+PV[7]*y+PV[11]*z+PV[15]; if(pw<=0) return {sx:-999,sy:-999,visible:false}; const nx=px/pw, ny=py/pw, r=cv.getBoundingClientRect(); return {sx:(nx*0.5+0.5)*r.width, sy:(1-(ny*0.5+0.5))*r.height, visible:true}; }
-  function screenRay(sx,sy){ const {width,height,aspect,tanHalfVerticalFov}=getCameraProjection(), nx=(sx/width)*2-1, ny=1-(sy/height)*2; const {forward,right}=cameraBasis(); const up=vec3Norm(vec3Cross(right,forward)); const dir=vec3Norm(vec3Add(vec3Add(forward,vec3Scale(right,nx*tanHalfVerticalFov*aspect)),vec3Scale(up,ny*tanHalfVerticalFov))); return {origin:cam.pos,dir}; }
+  function screenRay(sx,sy){ const {width,height,aspect,tanHalfVerticalFov,orthographic,orthographicHalfHeight}=getCameraProjection(), nx=(sx/width)*2-1, ny=1-(sy/height)*2; const {forward,right}=cameraBasis(); const up=vec3Norm(vec3Cross(right,forward)); if(orthographic){ const origin=vec3Add(cam.pos,vec3Add(vec3Scale(right,nx*orthographicHalfHeight*aspect),vec3Scale(up,ny*orthographicHalfHeight))); return {origin,dir:forward}; } const dir=vec3Norm(vec3Add(vec3Add(forward,vec3Scale(right,nx*tanHalfVerticalFov*aspect)),vec3Scale(up,ny*tanHalfVerticalFov))); return {origin:cam.pos,dir}; }
   function screenToWorld(sx,sy,zPlane=0){ const ray=screenRay(sx,sy), dz=ray.dir.z; if(Math.abs(dz)<1e-6) return {x:ray.origin.x,y:ray.origin.y,z:zPlane}; const t=(zPlane-ray.origin.z)/dz; return {x:ray.origin.x+ray.dir.x*Math.max(t,0), y:ray.origin.y+ray.dir.y*Math.max(t,0), z:zPlane}; }
 
 
@@ -10964,6 +10966,7 @@ Mode: ${renderMode==='C' ? 'Colormap' : (renderMode==='H' ? 'Heightmap' : 'Delta
 Render backend: ${state.renderBackend}
 Grid: ${renderUiState.showGrid ? formatGridValue(gridSizeMeters()) : 'off'}
 Top view lock: ${topViewLocked?'on':'off'}
+Top view span: ${topViewLocked?(topViewScale*2).toFixed(2):'-'}
 Draw calls: ${drawCalls}
 Terrain cull (frustum/back): ${state.terrainPerf?.culledFrustum ?? '-'} / ${state.terrainPerf?.culledBackface ?? '-'}
 GLB instances: ${state.glb.itemInstances.size}
@@ -11016,14 +11019,38 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
 
   cv.addEventListener('click',()=>{ if (!hasTypingFocus()) cv.focus(); });
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  function toggleTopView(){
+    topViewLocked=!topViewLocked;
+    if(topViewLocked){
+      topViewRestore={pos:vec3(cam.pos.x,cam.pos.y,cam.pos.z),yaw:cam.yaw,pitch:cam.pitch,scale:topViewScale};
+      const selected=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id));
+      if(selected.length){
+        const points=selected.map(it=>({x:rawToWorld(it.x,'x'),y:rawToWorld(it.y,'y')}));
+        const minX=Math.min(...points.map(p=>p.x)),maxX=Math.max(...points.map(p=>p.x));
+        const minY=Math.min(...points.map(p=>p.y)),maxY=Math.max(...points.map(p=>p.y));
+        cam.pos.x=(minX+maxX)*0.5; cam.pos.y=(minY+maxY)*0.5;
+        const aspect=getViewportMetrics().aspect;
+        topViewScale=Math.max(16,(maxY-minY)*0.65,(maxX-minX)*0.65/Math.max(aspect,0.01));
+      } else {
+        const spanX=terrainSpanX(),spanY=terrainSpanY(),aspect=getViewportMetrics().aspect;
+        cam.pos.x=originWorldX()+spanX*0.5; cam.pos.y=originWorldY()+spanY*0.5;
+        topViewScale=Math.max(16,spanY*0.55,spanX*0.55/Math.max(aspect,0.01));
+      }
+      cam.pos.z=Math.max(cam.pos.z,1000); cam.yaw=0; cam.pitch=-Math.PI/2;
+    } else {
+      if(topViewRestore.pos) cam.pos=vec3(topViewRestore.pos.x,topViewRestore.pos.y,topViewRestore.pos.z);
+      cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; topViewScale=topViewRestore.scale;
+    }
+    camVel=vec3(0,0,0); requestRender();
+  }
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'&&!e.repeat){ e.preventDefault(); toggleTopView(); } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a'&&lookActive) move.a=1; if(k==='s'&&lookActive) move.s=1; if(k==='d'&&lookActive) move.d=1; if(k==='q'&&lookActive) move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
-    if(topViewLocked) return;
     if(!state.cameraLookActive) return;
     if(state.modalOpen||state.draggingItem||state.boxSelecting||state.gizmoDrag||state.pastePlacementActive) return;
     if(!Number.isFinite(e.movementX)||!Number.isFinite(e.movementY)) return;
+    if(topViewLocked){ const {width,height}=getViewportMetrics(); cam.pos.x-=e.movementX*(topViewScale*2/height); cam.pos.y+=e.movementY*(topViewScale*2/height); camVel=vec3(0,0,0); requestRender(); return; }
     // Raw input avoids OS mouse acceleration; cap isolated browser spikes without
     // changing the sensitivity of normal, even very quick, mouse movement.
     const maxPointerDelta=200;
@@ -11113,7 +11140,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   cv.addEventListener("mousemove", (e) => { if(state.modalOpen) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; if(state.cameraLookPending){ const mask=state.cameraLookButton===2?2:1; if(e.buttons & mask){ const start=state.cameraLookStart||{sx,sy}; const moved=Math.hypot(sx-start.sx, sy-start.sy); if(moved>3){ state.cameraLookPending=false; if(state.cameraLookButton===1) state.pendingLeftClick=null; state.cameraLookActive=true; requestCameraPointerLock(); } } else if(!state.cameraLookActive){ state.cameraLookPending=false; state.cameraLookButton=0; } } if(state.pastePlacementActive){ const z=state.selectedId?rawToWorld(getSelected()?.z||0,'z'):0; state.pastePreviewWorld=screenToWorld(sx,sy,z); } if(state.boxSelecting&&state.boxStart) state.boxCurrent={sx,sy}; else if(state.draggingItem&&state.selectedId){ const active=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id)); const zPlane=rawToWorld((active[0]?.z)||0,'z'); const nowW=screenToWorld(sx,sy,zPlane); const prevW=state.dragAnchor||nowW; const dx=nowW.x-prevW.x, dy=nowW.y-prevW.y; for(const it of active){ if(!kvHas(it,'position')) continue; it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x'); it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y'); it.kv.position=`${it.x} ${it.y} ${it.z}`; markItemTransformDirty(it.id);} markItemsChanged({ structure: false }); state.dragAnchor=nowW; scheduleRenderList(); scheduleLiveMisRefresh(); } state.lastMouse={sx,sy}; });
   function stopDrag(){ const had=state.boxSelecting&&state.boxStart&&state.boxCurrent; const shouldFinalizeClick=!!state.pendingLeftClick && !state.cameraLookActive && !state.gizmoDrag && !state.draggingItem && !had; const x0=had?Math.min(state.boxStart.sx,state.boxCurrent.sx):0, x1=had?Math.max(state.boxStart.sx,state.boxCurrent.sx):0, y0=had?Math.min(state.boxStart.sy,state.boxCurrent.sy):0, y1=had?Math.max(state.boxStart.sy,state.boxCurrent.sy):0, add=state.boxSelectAdditive; state.draggingItem=false; state.boxSelecting=false; state.boxSelectAdditive=false; state.boxStart=null; state.boxCurrent=null; state.lastMouse=null; state.dragAnchor=null; state.cameraLookActive=false; state.cameraLookPending=false; state.cameraLookStart=null; state.cameraLookButton=0; if(document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock(); if(shouldFinalizeClick){ const pickedId=state.pendingLeftClick.pickedId; selectById(pickedId != null ? pickedId : null); } state.pendingLeftClick=null; if(had){ const worldA=screenToWorld(x0,y0,0); const worldB=screenToWorld(x1,y1,0); const minX=Math.min(worldA.x,worldB.x), maxX=Math.max(worldA.x,worldB.x), minY=Math.min(worldA.y,worldB.y), maxY=Math.max(worldA.y,worldB.y); const candidates=getSpatialCandidatesByWorldRect(minX,minY,maxX,maxY); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); const ids=[]; for(const it of candidates){ if(!filteredSet.has(it.id)||!isItemVisibilityFilterMatch(it)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(p.visible&&p.sx>=x0&&p.sx<=x1&&p.sy>=y0&&p.sy<=y1) ids.push(it.id); } if(!add) state.multiSelectedIds.clear(); for(const id of ids) state.multiSelectedIds.add(id); state.selectedId=state.multiSelectedIds.size?Array.from(state.multiSelectedIds).at(-1):null; renderList(); refreshLiveMisWindow(false, { force: true }); } }
   cv.addEventListener('mouseup',stopDrag); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; stopDrag(); });
-  cv.addEventListener('wheel',(e)=>{ e.preventDefault(); const dir=e.deltaY<0?1:-1; renderUiState.speedLevel=Math.max(1,Math.min(8,renderUiState.speedLevel+dir)); renderMenuBar(); requestRender(); },{passive:false});
+  cv.addEventListener('wheel',(e)=>{ e.preventDefault(); if(topViewLocked){ topViewScale=Math.max(1,Math.min(1000000,topViewScale*Math.exp(e.deltaY*0.001))); } else { const dir=e.deltaY<0?1:-1; renderUiState.speedLevel=Math.max(1,Math.min(8,renderUiState.speedLevel+dir)); renderMenuBar(); } requestRender(); },{passive:false});
 
   document.addEventListener("pointerlockchange", () => {
     if (document.pointerLockElement===cv) return;
