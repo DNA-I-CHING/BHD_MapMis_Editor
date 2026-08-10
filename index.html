@@ -7486,6 +7486,7 @@
     }
     scheduleResizeCanvas();
     requestRender();
+    renderMenuBar();
   }
 
   sidebarCloseBtn?.addEventListener("click",()=>setSidebarOpen(false));
@@ -8144,6 +8145,7 @@
     "edit.globalReplace": runGlobalReplace,
     "edit.weaponLoadouts": () => openSectionEditor("weapon_availability"),
     "view.sceneInfo": toggleSceneInfo,
+    "view.sidebar": () => setSidebarOpen(appLayoutEl?.classList.contains("sidebarClosed")),
     "view.groundClamp": () => toggleViewOption("groundClamp"),
     "view.mainArea": () => toggleViewOption("mainArea"),
     "view.showSectors": () => toggleViewOption("showSectors"),
@@ -8202,6 +8204,7 @@
         label: "View",
         children: [
           { label: "Scene Info", shortcut: "I", command: "view.sceneInfo" },
+          { label: "Sidebar", shortcut: "C", command: "view.sidebar", checked: !appLayoutEl?.classList.contains("sidebarClosed") },
           {
             label: "Camera",
             children: [
