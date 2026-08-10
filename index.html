@@ -5554,20 +5554,14 @@
     if(Number.isFinite(ssn)&&ssn>0)parts.push(`SSN ${ssn}`);
     return parts.join(" / ")||`Item ${it.id}`;
   }
-  function confirmEventDeletion(sec,affected){
+  function showEventDeleteConfirmation({title,message,target,references='',restoreFocus=null}){
     const overlay=document.getElementById('eventDeleteOverlay'),dialog=document.getElementById('eventDeleteDialog');
     const yes=document.getElementById('eventDeleteYes'),no=document.getElementById('eventDeleteNo'),close=document.getElementById('eventDeleteClose');
     const previousFocus=document.activeElement;
-    document.getElementById('eventDeleteTitle').textContent=resolveStringKey('DELETE_EVENT')||'Delete Event';
-    document.getElementById('eventDeleteMessage').textContent=resolveStringKey('DELETE_EVENT_?')||'Do you wish to delete this event?';
-    const number=getEventNumber(sec),name=getEventName(sec)||`Event ${number}`;
-    document.getElementById('eventDeleteTarget').textContent=`(${number}) ${name}`;
-    const references=document.getElementById('eventDeleteReferences');
-    if(affected.length){
-      const shown=affected.slice(0,8).map(describeEventAdvancementReference).join("\n");
-      const extra=affected.length>8?`\n... and ${affected.length-8} more.`:"";
-      references.textContent=`${affected.length} waypoint advancement trigger reference(s) will be removed:\n${shown}${extra}`;
-    }else references.textContent='';
+    document.getElementById('eventDeleteTitle').textContent=title;
+    document.getElementById('eventDeleteMessage').textContent=message;
+    document.getElementById('eventDeleteTarget').textContent=target;
+    document.getElementById('eventDeleteReferences').textContent=references;
     overlay.classList.add('open');
     overlay.setAttribute('aria-hidden','false');
     no.focus();
@@ -5580,7 +5574,7 @@
         close.removeEventListener('click',cancel);
         overlay.removeEventListener('mousedown',backdrop);
         dialog.removeEventListener('keydown',keydown);
-        (document.getElementById('eventDeleteBtn')||previousFocus)?.focus();
+        (restoreFocus||previousFocus)?.focus();
         resolve(result);
       };
       const accept=()=>finish(true),cancel=()=>finish(false);
@@ -5598,6 +5592,32 @@
       close.addEventListener('click',cancel);
       overlay.addEventListener('mousedown',backdrop);
       dialog.addEventListener('keydown',keydown);
+    });
+  }
+  function confirmEventDeletion(sec,affected){
+    const number=getEventNumber(sec),name=getEventName(sec)||`Event ${number}`;
+    let references='';
+    if(affected.length){
+      const shown=affected.slice(0,8).map(describeEventAdvancementReference).join("\n");
+      const extra=affected.length>8?`\n... and ${affected.length-8} more.`:"";
+      references=`${affected.length} waypoint advancement trigger reference(s) will be removed:\n${shown}${extra}`;
+    }
+    return showEventDeleteConfirmation({
+      title:resolveStringKey('DELETE_EVENT')||'Delete Event',
+      message:resolveStringKey('DELETE_EVENT_?')||'Do you wish to delete this event?',
+      target:`(${number}) ${name}`,
+      references,
+      restoreFocus:document.getElementById('eventDeleteBtn')
+    });
+  }
+  function confirmEventRowDeletion(kind,row,index){
+    const isTrigger=kind==='trigger';
+    return showEventDeleteConfirmation({
+      title:resolveStringKey(isTrigger?'EVENT_TRIGGER':'EVENT_ACTION')||(isTrigger?'Event Trigger':'Event Action'),
+      message:resolveStringKey(isTrigger?'DELETE_TRIGGER_?':'DELETE_ACTION_?')||`Do you wish to delete this ${kind}?`,
+      target:`(${index}) ${isTrigger?triggerDescription(row):actionDescription(row)}`,
+      references:`Raw: ${row.join(' ')}`,
+      restoreFocus:document.getElementById(isTrigger?'eventTriggerDelete':'eventActionDelete')
     });
   }
   async function deleteEvent(){
@@ -5754,7 +5774,7 @@
   }
   function closeEventRowEditor(){const overlay=document.getElementById('eventRowOverlay');overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');eventUi.editKind=null;eventUi.editIndex=-1;}
   function applyEventRow(){const sec=selectedEvent(),kind=eventUi.editKind;if(!sec||!kind)return;const d=parseEventData(sec),rows=d[kind+'s'],row=readEventRowFields();if(eventUi.editIndex<0)rows.push(row);else rows[eventUi.editIndex]=row;writeEventData(sec,d);if(kind==='trigger')eventUi.selectedTrigger=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);else eventUi.selectedAction=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);closeEventRowEditor();renderEventEditor();scheduleLiveMisRefresh();}
-  function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){const insertAt=i>=0&&i<rows.length?i:rows.length;rows.splice(insertAt,0,structuredClone(eventUi[clip]));eventUi[key]=insertAt;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
+  async function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){if(!await confirmEventRowDeletion(kind,rows[i],i))return;rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){const insertAt=i>=0&&i<rows.length?i:rows.length;rows.splice(insertAt,0,structuredClone(eventUi[clip]));eventUi[key]=insertAt;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
   function eventReportHeader(){
     const now=new Date(),gi=state.sectionBlocks.find(sec=>sec.kind==='general_information');
     const mission=String(gi?.kv?.name||state.filename||'Untitled Mission').replace(/^"|"$/g,'');
