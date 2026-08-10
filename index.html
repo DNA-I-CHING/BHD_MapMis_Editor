@@ -5635,10 +5635,10 @@
     scheduleLiveMisRefresh();
   }
   function pasteEvent(){if(!eventUi.eventClipboard)return;const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0||ev.length>=256)return;const insertedNumber=getEventNumber(ev[i]);const last=ev.at(-1),id=state.sectionBlocks.reduce((m,x)=>Math.max(m,x.id),0)+1,n=getEventNumber(last)+1,sec={...structuredClone(last),id,start:Number.MAX_SAFE_INTEGER-id,end:Number.MAX_SAFE_INTEGER-id,label:String(n),beginLine:`begin event ${n}`};state.sectionBlocks.push(sec);const all=getSortedEvents();for(let j=all.length-1;j>i;j--)setEventPayload(all[j],copyEventPayload(all[j-1]));setEventPayload(all[i],eventUi.eventClipboard);updateEventReferences('insert',insertedNumber);state.sectionSelectedId=all[i].id;markItemsChanged({structure:true});renderEventEditor();scheduleLiveMisRefresh();}
-  function eventSelect(field, value, choices, label){
+  function eventSelect(field, value, choices, label, disabled=false){
     const options=Object.entries(choices).map(([id,text])=>`<option value="${id}" ${Number(id)===value?'selected':''}>${escapeHtml(`${id} - ${text}`)}</option>`);
     if(!Object.prototype.hasOwnProperty.call(choices,String(value))) options.push(`<option value="${value}" selected>${escapeHtml(`${value} - Unknown (preserved)`)}</option>`);
-    return `<label>${escapeHtml(label)}<select data-field="${field}">${options.join('')}</select></label>`;
+    return `<label>${escapeHtml(label)}<select data-field="${field}"${disabled?' disabled':''}>${options.join('')}</select></label>`;
   }
   function eventGroupSelect(field,value,label){
     const groups=getSectionsByKind("group")
@@ -5720,7 +5720,9 @@
       const logic=(values[0]&4)?4:(values[0]&2)?2:0;
       html.push(`<input type="hidden" data-field="0" value="${values[0]}">`);
       html.push(eventSelect(1,type,Object.fromEntries(EVENT_TRIGGER_TYPES.map((x,i)=>[i,x])),resolveStringKey("TRIGGER_TYPE")||labels[1]));
-      html.push(eventSelect(2,condition,EVENT_CONDITIONS[type]||{0:'Null'},resolveStringKey("TRIGGER_CONDITION")||labels[2]));
+      const conditionChoices=EVENT_CONDITIONS[type]||{0:'Null'};
+      const hasSelectableCondition=Object.keys(conditionChoices).some(id=>Number(id)!==0);
+      html.push(eventSelect(2,condition,conditionChoices,resolveStringKey("TRIGGER_CONDITION")||labels[2],!hasSelectableCondition));
       html.push(`<div class="eventTriggerIf"><span>${escapeHtml(resolveStringKey("TRIGGER_IF")||"Trigger if:")}</span><div class="eventTriggerRadios">${eventRadioGroup("eventTriggerTruth",values[0]&1,{0:resolveStringKey("TRUE")||"True",1:resolveStringKey("FALSE")||"False"})}</div></div>`);
       const variableFields=[];
       for(let i=3;i<=6;i++) variableFields.push(vars[i-3]
