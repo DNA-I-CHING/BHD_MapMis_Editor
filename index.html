@@ -1250,7 +1250,8 @@
     .eventNestedRow.active{ background:#2b3d8f; color:#fff; }
     .eventNewRow{ color:var(--text-subtle); font-style:italic; }
     .eventFlags{ display:flex; gap:6px; align-items:center; margin-top:4px; }
-    #eventRowOverlay{
+    #eventRowOverlay,
+    #eventDeleteOverlay{
       position:absolute;
       inset:0;
       background:var(--overlay);
@@ -1260,7 +1261,8 @@
       z-index:66;
       padding:18px;
     }
-    #eventRowOverlay.open{ display:flex; }
+    #eventRowOverlay.open,
+    #eventDeleteOverlay.open{ display:flex; }
     .eventRowEditor{
       width:min(520px,100%);
       background:var(--panel-muted);
@@ -1286,6 +1288,19 @@
     .eventActionFieldset{ margin:0; padding:8px; display:grid; gap:8px; }
     .eventActionFieldset legend{ color:var(--text); padding:0 4px; }
     .eventEditorActions{ display:flex; justify-content:flex-end; gap:8px; margin-top:7px; }
+    .eventDeleteDialog{
+      width:min(460px,100%);
+      background:var(--panel-muted);
+      border:1px solid var(--line-heavy);
+      padding:10px;
+      box-shadow:var(--shadow-md);
+      box-sizing:border-box;
+    }
+    .eventDeleteDialog .windowTitle{ margin-bottom:12px; }
+    .eventDeleteMessage{ margin:0 0 10px; }
+    .eventDeleteTarget{ margin:0 0 10px; padding:8px; border:1px solid var(--line); background:var(--surface-soft); font-weight:600; }
+    .eventDeleteReferences{ margin:0 0 10px; padding:8px; border:1px solid var(--line); color:var(--text-subtle); white-space:pre-wrap; max-height:150px; overflow:auto; }
+    .eventDeleteReferences:empty{ display:none; }
     #layerEditor{ display:none; gap:8px; align-content:start; }
     #sectionWindow[data-section-mode="layer"] #layerEditor{ display:grid; }
     .layerField{ display:grid; grid-template-columns:72px 1fr; gap:8px; align-items:center; }
@@ -1676,6 +1691,16 @@
           <div class="windowTitle"><span id="eventRowEditorTitle">Edit Trigger</span><span class="spacer"></span><button class="xbtn" id="eventRowClose" type="button" aria-label="Close">X</button></div>
           <div class="eventRawGrid" id="eventRawGrid"></div>
           <div class="eventEditorActions"><button id="eventRowCancel" type="button">Cancel</button><button id="eventRowApply" type="button">OK</button></div>
+        </div>
+      </div>
+
+      <div id="eventDeleteOverlay" aria-hidden="true">
+        <div class="eventDeleteDialog" id="eventDeleteDialog" role="dialog" aria-modal="true" aria-labelledby="eventDeleteTitle" aria-describedby="eventDeleteMessage eventDeleteTarget">
+          <div class="windowTitle"><span id="eventDeleteTitle">Delete Event</span><span class="spacer"></span><button class="xbtn" id="eventDeleteClose" type="button" aria-label="Close">X</button></div>
+          <p class="eventDeleteMessage" id="eventDeleteMessage">Do you wish to delete this event?</p>
+          <p class="eventDeleteTarget" id="eventDeleteTarget"></p>
+          <div class="eventDeleteReferences" id="eventDeleteReferences"></div>
+          <div class="eventEditorActions"><button id="eventDeleteNo" type="button">No</button><button id="eventDeleteYes" type="button">Yes</button></div>
         </div>
       </div>
 
@@ -5516,7 +5541,99 @@
     }
     for(const it of state.items){const key=Object.keys(it.kv||{}).find(k=>/^(wp_adv_trigger|adv_event)$/i.test(k));if(!key)continue;let v=Math.trunc(Number(it.kv[key])),nv=v;if(mode==='insert'&&v>=a)nv=v+1;else if(mode==='delete'&&v===a)nv=-1;else if(mode==='delete'&&v>a)nv=v-1;else if(mode==='swap'&&v===a)nv=b;else if(mode==='swap'&&v===b)nv=a;if(nv!==v){it.kv[key]=String(nv);it.lines=(it.lines||[]).map(raw=>new RegExp(`^\\s*${key}\\b`,'i').test(raw)?`  ${key} ${nv}`:raw);}}
   }
-  function deleteEvent(){let ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0)return;const num=getEventNumber(ev[i]);updateEventReferences('delete',num);for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));const last=ev.at(-1);state.sectionBlocks=state.sectionBlocks.filter(s=>s.id!==last.id);if(!state.sectionBlocks.some(s=>s.kind==='event'))createEvent();else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}markItemsChanged({structure:true});scheduleLiveMisRefresh();}
+  function getEventAdvancementReferences(eventNumber){
+    return state.items.filter(it=>{
+      const key=Object.keys(it.kv||{}).find(k=>/^(wp_adv_trigger|adv_event)$/i.test(k));
+      return key&&Math.trunc(Number(it.kv[key]))===eventNumber;
+    });
+  }
+  function describeEventAdvancementReference(it){
+    const waypoint=getItemWaypointNumber(it), ssn=Math.trunc(Number(readKvValue(it,"id","ssn","social_security_number")));
+    const parts=[];
+    if(Number.isFinite(waypoint)&&waypoint>0)parts.push(`Waypoint ${waypoint}`);
+    if(Number.isFinite(ssn)&&ssn>0)parts.push(`SSN ${ssn}`);
+    return parts.join(" / ")||`Item ${it.id}`;
+  }
+  function showEventDeleteConfirmation({title,message,target,references='',restoreFocus=null}){
+    const overlay=document.getElementById('eventDeleteOverlay'),dialog=document.getElementById('eventDeleteDialog');
+    const yes=document.getElementById('eventDeleteYes'),no=document.getElementById('eventDeleteNo'),close=document.getElementById('eventDeleteClose');
+    const previousFocus=document.activeElement;
+    document.getElementById('eventDeleteTitle').textContent=title;
+    document.getElementById('eventDeleteMessage').textContent=message;
+    document.getElementById('eventDeleteTarget').textContent=target;
+    document.getElementById('eventDeleteReferences').textContent=references;
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden','false');
+    no.focus();
+    return new Promise(resolve=>{
+      const finish=result=>{
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden','true');
+        yes.removeEventListener('click',accept);
+        no.removeEventListener('click',cancel);
+        close.removeEventListener('click',cancel);
+        overlay.removeEventListener('mousedown',backdrop);
+        dialog.removeEventListener('keydown',keydown);
+        (restoreFocus||previousFocus)?.focus();
+        resolve(result);
+      };
+      const accept=()=>finish(true),cancel=()=>finish(false);
+      const backdrop=event=>{if(event.target===overlay)cancel();};
+      const keydown=event=>{
+        if(event.key==='Escape'){event.preventDefault();cancel();return;}
+        if(event.key!=='Tab')return;
+        const controls=[...dialog.querySelectorAll('button:not(:disabled)')];
+        const first=controls[0],last=controls.at(-1);
+        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+      };
+      yes.addEventListener('click',accept);
+      no.addEventListener('click',cancel);
+      close.addEventListener('click',cancel);
+      overlay.addEventListener('mousedown',backdrop);
+      dialog.addEventListener('keydown',keydown);
+    });
+  }
+  function confirmEventDeletion(sec,affected){
+    const number=getEventNumber(sec),name=getEventName(sec)||`Event ${number}`;
+    let references='';
+    if(affected.length){
+      const shown=affected.slice(0,8).map(describeEventAdvancementReference).join("\n");
+      const extra=affected.length>8?`\n... and ${affected.length-8} more.`:"";
+      references=`${affected.length} waypoint advancement trigger reference(s) will be removed:\n${shown}${extra}`;
+    }
+    return showEventDeleteConfirmation({
+      title:resolveStringKey('DELETE_EVENT')||'Delete Event',
+      message:resolveStringKey('DELETE_EVENT_?')||'Do you wish to delete this event?',
+      target:`(${number}) ${name}`,
+      references,
+      restoreFocus:document.getElementById('eventDeleteBtn')
+    });
+  }
+  function confirmEventRowDeletion(kind,row,index){
+    const isTrigger=kind==='trigger';
+    return showEventDeleteConfirmation({
+      title:resolveStringKey(isTrigger?'EVENT_TRIGGER':'EVENT_ACTION')||(isTrigger?'Event Trigger':'Event Action'),
+      message:resolveStringKey(isTrigger?'DELETE_TRIGGER_?':'DELETE_ACTION_?')||`Do you wish to delete this ${kind}?`,
+      target:`(${index}) ${isTrigger?triggerDescription(row):actionDescription(row)}`,
+      references:`Raw: ${row.join(' ')}`,
+      restoreFocus:document.getElementById(isTrigger?'eventTriggerDelete':'eventActionDelete')
+    });
+  }
+  async function deleteEvent(){
+    const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);
+    if(i<0)return;
+    const num=getEventNumber(ev[i]),affected=getEventAdvancementReferences(num);
+    if(!await confirmEventDeletion(ev[i],affected))return;
+    updateEventReferences('delete',num);
+    for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));
+    const last=ev.at(-1);
+    state.sectionBlocks=state.sectionBlocks.filter(s=>s.id!==last.id);
+    if(!state.sectionBlocks.some(s=>s.kind==='event'))createEvent();
+    else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}
+    markItemsChanged({structure:true});
+    scheduleLiveMisRefresh();
+  }
   function pasteEvent(){if(!eventUi.eventClipboard)return;const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0||ev.length>=256)return;const insertedNumber=getEventNumber(ev[i]);const last=ev.at(-1),id=state.sectionBlocks.reduce((m,x)=>Math.max(m,x.id),0)+1,n=getEventNumber(last)+1,sec={...structuredClone(last),id,start:Number.MAX_SAFE_INTEGER-id,end:Number.MAX_SAFE_INTEGER-id,label:String(n),beginLine:`begin event ${n}`};state.sectionBlocks.push(sec);const all=getSortedEvents();for(let j=all.length-1;j>i;j--)setEventPayload(all[j],copyEventPayload(all[j-1]));setEventPayload(all[i],eventUi.eventClipboard);updateEventReferences('insert',insertedNumber);state.sectionSelectedId=all[i].id;markItemsChanged({structure:true});renderEventEditor();scheduleLiveMisRefresh();}
   function eventSelect(field, value, choices, label){
     const options=Object.entries(choices).map(([id,text])=>`<option value="${id}" ${Number(id)===value?'selected':''}>${escapeHtml(`${id} - ${text}`)}</option>`);
@@ -5657,8 +5774,24 @@
   }
   function closeEventRowEditor(){const overlay=document.getElementById('eventRowOverlay');overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');eventUi.editKind=null;eventUi.editIndex=-1;}
   function applyEventRow(){const sec=selectedEvent(),kind=eventUi.editKind;if(!sec||!kind)return;const d=parseEventData(sec),rows=d[kind+'s'],row=readEventRowFields();if(eventUi.editIndex<0)rows.push(row);else rows[eventUi.editIndex]=row;writeEventData(sec,d);if(kind==='trigger')eventUi.selectedTrigger=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);else eventUi.selectedAction=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);closeEventRowEditor();renderEventEditor();scheduleLiveMisRefresh();}
-  function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){rows.push(structuredClone(eventUi[clip]));eventUi[key]=rows.length-1;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
-  function printEvents(all){const secs=all?getSortedEvents():[selectedEvent()].filter(Boolean),text=secs.map(sec=>[sec.beginLine,...sec.lines,'end event'].join('\n')).join('\n\n');const w=window.open('','_blank');if(w){w.document.write(`<pre>${escapeHtml(text)}</pre>`);w.document.close();w.print();}}
+  async function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){if(!await confirmEventRowDeletion(kind,rows[i],i))return;rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){const insertAt=i>=0&&i<rows.length?i:rows.length;rows.splice(insertAt,0,structuredClone(eventUi[clip]));eventUi[key]=insertAt;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
+  function eventReportHeader(){
+    const now=new Date(),gi=state.sectionBlocks.find(sec=>sec.kind==='general_information');
+    const mission=String(gi?.kv?.name||state.filename||'Untitled Mission').replace(/^"|"$/g,'');
+    return medFormat('EVENT_LIST_HEADER',[mission,now.getMonth()+1,now.getDate(),now.getFullYear(),now.getHours(),String(now.getMinutes()).padStart(2,'0')],`// Event List for ${mission}, saved on ${now.toLocaleString()}`);
+  }
+  function eventReport(sec){
+    const number=getEventNumber(sec),name=getEventName(sec)||`Event ${number}`,attrib=Math.trunc(Number(sec.kv?.attrib))||0;
+    const reset=Math.trunc(Number(sec.kv?.reset_value))||0,delay=Math.trunc(Number(sec.kv?.delay_value))||0,data=parseEventData(sec);
+    const lines=[`Event ${number}: ${name}`,`  Attributes: ${attrib}  Reset: ${reset} seconds  Delay: ${delay} seconds`,'  IF (Triggers):'];
+    if(!data.triggers.length)lines.push('    (none)');
+    data.triggers.forEach((row,index)=>lines.push(`    (${index}) ${triggerDescription(row)}`,`        Raw: ${row.join(' ')}`));
+    lines.push('  THEN (Actions):');
+    if(!data.actions.length)lines.push('    (none)');
+    data.actions.forEach((row,index)=>lines.push(`    (${index}) ${actionDescription(row)}`,`        Raw: ${row.join(' ')}`));
+    return lines.join('\n');
+  }
+  function printEvents(all){const secs=all?getSortedEvents():[selectedEvent()].filter(Boolean),text=[eventReportHeader(),'',...secs.flatMap((sec,index)=>index?["",eventReport(sec)]:[eventReport(sec)])].join('\n');const w=window.open('','_blank');if(w){w.document.write(`<title>Event List</title><pre>${escapeHtml(text)}</pre>`);w.document.close();w.print();}}
 
 
   function getSectionWindowTitle(kind){
