@@ -10251,7 +10251,15 @@
     if (!state.glb.raycaster) state.glb.raycaster = new state.glb.THREE.Raycaster();
     if (!state.glb.pointerNdc) state.glb.pointerNdc = new state.glb.THREE.Vector2();
     state.glb.pointerNdc.set(nx, ny);
-    state.glb.raycaster.setFromCamera(state.glb.pointerNdc, state.glb.camera);
+    if (topViewLocked){
+      // The render camera is a PerspectiveCamera with an orthographic matrix
+      // while Top View is active, so Three.js cannot infer the correct ray type.
+      const ray = screenRay(sx, sy);
+      state.glb.raycaster.set(
+        new state.glb.THREE.Vector3(ray.origin.x, ray.origin.y, ray.origin.z),
+        new state.glb.THREE.Vector3(ray.dir.x, ray.dir.y, ray.dir.z),
+      );
+    } else state.glb.raycaster.setFromCamera(state.glb.pointerNdc, state.glb.camera);
     const hits = state.glb.raycaster.intersectObjects(Array.from(state.glb.itemInstances.values()), true);
     for (const hit of hits){
       const itemId = getItemIdFromObject3D(hit.object);
