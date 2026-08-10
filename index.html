@@ -5949,6 +5949,15 @@
     sectionOverlay.classList.remove("open");
   }
 
+  function toggleEventsWindow(){
+    if(state.sectionEditorOpen&&state.sectionKind==='event'){
+      closeSectionEditor();
+      return;
+    }
+    if(document.pointerLockElement&&document.exitPointerLock) document.exitPointerLock();
+    openSectionEditor('event');
+  }
+
   function renderLiveMisHighlighted(){
     const raw = state.liveMisRawText || "";
     const term = (state.liveMisSearchTerm || "").toLowerCase();
@@ -7109,6 +7118,12 @@
     // Open windows own their clipboard and editing shortcuts. Let the browser
     // handle them instead of applying the command to the editor behind them.
     const hasOpenWindow = !!document.querySelector('[id$="Overlay"].open');
+    const hasBlockingWindow = Array.from(document.querySelectorAll('[id$="Overlay"].open')).some(overlay=>overlay!==sectionOverlay);
+    if (!hasBlockingWindow && !hasTypingFocus() && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !e.repeat && e.key.toLowerCase() === "v"){
+      e.preventDefault();
+      toggleEventsWindow();
+      return;
+    }
     if (!hasOpenWindow && !hasSelectedDocumentText() && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && !hasTypingFocus() && e.key.toLowerCase() === "c"){
       e.preventDefault();
       copySelectedItem();
@@ -8098,7 +8113,7 @@
           { label: "Groups", command: "edit.groups" },
           { label: "Area Triggers", command: "edit.areaTriggers" },
           { label: "Waypoints", command: "edit.waypoints" },
-          { label: "Events", command: "edit.events" },
+          { label: "Events", shortcut: "V", command: "edit.events" },
           { label: "Layer Names", command: "edit.layerNames" },
           { label: "Global Replace", command: "edit.globalReplace" },
           { label: "Weapon Loadouts", command: "edit.weaponLoadouts" }
