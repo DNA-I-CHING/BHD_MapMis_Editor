@@ -8511,8 +8511,8 @@
   const MAX_SECTOR_RECTS_PER_FRAME=900;
   // Keep grounded trigger-volume faces out of the terrain depth plane without
   // changing either the MIS marker coordinates or the terrain itself.
-  const AREA_TRIGGER_TERRAIN_OFFSET=0.01;
-  const AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE=0.005;
+  const AREA_TRIGGER_TERRAIN_OFFSET=0.05;
+  const AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE=0.01;
   let topViewLocked=false;
   let topViewRestore={yaw:Math.PI,pitch:-0.25};
   let gridExponent=9;
@@ -9712,19 +9712,22 @@
   function getAreaTriggerTerrainOffset(min, max){
     if (!lastDepth || !sectors) return 0;
 
-    // Check the whole base rather than only its markers. This limits the
-    // correction to flat bases that are actually coplanar with the terrain.
-    const sampleFactors = [0, 0.5, 1];
+    // A base does not need to match the terrain everywhere to flicker: one
+    // coplanar patch is enough. Sample across the footprint and lower the
+    // visual volume as soon as terrain contact is found.
+    const sampleFactors = [0, 0.25, 0.5, 0.75, 1];
     for (const fx of sampleFactors){
       for (const fy of sampleFactors){
         const x = min.x + (max.x - min.x) * fx;
         const y = min.y + (max.y - min.y) * fy;
         const terrainZ = heightAtWorld(x, y, 1.0);
-        if (!Number.isFinite(terrainZ) || terrainZ <= -1e8) return 0;
-        if (Math.abs(terrainZ - min.z) > AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE) return 0;
+        if (!Number.isFinite(terrainZ) || terrainZ <= -1e8) continue;
+        if (Math.abs(terrainZ - min.z) <= AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE){
+          return -AREA_TRIGGER_TERRAIN_OFFSET;
+        }
       }
     }
-    return -AREA_TRIGGER_TERRAIN_OFFSET;
+    return 0;
   }
 
   function updateAreaTriggerVolumes(){
