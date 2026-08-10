@@ -2079,6 +2079,7 @@
     sectionEditorOpen: false,
     sectionKind: "general_information",
     sectionSelectedId: null,
+    eventSelectedId: null,
     groupSelectedNumber: 1,
     waypointSelectedNumber: 1,
     liveMisOpen: false,
@@ -5514,8 +5515,9 @@
 
   function selectedEvent(){ return getSortedEvents().find(s=>s.id===state.sectionSelectedId) || null; }
   function ensureValidSelectedEvent(events){
-    if (!events.length){ state.sectionSelectedId=null; return; }
+    if (!events.length){ state.sectionSelectedId=null; state.eventSelectedId=null; return; }
     if (!events.some(sec=>sec.id===state.sectionSelectedId)) state.sectionSelectedId=events[0].id;
+    state.eventSelectedId=state.sectionSelectedId;
   }
   function medFormat(key,args=[],fallback=""){
     const template=resolveStringKey(key)||fallback||key;
@@ -5668,6 +5670,11 @@
     const data=parseEventData(sec); if(eventUi.selectedTrigger>=data.triggers.length) eventUi.selectedTrigger=-1; if(eventUi.selectedAction>=data.actions.length) eventUi.selectedAction=-1; renderEventRows('trigger',data.triggers); renderEventRows('action',data.actions);
     document.getElementById('eventPasteBtn').disabled=!eventUi.eventClipboard||events.length>=256; document.getElementById('eventTriggerPaste').disabled=!eventUi.triggerClipboard||data.triggers.length>=20; document.getElementById('eventActionPaste').disabled=!eventUi.actionClipboard||data.actions.length>=20;
     buildAdvancementEventOptions(ui?.advEvent?.value||"");
+    requestAnimationFrame(()=>{
+      eventListBox.querySelector('.eventListItem.active')?.scrollIntoView({block:'nearest'});
+      document.querySelector('#eventTriggerList .eventNestedRow.active')?.scrollIntoView({block:'nearest'});
+      document.querySelector('#eventActionList .eventNestedRow.active')?.scrollIntoView({block:'nearest'});
+    });
   }
   function saveEventFields(){
     const sec=selectedEvent(); if(!sec)return; let attr=Math.trunc(Number(sec.kv?.attrib))||0; attr=(attr&~7)|(document.getElementById('eventResetEnabled').checked?1:0)|(document.getElementById('eventPreMission').checked?2:0)|(document.getElementById('eventPostMission').checked?4:0);
@@ -5976,7 +5983,7 @@
   function openSectionEditor(kind){
     state.sectionEditorOpen = true;
     state.sectionKind = kind;
-    state.sectionSelectedId = null;
+    state.sectionSelectedId = kind === "event" ? state.eventSelectedId : null;
     sectionKindSelect.value = kind;
     sectionAddBtn.textContent = kind === "group" ? "Ok" : "Add block";
 
@@ -6368,6 +6375,7 @@
 
     if (state.sectionKind === "event"){
       state.sectionSelectedId = Number(id) || null;
+      state.eventSelectedId = state.sectionSelectedId;
       renderEventEditor();
       return;
     }
@@ -7901,10 +7909,10 @@
   liveMisSearch.addEventListener("input", () => findInLiveMis(false, false));
   liveMisSearch.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); findInLiveMis(true, true); } });
   findItemBlockInMisBtn.addEventListener("click", () => openLiveMisAtItemBlock(getSelected()));
-  sectionKindSelect.addEventListener("change", () => { state.sectionKind = sectionKindSelect.value; state.sectionSelectedId = null; sectionAddBtn.textContent = state.sectionKind === "group" ? "Ok" : "Add block"; updateSectionEditorMode(); renderSectionList(); });
+  sectionKindSelect.addEventListener("change", () => { state.sectionKind = sectionKindSelect.value; state.sectionSelectedId = state.sectionKind === "event" ? state.eventSelectedId : null; sectionAddBtn.textContent = state.sectionKind === "group" ? "Ok" : "Add block"; updateSectionEditorMode(); renderSectionList(); });
   sectionQuickNav?.addEventListener("change", () => {
     state.sectionKind = sectionQuickNav.value;
-    state.sectionSelectedId = null;
+    state.sectionSelectedId = state.sectionKind === "event" ? state.eventSelectedId : null;
     sectionKindSelect.value = state.sectionKind;
     sectionAddBtn.textContent = state.sectionKind === "group" ? "Ok" : "Add block";
     updateSectionEditorMode();
@@ -8479,6 +8487,10 @@
     const parsed = parseMIS(text);
     state.items = parsed.items;
     state.sectionBlocks = parsed.sectionBlocks;
+    state.sectionSelectedId = null;
+    state.eventSelectedId = null;
+    eventUi.selectedTrigger = -1;
+    eventUi.selectedAction = -1;
     resetUndoHistory(text);
     markItemsChanged({ structure: true });
     state.selectedId = null;
