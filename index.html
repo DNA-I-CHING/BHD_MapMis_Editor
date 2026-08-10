@@ -7517,8 +7517,36 @@
   // half of the previous reference distance, while other focus flows stay unchanged.
   const MAP_REFERENCE_FOCUS_DISTANCE_SCALE=0.25;
 
+  function focusTopViewOnItems(items){
+    const positioned=(items||[]).filter(it=>kvHas(it,'position'));
+    if(!positioned.length)return false;
+    let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+    for(const it of positioned){
+      const instance=state.glb.itemInstances.get(it.id);
+      if(instance&&state.glb.THREE){
+        instance.updateMatrixWorld(true);
+        const box=new state.glb.THREE.Box3().setFromObject(instance);
+        if(!box.isEmpty()&&Number.isFinite(box.min.x)){
+          minX=Math.min(minX,box.min.x);maxX=Math.max(maxX,box.max.x);
+          minY=Math.min(minY,box.min.y);maxY=Math.max(maxY,box.max.y);
+          continue;
+        }
+      }
+      const x=rawToWorld(it.x,'x'),y=rawToWorld(it.y,'y');
+      minX=Math.min(minX,x);maxX=Math.max(maxX,x);minY=Math.min(minY,y);maxY=Math.max(maxY,y);
+    }
+    if(!Number.isFinite(minX))return false;
+    cam.pos.x=(minX+maxX)*.5;cam.pos.y=(minY+maxY)*.5;cam.yaw=0;cam.pitch=-Math.PI/2;
+    const aspect=Math.max(.01,getViewportMetrics().aspect),halfWidth=(maxX-minX)*.5,halfHeight=(maxY-minY)*.5;
+    topViewScale=Math.max(16,halfHeight*1.2,halfWidth*1.2/aspect);
+    state.camera.x=cam.pos.x;state.camera.y=cam.pos.y;state.camera.yaw=cam.yaw;state.camera.pitch=cam.pitch;
+    camVel=vec3(0,0,0);requestRender();
+    return true;
+  }
+
   function focusCameraNearItem(it,options={}){
     if (!it) return;
+    if(topViewLocked){focusTopViewOnItems([it]);return;}
     const x = rawToWorld(it.x, 'x');
     const y = rawToWorld(it.y, 'y');
     const z = getItemWorldZ(it);
@@ -7542,6 +7570,7 @@
   function focusCameraNearItems(items,options={}){
     const positioned=(items||[]).filter(it=>kvHas(it,'position'));
     if(!positioned.length) return;
+    if(topViewLocked){focusTopViewOnItems(positioned);return;}
     if(positioned.length===1){ focusCameraNearItem(positioned[0],options); return; }
     const points=positioned.map(it=>({x:rawToWorld(it.x,'x'),y:rawToWorld(it.y,'y'),z:getItemWorldZ(it)}));
     const minX=Math.min(...points.map(point=>point.x)),maxX=Math.max(...points.map(point=>point.x));
