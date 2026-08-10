@@ -8509,6 +8509,10 @@
   const OVERLAY_RADIUS_FACTOR=0.6;
   const MAX_WATER_TILES_PER_FRAME=1200;
   const MAX_SECTOR_RECTS_PER_FRAME=900;
+  // Keep grounded trigger-volume faces out of the terrain depth plane without
+  // changing either the MIS marker coordinates or the terrain itself.
+  const AREA_TRIGGER_TERRAIN_OFFSET=0.01;
+  const AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE=0.005;
   let topViewLocked=false;
   let topViewRestore={yaw:Math.PI,pitch:-0.25};
   let gridExponent=9;
@@ -9705,6 +9709,24 @@
     }
   }
 
+  function getAreaTriggerTerrainOffset(min, max){
+    if (!lastDepth || !sectors) return 0;
+
+    // Check the whole base rather than only its markers. This limits the
+    // correction to flat bases that are actually coplanar with the terrain.
+    const sampleFactors = [0, 0.5, 1];
+    for (const fx of sampleFactors){
+      for (const fy of sampleFactors){
+        const x = min.x + (max.x - min.x) * fx;
+        const y = min.y + (max.y - min.y) * fy;
+        const terrainZ = heightAtWorld(x, y, 1.0);
+        if (!Number.isFinite(terrainZ) || terrainZ <= -1e8) return 0;
+        if (Math.abs(terrainZ - min.z) > AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE) return 0;
+      }
+    }
+    return -AREA_TRIGGER_TERRAIN_OFFSET;
+  }
+
   function updateAreaTriggerVolumes(){
     if (!state.glb.ready || !state.glb.THREE || !state.glb.scene) return;
     const { THREE } = state.glb;
@@ -9774,7 +9796,9 @@
       });
       const volume = new THREE.Mesh(geometry, material);
       volume.name = `AREA_TRIGGER_VOLUME_${number}`;
-      volume.position.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2);
+      const terrainOffsetZ = getAreaTriggerTerrainOffset(min, max);
+      volume.position.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2 + terrainOffsetZ);
+      volume.userData.visualTerrainOffsetZ = terrainOffsetZ;
       volume.renderOrder = 5;
       volume.raycast = () => null;
       group.add(volume);
