@@ -8696,7 +8696,6 @@
     const height=Math.max(1,rect.height||cv.clientHeight||cv.height||1);
     return {rect,width,height,aspect:width/height};
   }
-  const CAMERA_REFERENCE_ASPECT=16/9;
   const CAMERA_REFERENCE_VERTICAL_FOV=Math.PI/3;
   function getCameraProjection(){
     const viewport=getViewportMetrics();
@@ -10789,17 +10788,12 @@
   function fitCanvasViewport(){
     const container=canvasWrapEl.getBoundingClientRect();
     if(container.width<=0||container.height<=0) return false;
-    const containerAspect=container.width/container.height;
-    const width=containerAspect>CAMERA_REFERENCE_ASPECT
-      ? container.height*CAMERA_REFERENCE_ASPECT
-      : container.width;
-    const height=width/CAMERA_REFERENCE_ASPECT;
-    const left=(container.width-width)/2;
-    const top=(container.height-height)/2;
+    const width=container.width;
+    const height=container.height;
     for(const canvas of [cv,gizmoCanvasEl]){
       if(!canvas) continue;
-      canvas.style.left=`${left}px`;
-      canvas.style.top=`${top}px`;
+      canvas.style.left="0px";
+      canvas.style.top="0px";
       canvas.style.width=`${width}px`;
       canvas.style.height=`${height}px`;
     }
