@@ -5529,7 +5529,26 @@
     if(Number.isFinite(ssn)&&ssn>0)parts.push(`SSN ${ssn}`);
     return parts.join(" / ")||`Item ${it.id}`;
   }
-  function deleteEvent(){let ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0)return;const num=getEventNumber(ev[i]);const affected=getEventAdvancementReferences(num);if(affected.length){const shown=affected.slice(0,8).map(describeEventAdvancementReference).join("\n");const extra=affected.length>8?`\n... and ${affected.length-8} more.`:"";if(!window.confirm(`${affected.length} waypoint reference(s) use Event ${num} as an advancement trigger:\n\n${shown}${extra}\n\nDeleting this Event will remove those advancement trigger references. Continue?`))return;}updateEventReferences('delete',num);for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));const last=ev.at(-1);state.sectionBlocks=state.sectionBlocks.filter(s=>s.id!==last.id);if(!state.sectionBlocks.some(s=>s.kind==='event'))createEvent();else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}markItemsChanged({structure:true});scheduleLiveMisRefresh();}
+  function deleteEvent(){
+    const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);
+    if(i<0)return;
+    const prompt=resolveStringKey('DELETE_EVENT_?')||'Do you wish to delete this event?';
+    if(!window.confirm(prompt))return;
+    const num=getEventNumber(ev[i]),affected=getEventAdvancementReferences(num);
+    updateEventReferences('delete',num);
+    for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));
+    const last=ev.at(-1);
+    state.sectionBlocks=state.sectionBlocks.filter(s=>s.id!==last.id);
+    if(!state.sectionBlocks.some(s=>s.kind==='event'))createEvent();
+    else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}
+    markItemsChanged({structure:true});
+    scheduleLiveMisRefresh();
+    if(affected.length){
+      const shown=affected.slice(0,8).map(describeEventAdvancementReference).join("\n");
+      const extra=affected.length>8?`\n... and ${affected.length-8} more.`:"";
+      window.alert(`${affected.length} waypoint advancement trigger reference(s) were removed:\n\n${shown}${extra}`);
+    }
+  }
   function pasteEvent(){if(!eventUi.eventClipboard)return;const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0||ev.length>=256)return;const insertedNumber=getEventNumber(ev[i]);const last=ev.at(-1),id=state.sectionBlocks.reduce((m,x)=>Math.max(m,x.id),0)+1,n=getEventNumber(last)+1,sec={...structuredClone(last),id,start:Number.MAX_SAFE_INTEGER-id,end:Number.MAX_SAFE_INTEGER-id,label:String(n),beginLine:`begin event ${n}`};state.sectionBlocks.push(sec);const all=getSortedEvents();for(let j=all.length-1;j>i;j--)setEventPayload(all[j],copyEventPayload(all[j-1]));setEventPayload(all[i],eventUi.eventClipboard);updateEventReferences('insert',insertedNumber);state.sectionSelectedId=all[i].id;markItemsChanged({structure:true});renderEventEditor();scheduleLiveMisRefresh();}
   function eventSelect(field, value, choices, label){
     const options=Object.entries(choices).map(([id,text])=>`<option value="${id}" ${Number(id)===value?'selected':''}>${escapeHtml(`${id} - ${text}`)}</option>`);
