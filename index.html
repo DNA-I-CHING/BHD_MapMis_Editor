@@ -1530,7 +1530,6 @@
             <label><span>Link to visual grid</span><input id="linkTranslationGrid" type="checkbox" checked></label>
             <label>Translation <input id="translationSnap" type="number" min="0.00390625" step="0.25" value="512" title="Translation snap, world units"></label>
             <label>Snap Mode <select id="translationSnapMode" title="Absolute aligns the gizmo pivot to the grid; Relative quantizes only the drag distance"><option value="absolute">Absolute grid</option><option value="relative">Relative increment</option></select></label>
-            <label>Grid Plane <select id="gridPlane" title="Visual grid work plane"><option value="XY">XY (Top)</option><option value="XZ">XZ (Front)</option><option value="YZ">YZ (Side)</option></select></label>
             <label><span>Infinite work grid</span><input id="infiniteWorkGrid" type="checkbox" checked></label>
             <label>Rotation <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees"></label>
           </div>
@@ -2476,7 +2475,6 @@
     showSectors: false,
     showStats: false,
     showGrid: true,
-    gridPlane: 'XY',
     infiniteWorkGrid: true,
     showAnchorPoints: true,
     showAreaTriggers: showAreaTriggersEl?.checked !== false,
@@ -9129,20 +9127,16 @@
     if(renderUiState.showGrid){
       const gridSize=gridSizeMeters();
       if(gridSize>0){
-        const plane=renderUiState.gridPlane||'XY';
-        const axes=plane==='XZ'?['x','z']:plane==='YZ'?['y','z']:['x','y'];
+        const axes=['x','y'];
         const origin={x:ox,y:oy,z:0},center={x:cam.pos.x,y:cam.pos.y,z:cam.pos.z};
-        const renderOrigin={...origin};
-        if(plane==='XY')renderOrigin.z=.2;
-        else if(plane==='XZ')renderOrigin.y+=.2;
-        else renderOrigin.x+=.2;
+        const renderOrigin={...origin,z:.2};
         const terrainMin={x:ox+overlayI0*SECTOR_STRIDE,y:oy+overlayJ0*SECTOR_STRIDE,z:0};
         const terrainMax={x:ox+(overlayI1+1)*SECTOR_STRIDE,y:oy+(overlayJ1+1)*SECTOR_STRIDE,z:0};
         const maxSpan=gridSize*MAX_GRID_LINES_PER_AXIS;
         const workSpan=Math.min(maxSpan,Math.max(SECTOR_STRIDE*4,radius*OVERLAY_RADIUS_FACTOR*2));
         const ranges={};
         for(const axis of axes){
-          if(!renderUiState.infiniteWorkGrid&&plane==='XY') ranges[axis]=[terrainMin[axis],terrainMax[axis]];
+          if(!renderUiState.infiniteWorkGrid) ranges[axis]=[terrainMin[axis],terrainMax[axis]];
           else ranges[axis]=[center[axis]-workSpan*.5,center[axis]+workSpan*.5];
           if(ranges[axis][1]-ranges[axis][0]>maxSpan) ranges[axis]=[center[axis]-maxSpan*.5,center[axis]+maxSpan*.5];
         }
@@ -11157,7 +11151,6 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   const linkTranslationGridEl=document.getElementById('linkTranslationGrid');
   const translationSnapEl=document.getElementById('translationSnap');
   const translationSnapModeEl=document.getElementById('translationSnapMode');
-  const gridPlaneEl=document.getElementById('gridPlane');
   const infiniteWorkGridEl=document.getElementById('infiniteWorkGrid');
   const rotationSnapEl=document.getElementById('rotationSnap');
   transformSpaceEl?.addEventListener('change',()=>{state.transformSpace=transformSpaceEl.value;updateItemGizmo();});
@@ -11166,7 +11159,6 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   linkTranslationGridEl?.addEventListener('change',()=>{state.linkTranslationGrid=linkTranslationGridEl.checked;translationSnapEl.disabled=state.linkTranslationGrid;if(state.linkTranslationGrid)updateGridUi();});
   translationSnapEl?.addEventListener('change',()=>{state.translationSnap=Math.max(Math.pow(2,GRID_EXP_MIN),Number(translationSnapEl.value)||1);if(state.linkTranslationGrid){gridExponent=Math.max(GRID_EXP_MIN,Math.min(GRID_EXP_MAX,Math.round(Math.log2(state.translationSnap))));updateGridUi();}else translationSnapEl.value=String(state.translationSnap);});
   translationSnapModeEl?.addEventListener('change',()=>{state.translationSnapMode=translationSnapModeEl.value;});
-  gridPlaneEl?.addEventListener('change',()=>{renderUiState.gridPlane=gridPlaneEl.value;requestRender();});
   infiniteWorkGridEl?.addEventListener('change',()=>{renderUiState.infiniteWorkGrid=infiniteWorkGridEl.checked;requestRender();});
   rotationSnapEl?.addEventListener('change',()=>{state.rotationSnap=Math.max(.1,Number(rotationSnapEl.value)||15);rotationSnapEl.value=String(state.rotationSnap);});
   document.getElementById('gridPlus')?.addEventListener('click',()=>stepGridExponent(1));
