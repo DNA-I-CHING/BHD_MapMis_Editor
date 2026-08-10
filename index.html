@@ -186,12 +186,18 @@
       grid-template-columns:420px 1fr;
       min-height:0;
     }
+    #appLayout.sidebarClosed{ grid-template-columns:minmax(0,1fr); }
     #sidebar{
       border-right:1px solid var(--line);
       background:var(--bg);
       padding:10px;
       overflow:auto;
     }
+    #appLayout.sidebarClosed #sidebar{ display:none; }
+    #sidebarHeaderActions{ display:flex; justify-content:flex-end; margin-bottom:4px; }
+    #sidebarCloseBtn,#sidebarOpenBtn{ font-size:16px; line-height:1; }
+    #sidebarOpenBtn{ display:none; }
+    #appLayout.sidebarClosed #sidebarOpenBtn{ display:inline-flex; align-items:center; justify-content:center; }
     #main{
       display:grid;
       grid-template-rows:auto 1fr;
@@ -1110,7 +1116,9 @@
     #sectionWindow[data-section-mode="group"] #groupMembersPanel{ display:grid; grid-template-rows:auto minmax(0,1fr); gap:5px; }
     #groupMembersTitle{ font-size:12px; font-weight:600; }
     #groupMembersList{ min-height:0; overflow:auto; border:1px solid var(--line-muted); background:var(--surface); padding:4px; }
-    .groupMemberItem{ display:block; width:100%; border:0; background:transparent; color:inherit; padding:5px 6px; text-align:left; }
+    .groupMemberItem{ display:block; width:100%; border:1px solid var(--line-soft); border-radius:3px; background:var(--surface-subtle); color:inherit; padding:6px 7px; text-align:left; cursor:pointer; }
+    .groupMemberItem + .groupMemberItem{ margin-top:3px; }
+    .groupMemberItem:nth-child(even){ background:var(--panel-subtle); }
     .groupMemberItem:hover{ background:var(--accent-soft); }
     .groupMembersEmpty{ color:var(--text-subtle); padding:6px; }
     #sectionWindow[data-section-mode="group"] #sectionText{ display:none; }
@@ -1354,6 +1362,10 @@
   <div id="sidebar">
     <input id="fileMis" type="file" accept=".mis,.txt" style="display:none;" />
 
+    <div id="sidebarHeaderActions">
+      <button id="sidebarCloseBtn" type="button" class="modeBtn" title="Close sidebar (C)" aria-label="Close sidebar" aria-keyshortcuts="C">&#x2039;</button>
+    </div>
+
 <div class="hint" id="defStatus" style="margin-top:6px;">Item catalog loaded (embedded ITEMS.DEF).</div>
 
     <div class="row" style="margin-top:10px;">
@@ -1383,6 +1395,7 @@
 
   <div id="main">
     <div id="topbar">
+      <button id="sidebarOpenBtn" type="button" class="modeBtn" title="Open sidebar (C)" aria-label="Open sidebar" aria-keyshortcuts="C">&#x203A;</button>
             <label class="tbCtl gridCtl">Grid (G):
         <button id="gridPlus" type="button" class="modeBtn" title="Increase grid size">+</button>
         <button id="gridMinus" type="button" class="modeBtn" title="Decrease grid size">-</button>
@@ -1428,7 +1441,8 @@
           <label data-show-category="object"><input type="checkbox" id="showObjects" checked> <span class="visibilityItemName">Objects</span> <span class="visibilityItemCount">(0)</span></label>
           <label data-show-category="decoration"><input type="checkbox" id="showDecorations" checked> <span class="visibilityItemName">Decorations</span> <span class="visibilityItemCount">(0)</span></label>
           <label data-show-category="markerGameplay"><input type="checkbox" id="showMarkers" checked> <span class="visibilityItemName">Markers - Gameplay</span> <span class="visibilityItemCount">(0)</span></label>
-          <label data-show-category="markerWaypointArea"><input type="checkbox" id="showWaypointAreaMarkers" checked> <span class="visibilityItemName">Markers - Waypoints &amp; Area Triggers</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="markerWaypoint"><input type="checkbox" id="showWaypointMarkers" checked> <span class="visibilityItemName">Markers - Waypoints</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="markerAreaTrigger"><input type="checkbox" id="showAreaTriggerMarkers" checked> <span class="visibilityItemName">Markers - Area Triggers</span> <span class="visibilityItemCount">(0)</span></label>
           <label><input type="checkbox" id="showAreaTriggers" checked> Markers - Area Trigger Volumes</label>
           <label data-show-category="markerSound"><input type="checkbox" id="showSoundMarkers" checked> <span class="visibilityItemName">Markers - Sound</span> <span class="visibilityItemCount">(0)</span></label>
           <label data-show-category="powerup"><input type="checkbox" id="showPowerups" checked> <span class="visibilityItemName">Powerups</span> <span class="visibilityItemCount">(0)</span></label>
@@ -2302,6 +2316,9 @@
   const misRealtimeConsoleEl = document.getElementById("misRealtimeConsole");
   const misRealtimeClearBtn = document.getElementById("misRealtimeClearBtn");
   const exportBtn = document.getElementById("exportBtn");
+  const appLayoutEl = document.getElementById("appLayout");
+  const sidebarCloseBtn = document.getElementById("sidebarCloseBtn");
+  const sidebarOpenBtn = document.getElementById("sidebarOpenBtn");
   const showPanelBtn = document.getElementById("showPanelBtn");
   const showLayersBtn = document.getElementById("showLayersBtn");
   const showGroupsBtn = document.getElementById("showGroupsBtn");
@@ -3446,7 +3463,8 @@
     foliage: { inputId: "showFoliage", label: "Foliage" },
     people: { inputId: "showPeople", label: "People & Person" },
     markerGameplay: { inputId: "showMarkers", label: "Markers - Gameplay" },
-    markerWaypointArea: { inputId: "showWaypointAreaMarkers", label: "Markers - Waypoints & Area Triggers" },
+    markerWaypoint: { inputId: "showWaypointMarkers", label: "Markers - Waypoints" },
+    markerAreaTrigger: { inputId: "showAreaTriggerMarkers", label: "Markers - Area Triggers" },
     markerSound: { inputId: "showSoundMarkers", label: "Markers - Sound" },
     object: { inputId: "showObjects", label: "Objects" },
     powerup: { inputId: "showPowerups", label: "Powerups" },
@@ -3469,7 +3487,8 @@
       const typeId = String(it?.kv?.type_id || "").trim();
       const isWaypoint = catalogId === "106005" || typeId === "6005" || typeId === "106005" || catalogName === "waypoint" || getItemWaypointId(it) != null;
       const isAreaTrigger = catalogId === "106013" || typeId === "6013" || typeId === "106013" || catalogName === "area trigger";
-      if (isWaypoint || isAreaTrigger) return "markerWaypointArea";
+      if (isAreaTrigger) return "markerAreaTrigger";
+      if (isWaypoint) return "markerWaypoint";
       return catalogName.startsWith("snd:") ? "markerSound" : "markerGameplay";
     }
     return Object.prototype.hasOwnProperty.call(SHOW_ITEM_CATEGORIES, type) ? type : "";
@@ -4381,7 +4400,7 @@
       const item=state.items.find(candidate=>candidate.id===Number(button.dataset.itemId));
       if(!item) return;
       selectById(item.id);
-      focusCameraNearItem(item);
+      focusCameraNearItem(item,{distanceScale:MAP_REFERENCE_FOCUS_DISTANCE_SCALE});
       statusEl.textContent=`Framed SSN ${readKvValue(item,"id","ssn","social_security_number")} from Group ${groupNumber}.`;
     }));
   }
@@ -5621,7 +5640,7 @@
     }
     selectById(items[0].id);
     for(let index=1;index<items.length;index++) selectById(items[index].id,{additive:true});
-    focusCameraNearItems(items);
+    focusCameraNearItems(items,{distanceScale:MAP_REFERENCE_FOCUS_DISTANCE_SCALE});
     statusEl.textContent=`Framed ${items.length} map object(s) referenced by ${type} ${value}.`;
   }
   function renderEventRows(kind, rows){
@@ -7458,6 +7477,23 @@
     showPanelBtn?.classList.toggle("active", visible);
   }
 
+  function setSidebarOpen(open,{persist=true}={}){
+    const isOpen=!!open;
+    appLayoutEl?.classList.toggle("sidebarClosed",!isOpen);
+    sidebarOpenBtn?.setAttribute("aria-expanded",String(isOpen));
+    if(persist){
+      try{ localStorage.setItem("dz.sidebarOpen",isOpen?"1":"0"); }catch(_){ }
+    }
+    scheduleResizeCanvas();
+    requestRender();
+    renderMenuBar();
+  }
+
+  sidebarCloseBtn?.addEventListener("click",()=>setSidebarOpen(false));
+  sidebarOpenBtn?.addEventListener("click",()=>setSidebarOpen(true));
+  let initialSidebarOpen=true;
+  try{ initialSidebarOpen=localStorage.getItem("dz.sidebarOpen")!=="0"; }catch(_){ }
+
   function positionDebugFogPanel(){
     if (!debugFogPanelEl || !debugFogBtn || !canvasWrapEl) return;
     const wrapRect = canvasWrapEl.getBoundingClientRect();
@@ -7477,13 +7513,18 @@
     debugFogBtn?.classList.toggle("active", visible);
   }
 
-  function focusCameraNearItem(it){
+  // Events/Groups references use one quarter of the regular framing distance:
+  // half of the previous reference distance, while other focus flows stay unchanged.
+  const MAP_REFERENCE_FOCUS_DISTANCE_SCALE=0.25;
+
+  function focusCameraNearItem(it,options={}){
     if (!it) return;
     const x = rawToWorld(it.x, 'x');
     const y = rawToWorld(it.y, 'y');
     const z = getItemWorldZ(it);
-    const offset = 72;
-    cam.pos = vec3(x + offset, y + offset, z + 32);
+    const distanceScale=Math.max(0.01,Number(options.distanceScale)||1);
+    const offset=72*distanceScale;
+    cam.pos = vec3(x + offset, y + offset, z + 32*distanceScale);
     const dx = x - cam.pos.x;
     const dy = y - cam.pos.y;
     const dz = z - cam.pos.z;
@@ -7498,16 +7539,17 @@
     requestRender();
   }
 
-  function focusCameraNearItems(items){
+  function focusCameraNearItems(items,options={}){
     const positioned=(items||[]).filter(it=>kvHas(it,'position'));
     if(!positioned.length) return;
-    if(positioned.length===1){ focusCameraNearItem(positioned[0]); return; }
+    if(positioned.length===1){ focusCameraNearItem(positioned[0],options); return; }
     const points=positioned.map(it=>({x:rawToWorld(it.x,'x'),y:rawToWorld(it.y,'y'),z:getItemWorldZ(it)}));
     const minX=Math.min(...points.map(point=>point.x)),maxX=Math.max(...points.map(point=>point.x));
     const minY=Math.min(...points.map(point=>point.y)),maxY=Math.max(...points.map(point=>point.y));
     const minZ=Math.min(...points.map(point=>point.z)),maxZ=Math.max(...points.map(point=>point.z));
     const x=(minX+maxX)/2,y=(minY+maxY)/2,z=(minZ+maxZ)/2;
-    const offset=Math.max(72,Math.hypot(maxX-minX,maxY-minY,maxZ-minZ)*1.2);
+    const distanceScale=Math.max(0.01,Number(options.distanceScale)||1);
+    const offset=Math.max(72,Math.hypot(maxX-minX,maxY-minY,maxZ-minZ)*1.2)*distanceScale;
     cam.pos=vec3(x+offset,y+offset,z+offset*0.45);
     const dx=x-cam.pos.x,dy=y-cam.pos.y,dz=z-cam.pos.z;
     cam.yaw=Math.atan2(dx,dy);
@@ -8103,6 +8145,7 @@
     "edit.globalReplace": runGlobalReplace,
     "edit.weaponLoadouts": () => openSectionEditor("weapon_availability"),
     "view.sceneInfo": toggleSceneInfo,
+    "view.sidebar": () => setSidebarOpen(appLayoutEl?.classList.contains("sidebarClosed")),
     "view.groundClamp": () => toggleViewOption("groundClamp"),
     "view.mainArea": () => toggleViewOption("mainArea"),
     "view.showSectors": () => toggleViewOption("showSectors"),
@@ -8161,6 +8204,7 @@
         label: "View",
         children: [
           { label: "Scene Info", shortcut: "I", command: "view.sceneInfo" },
+          { label: "Sidebar", shortcut: "C", command: "view.sidebar", checked: !appLayoutEl?.classList.contains("sidebarClosed") },
           {
             label: "Camera",
             children: [
@@ -8509,6 +8553,10 @@
   const OVERLAY_RADIUS_FACTOR=0.6;
   const MAX_WATER_TILES_PER_FRAME=1200;
   const MAX_SECTOR_RECTS_PER_FRAME=900;
+  // Keep grounded trigger-volume faces out of the terrain depth plane without
+  // changing either the MIS marker coordinates or the terrain itself.
+  const AREA_TRIGGER_TERRAIN_OFFSET=0.05;
+  const AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE=0.01;
   let topViewLocked=false;
   let topViewRestore={yaw:Math.PI,pitch:-0.25};
   let gridExponent=9;
@@ -9705,6 +9753,27 @@
     }
   }
 
+  function getAreaTriggerTerrainOffset(min, max){
+    if (!lastDepth || !sectors) return 0;
+
+    // A base does not need to match the terrain everywhere to flicker: one
+    // coplanar patch is enough. Sample across the footprint and lower the
+    // visual volume as soon as terrain contact is found.
+    const sampleFactors = [0, 0.25, 0.5, 0.75, 1];
+    for (const fx of sampleFactors){
+      for (const fy of sampleFactors){
+        const x = min.x + (max.x - min.x) * fx;
+        const y = min.y + (max.y - min.y) * fy;
+        const terrainZ = heightAtWorld(x, y, 1.0);
+        if (!Number.isFinite(terrainZ) || terrainZ <= -1e8) continue;
+        if (Math.abs(terrainZ - min.z) <= AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE){
+          return -AREA_TRIGGER_TERRAIN_OFFSET;
+        }
+      }
+    }
+    return 0;
+  }
+
   function updateAreaTriggerVolumes(){
     if (!state.glb.ready || !state.glb.THREE || !state.glb.scene) return;
     const { THREE } = state.glb;
@@ -9774,7 +9843,9 @@
       });
       const volume = new THREE.Mesh(geometry, material);
       volume.name = `AREA_TRIGGER_VOLUME_${number}`;
-      volume.position.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2);
+      const terrainOffsetZ = getAreaTriggerTerrainOffset(min, max);
+      volume.position.set((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2 + terrainOffsetZ);
+      volume.userData.visualTerrainOffsetZ = terrainOffsetZ;
       volume.renderOrder = 5;
       volume.raycast = () => null;
       group.add(volume);
@@ -10763,7 +10834,7 @@
   const CAMERA_FIT_CATEGORY_PRIORITIES = [
     new Set(["vehicle", "building", "object", "decoration", "powerup"]),
     new Set(["people"]),
-    new Set(["markerGameplay", "markerWaypointArea", "markerSound"]),
+    new Set(["markerGameplay", "markerWaypoint", "markerAreaTrigger", "markerSound"]),
   ];
 
   function getCameraFitItems(items){
@@ -10951,7 +11022,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
 
   cv.addEventListener('click',()=>{ if (!hasTypingFocus()) cv.focus(); });
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'){ topViewLocked=!topViewLocked; if(topViewLocked){ topViewRestore={yaw:cam.yaw,pitch:cam.pitch}; cam.pitch=-Math.PI/2; } else { cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; } } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a') move.a=1; if(k==='s') move.s=1; if(k==='d') move.d=1; if(k==='q') move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
@@ -11159,6 +11230,8 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     const saved = localStorage.getItem("dz-theme") || "default";
     applyTheme(saved);
   }
+
+  setSidebarOpen(initialSidebarOpen,{persist:false});
 
   // Boot: load embedded ITEMS.DEF + optional resources (weapon.def + game strings).
   (async function boot(){
