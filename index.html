@@ -5516,7 +5516,20 @@
     }
     for(const it of state.items){const key=Object.keys(it.kv||{}).find(k=>/^(wp_adv_trigger|adv_event)$/i.test(k));if(!key)continue;let v=Math.trunc(Number(it.kv[key])),nv=v;if(mode==='insert'&&v>=a)nv=v+1;else if(mode==='delete'&&v===a)nv=-1;else if(mode==='delete'&&v>a)nv=v-1;else if(mode==='swap'&&v===a)nv=b;else if(mode==='swap'&&v===b)nv=a;if(nv!==v){it.kv[key]=String(nv);it.lines=(it.lines||[]).map(raw=>new RegExp(`^\\s*${key}\\b`,'i').test(raw)?`  ${key} ${nv}`:raw);}}
   }
-  function deleteEvent(){let ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0)return;const num=getEventNumber(ev[i]);updateEventReferences('delete',num);for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));const last=ev.at(-1);state.sectionBlocks=state.sectionBlocks.filter(s=>s.id!==last.id);if(!state.sectionBlocks.some(s=>s.kind==='event'))createEvent();else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}markItemsChanged({structure:true});scheduleLiveMisRefresh();}
+  function getEventAdvancementReferences(eventNumber){
+    return state.items.filter(it=>{
+      const key=Object.keys(it.kv||{}).find(k=>/^(wp_adv_trigger|adv_event)$/i.test(k));
+      return key&&Math.trunc(Number(it.kv[key]))===eventNumber;
+    });
+  }
+  function describeEventAdvancementReference(it){
+    const waypoint=getItemWaypointNumber(it), ssn=Math.trunc(Number(readKvValue(it,"id","ssn","social_security_number")));
+    const parts=[];
+    if(Number.isFinite(waypoint)&&waypoint>0)parts.push(`Waypoint ${waypoint}`);
+    if(Number.isFinite(ssn)&&ssn>0)parts.push(`SSN ${ssn}`);
+    return parts.join(" / ")||`Item ${it.id}`;
+  }
+  function deleteEvent(){let ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0)return;const num=getEventNumber(ev[i]);const affected=getEventAdvancementReferences(num);if(affected.length){const shown=affected.slice(0,8).map(describeEventAdvancementReference).join("\n");const extra=affected.length>8?`\n... and ${affected.length-8} more.`:"";if(!window.confirm(`${affected.length} waypoint reference(s) use Event ${num} as an advancement trigger:\n\n${shown}${extra}\n\nDeleting this Event will remove those advancement trigger references. Continue?`))return;}updateEventReferences('delete',num);for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));const last=ev.at(-1);state.sectionBlocks=state.sectionBlocks.filter(s=>s.id!==last.id);if(!state.sectionBlocks.some(s=>s.kind==='event'))createEvent();else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}markItemsChanged({structure:true});scheduleLiveMisRefresh();}
   function pasteEvent(){if(!eventUi.eventClipboard)return;const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0||ev.length>=256)return;const insertedNumber=getEventNumber(ev[i]);const last=ev.at(-1),id=state.sectionBlocks.reduce((m,x)=>Math.max(m,x.id),0)+1,n=getEventNumber(last)+1,sec={...structuredClone(last),id,start:Number.MAX_SAFE_INTEGER-id,end:Number.MAX_SAFE_INTEGER-id,label:String(n),beginLine:`begin event ${n}`};state.sectionBlocks.push(sec);const all=getSortedEvents();for(let j=all.length-1;j>i;j--)setEventPayload(all[j],copyEventPayload(all[j-1]));setEventPayload(all[i],eventUi.eventClipboard);updateEventReferences('insert',insertedNumber);state.sectionSelectedId=all[i].id;markItemsChanged({structure:true});renderEventEditor();scheduleLiveMisRefresh();}
   function eventSelect(field, value, choices, label){
     const options=Object.entries(choices).map(([id,text])=>`<option value="${id}" ${Number(id)===value?'selected':''}>${escapeHtml(`${id} - ${text}`)}</option>`);
@@ -5657,8 +5670,24 @@
   }
   function closeEventRowEditor(){const overlay=document.getElementById('eventRowOverlay');overlay.classList.remove('open');overlay.setAttribute('aria-hidden','true');eventUi.editKind=null;eventUi.editIndex=-1;}
   function applyEventRow(){const sec=selectedEvent(),kind=eventUi.editKind;if(!sec||!kind)return;const d=parseEventData(sec),rows=d[kind+'s'],row=readEventRowFields();if(eventUi.editIndex<0)rows.push(row);else rows[eventUi.editIndex]=row;writeEventData(sec,d);if(kind==='trigger')eventUi.selectedTrigger=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);else eventUi.selectedAction=Math.max(0,eventUi.editIndex<0?rows.length-1:eventUi.editIndex);closeEventRowEditor();renderEventEditor();scheduleLiveMisRefresh();}
-  function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){rows.push(structuredClone(eventUi[clip]));eventUi[key]=rows.length-1;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
-  function printEvents(all){const secs=all?getSortedEvents():[selectedEvent()].filter(Boolean),text=secs.map(sec=>[sec.beginLine,...sec.lines,'end event'].join('\n')).join('\n\n');const w=window.open('','_blank');if(w){w.document.write(`<pre>${escapeHtml(text)}</pre>`);w.document.close();w.print();}}
+  function eventRowOp(kind,op){const sec=selectedEvent();if(!sec)return;const d=parseEventData(sec),rows=d[kind+'s'],key=kind==='trigger'?'selectedTrigger':'selectedAction',clip=kind+'Clipboard',i=eventUi[key];if(op==='copy'&&i>=0)eventUi[clip]=structuredClone(rows[i]);if(op==='delete'&&i>=0){rows.splice(i,1);eventUi[key]=-1;writeEventData(sec,d);}if(op==='paste'&&eventUi[clip]&&rows.length<20){const insertAt=i>=0&&i<rows.length?i:rows.length;rows.splice(insertAt,0,structuredClone(eventUi[clip]));eventUi[key]=insertAt;writeEventData(sec,d);}renderEventEditor();scheduleLiveMisRefresh();}
+  function eventReportHeader(){
+    const now=new Date(),gi=state.sectionBlocks.find(sec=>sec.kind==='general_information');
+    const mission=String(gi?.kv?.name||state.filename||'Untitled Mission').replace(/^"|"$/g,'');
+    return medFormat('EVENT_LIST_HEADER',[mission,now.getMonth()+1,now.getDate(),now.getFullYear(),now.getHours(),String(now.getMinutes()).padStart(2,'0')],`// Event List for ${mission}, saved on ${now.toLocaleString()}`);
+  }
+  function eventReport(sec){
+    const number=getEventNumber(sec),name=getEventName(sec)||`Event ${number}`,attrib=Math.trunc(Number(sec.kv?.attrib))||0;
+    const reset=Math.trunc(Number(sec.kv?.reset_value))||0,delay=Math.trunc(Number(sec.kv?.delay_value))||0,data=parseEventData(sec);
+    const lines=[`Event ${number}: ${name}`,`  Attributes: ${attrib}  Reset: ${reset} seconds  Delay: ${delay} seconds`,'  IF (Triggers):'];
+    if(!data.triggers.length)lines.push('    (none)');
+    data.triggers.forEach((row,index)=>lines.push(`    (${index}) ${triggerDescription(row)}`,`        Raw: ${row.join(' ')}`));
+    lines.push('  THEN (Actions):');
+    if(!data.actions.length)lines.push('    (none)');
+    data.actions.forEach((row,index)=>lines.push(`    (${index}) ${actionDescription(row)}`,`        Raw: ${row.join(' ')}`));
+    return lines.join('\n');
+  }
+  function printEvents(all){const secs=all?getSortedEvents():[selectedEvent()].filter(Boolean),text=[eventReportHeader(),'',...secs.flatMap((sec,index)=>index?["",eventReport(sec)]:[eventReport(sec)])].join('\n');const w=window.open('','_blank');if(w){w.document.write(`<title>Event List</title><pre>${escapeHtml(text)}</pre>`);w.document.close();w.print();}}
 
 
   function getSectionWindowTitle(kind){
