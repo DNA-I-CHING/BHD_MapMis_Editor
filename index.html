@@ -1250,7 +1250,8 @@
     .eventNestedRow.active{ background:#2b3d8f; color:#fff; }
     .eventNewRow{ color:var(--text-subtle); font-style:italic; }
     .eventFlags{ display:flex; gap:6px; align-items:center; margin-top:4px; }
-    #eventRowOverlay{
+    #eventRowOverlay,
+    #eventDeleteOverlay{
       position:absolute;
       inset:0;
       background:var(--overlay);
@@ -1260,7 +1261,8 @@
       z-index:66;
       padding:18px;
     }
-    #eventRowOverlay.open{ display:flex; }
+    #eventRowOverlay.open,
+    #eventDeleteOverlay.open{ display:flex; }
     .eventRowEditor{
       width:min(520px,100%);
       background:var(--panel-muted);
@@ -1286,6 +1288,19 @@
     .eventActionFieldset{ margin:0; padding:8px; display:grid; gap:8px; }
     .eventActionFieldset legend{ color:var(--text); padding:0 4px; }
     .eventEditorActions{ display:flex; justify-content:flex-end; gap:8px; margin-top:7px; }
+    .eventDeleteDialog{
+      width:min(460px,100%);
+      background:var(--panel-muted);
+      border:1px solid var(--line-heavy);
+      padding:10px;
+      box-shadow:var(--shadow-md);
+      box-sizing:border-box;
+    }
+    .eventDeleteDialog .windowTitle{ margin-bottom:12px; }
+    .eventDeleteMessage{ margin:0 0 10px; }
+    .eventDeleteTarget{ margin:0 0 10px; padding:8px; border:1px solid var(--line); background:var(--surface-soft); font-weight:600; }
+    .eventDeleteReferences{ margin:0 0 10px; padding:8px; border:1px solid var(--line); color:var(--text-subtle); white-space:pre-wrap; max-height:150px; overflow:auto; }
+    .eventDeleteReferences:empty{ display:none; }
     #layerEditor{ display:none; gap:8px; align-content:start; }
     #sectionWindow[data-section-mode="layer"] #layerEditor{ display:grid; }
     .layerField{ display:grid; grid-template-columns:72px 1fr; gap:8px; align-items:center; }
@@ -1676,6 +1691,16 @@
           <div class="windowTitle"><span id="eventRowEditorTitle">Edit Trigger</span><span class="spacer"></span><button class="xbtn" id="eventRowClose" type="button" aria-label="Close">X</button></div>
           <div class="eventRawGrid" id="eventRawGrid"></div>
           <div class="eventEditorActions"><button id="eventRowCancel" type="button">Cancel</button><button id="eventRowApply" type="button">OK</button></div>
+        </div>
+      </div>
+
+      <div id="eventDeleteOverlay" aria-hidden="true">
+        <div class="eventDeleteDialog" id="eventDeleteDialog" role="dialog" aria-modal="true" aria-labelledby="eventDeleteTitle" aria-describedby="eventDeleteMessage eventDeleteTarget">
+          <div class="windowTitle"><span id="eventDeleteTitle">Delete Event</span><span class="spacer"></span><button class="xbtn" id="eventDeleteClose" type="button" aria-label="Close">X</button></div>
+          <p class="eventDeleteMessage" id="eventDeleteMessage">Do you wish to delete this event?</p>
+          <p class="eventDeleteTarget" id="eventDeleteTarget"></p>
+          <div class="eventDeleteReferences" id="eventDeleteReferences"></div>
+          <div class="eventEditorActions"><button id="eventDeleteNo" type="button">No</button><button id="eventDeleteYes" type="button">Yes</button></div>
         </div>
       </div>
 
@@ -5529,12 +5554,57 @@
     if(Number.isFinite(ssn)&&ssn>0)parts.push(`SSN ${ssn}`);
     return parts.join(" / ")||`Item ${it.id}`;
   }
-  function deleteEvent(){
+  function confirmEventDeletion(sec,affected){
+    const overlay=document.getElementById('eventDeleteOverlay'),dialog=document.getElementById('eventDeleteDialog');
+    const yes=document.getElementById('eventDeleteYes'),no=document.getElementById('eventDeleteNo'),close=document.getElementById('eventDeleteClose');
+    const previousFocus=document.activeElement;
+    document.getElementById('eventDeleteTitle').textContent=resolveStringKey('DELETE_EVENT')||'Delete Event';
+    document.getElementById('eventDeleteMessage').textContent=resolveStringKey('DELETE_EVENT_?')||'Do you wish to delete this event?';
+    const number=getEventNumber(sec),name=getEventName(sec)||`Event ${number}`;
+    document.getElementById('eventDeleteTarget').textContent=`(${number}) ${name}`;
+    const references=document.getElementById('eventDeleteReferences');
+    if(affected.length){
+      const shown=affected.slice(0,8).map(describeEventAdvancementReference).join("\n");
+      const extra=affected.length>8?`\n... and ${affected.length-8} more.`:"";
+      references.textContent=`${affected.length} waypoint advancement trigger reference(s) will be removed:\n${shown}${extra}`;
+    }else references.textContent='';
+    overlay.classList.add('open');
+    overlay.setAttribute('aria-hidden','false');
+    no.focus();
+    return new Promise(resolve=>{
+      const finish=result=>{
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden','true');
+        yes.removeEventListener('click',accept);
+        no.removeEventListener('click',cancel);
+        close.removeEventListener('click',cancel);
+        overlay.removeEventListener('mousedown',backdrop);
+        dialog.removeEventListener('keydown',keydown);
+        (document.getElementById('eventDeleteBtn')||previousFocus)?.focus();
+        resolve(result);
+      };
+      const accept=()=>finish(true),cancel=()=>finish(false);
+      const backdrop=event=>{if(event.target===overlay)cancel();};
+      const keydown=event=>{
+        if(event.key==='Escape'){event.preventDefault();cancel();return;}
+        if(event.key!=='Tab')return;
+        const controls=[...dialog.querySelectorAll('button:not(:disabled)')];
+        const first=controls[0],last=controls.at(-1);
+        if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+      };
+      yes.addEventListener('click',accept);
+      no.addEventListener('click',cancel);
+      close.addEventListener('click',cancel);
+      overlay.addEventListener('mousedown',backdrop);
+      dialog.addEventListener('keydown',keydown);
+    });
+  }
+  async function deleteEvent(){
     const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);
     if(i<0)return;
-    const prompt=resolveStringKey('DELETE_EVENT_?')||'Do you wish to delete this event?';
-    if(!window.confirm(prompt))return;
     const num=getEventNumber(ev[i]),affected=getEventAdvancementReferences(num);
+    if(!await confirmEventDeletion(ev[i],affected))return;
     updateEventReferences('delete',num);
     for(let j=i;j<ev.length-1;j++)setEventPayload(ev[j],copyEventPayload(ev[j+1]));
     const last=ev.at(-1);
@@ -5543,11 +5613,6 @@
     else{state.sectionSelectedId=ev[Math.min(i,ev.length-2)]?.id;renderEventEditor();}
     markItemsChanged({structure:true});
     scheduleLiveMisRefresh();
-    if(affected.length){
-      const shown=affected.slice(0,8).map(describeEventAdvancementReference).join("\n");
-      const extra=affected.length>8?`\n... and ${affected.length-8} more.`:"";
-      window.alert(`${affected.length} waypoint advancement trigger reference(s) were removed:\n\n${shown}${extra}`);
-    }
   }
   function pasteEvent(){if(!eventUi.eventClipboard)return;const ev=getSortedEvents(),i=ev.findIndex(e=>e.id===state.sectionSelectedId);if(i<0||ev.length>=256)return;const insertedNumber=getEventNumber(ev[i]);const last=ev.at(-1),id=state.sectionBlocks.reduce((m,x)=>Math.max(m,x.id),0)+1,n=getEventNumber(last)+1,sec={...structuredClone(last),id,start:Number.MAX_SAFE_INTEGER-id,end:Number.MAX_SAFE_INTEGER-id,label:String(n),beginLine:`begin event ${n}`};state.sectionBlocks.push(sec);const all=getSortedEvents();for(let j=all.length-1;j>i;j--)setEventPayload(all[j],copyEventPayload(all[j-1]));setEventPayload(all[i],eventUi.eventClipboard);updateEventReferences('insert',insertedNumber);state.sectionSelectedId=all[i].id;markItemsChanged({structure:true});renderEventEditor();scheduleLiveMisRefresh();}
   function eventSelect(field, value, choices, label){
