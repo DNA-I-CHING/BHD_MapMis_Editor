@@ -8560,7 +8560,7 @@
   const AREA_TRIGGER_TERRAIN_CONTACT_TOLERANCE=0.01;
   let topViewLocked=false;
   let topViewScale=512;
-  let topViewRestore={pos:null,yaw:Math.PI,pitch:-0.25,scale:topViewScale};
+  let topViewRestore={pos:null,target:null,yaw:Math.PI,pitch:-0.25,initialScale:topViewScale};
   let gridExponent=9;
   const GRID_EXP_MIN=-8, GRID_EXP_MAX=12;
   function gridSizeMeters(){ return Math.pow(2, gridExponent); }
@@ -11029,27 +11029,30 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
 
   cv.addEventListener('click',()=>{ if (!hasTypingFocus()) cv.focus(); });
+  function perspectiveFocusForTopView(){
+    const {forward}=cameraBasis();
+    if(forward.z<-.001){
+      const distance=(0-cam.pos.z)/forward.z;
+      if(distance>0&&Number.isFinite(distance))return vec3Add(cam.pos,vec3Scale(forward,distance));
+    }
+    const fallbackDistance=Math.max(64,Math.abs(cam.pos.z),topViewScale/Math.tan(CAMERA_REFERENCE_VERTICAL_FOV/2));
+    return vec3Add(cam.pos,vec3Scale(forward,fallbackDistance));
+  }
   function toggleTopView(){
     topViewLocked=!topViewLocked;
     if(topViewLocked){
-      topViewRestore={pos:vec3(cam.pos.x,cam.pos.y,cam.pos.z),yaw:cam.yaw,pitch:cam.pitch,scale:topViewScale};
-      const selected=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id));
-      if(selected.length){
-        const points=selected.map(it=>({x:rawToWorld(it.x,'x'),y:rawToWorld(it.y,'y')}));
-        const minX=Math.min(...points.map(p=>p.x)),maxX=Math.max(...points.map(p=>p.x));
-        const minY=Math.min(...points.map(p=>p.y)),maxY=Math.max(...points.map(p=>p.y));
-        cam.pos.x=(minX+maxX)*0.5; cam.pos.y=(minY+maxY)*0.5;
-        const aspect=getViewportMetrics().aspect;
-        topViewScale=Math.max(16,(maxY-minY)*0.65,(maxX-minX)*0.65/Math.max(aspect,0.01));
-      } else {
-        const spanX=terrainSpanX(),spanY=terrainSpanY(),aspect=getViewportMetrics().aspect;
-        cam.pos.x=originWorldX()+spanX*0.5; cam.pos.y=originWorldY()+spanY*0.5;
-        topViewScale=Math.max(16,spanY*0.55,spanX*0.55/Math.max(aspect,0.01));
-      }
-      cam.pos.z=Math.max(cam.pos.z,1000); cam.yaw=0; cam.pitch=-Math.PI/2;
+      const pos=vec3(cam.pos.x,cam.pos.y,cam.pos.z),target=perspectiveFocusForTopView();
+      const focusDistance=Math.max(1,vec3Len(vec3Sub(target,pos)));
+      topViewScale=Math.max(1,focusDistance*Math.tan(CAMERA_REFERENCE_VERTICAL_FOV/2));
+      topViewRestore={pos,target,yaw:cam.yaw,pitch:cam.pitch,initialScale:topViewScale};
+      cam.pos=vec3(target.x,target.y,Math.max(pos.z,target.z+1000));cam.yaw=0;cam.pitch=-Math.PI/2;
     } else {
-      if(topViewRestore.pos) cam.pos=vec3(topViewRestore.pos.x,topViewRestore.pos.y,topViewRestore.pos.z);
-      cam.yaw=topViewRestore.yaw; cam.pitch=topViewRestore.pitch; topViewScale=topViewRestore.scale;
+      if(topViewRestore.pos&&topViewRestore.target){
+        const zoomRatio=Math.max(.05,Math.min(20,topViewScale/Math.max(1,topViewRestore.initialScale)));
+        const newTarget=vec3(cam.pos.x,cam.pos.y,topViewRestore.target.z);
+        cam.pos=vec3Add(newTarget,vec3Scale(vec3Sub(topViewRestore.pos,topViewRestore.target),zoomRatio));
+      }
+      cam.yaw=topViewRestore.yaw;cam.pitch=topViewRestore.pitch;
     }
     camVel=vec3(0,0,0); requestRender();
   }
