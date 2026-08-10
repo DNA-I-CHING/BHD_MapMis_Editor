@@ -1428,7 +1428,8 @@
           <label data-show-category="object"><input type="checkbox" id="showObjects" checked> <span class="visibilityItemName">Objects</span> <span class="visibilityItemCount">(0)</span></label>
           <label data-show-category="decoration"><input type="checkbox" id="showDecorations" checked> <span class="visibilityItemName">Decorations</span> <span class="visibilityItemCount">(0)</span></label>
           <label data-show-category="markerGameplay"><input type="checkbox" id="showMarkers" checked> <span class="visibilityItemName">Markers - Gameplay</span> <span class="visibilityItemCount">(0)</span></label>
-          <label data-show-category="markerWaypointArea"><input type="checkbox" id="showWaypointAreaMarkers" checked> <span class="visibilityItemName">Markers - Waypoints &amp; Area Triggers</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="markerWaypoint"><input type="checkbox" id="showWaypointMarkers" checked> <span class="visibilityItemName">Markers - Waypoints</span> <span class="visibilityItemCount">(0)</span></label>
+          <label data-show-category="markerAreaTrigger"><input type="checkbox" id="showAreaTriggerMarkers" checked> <span class="visibilityItemName">Markers - Area Triggers</span> <span class="visibilityItemCount">(0)</span></label>
           <label><input type="checkbox" id="showAreaTriggers" checked> Markers - Area Trigger Volumes</label>
           <label data-show-category="markerSound"><input type="checkbox" id="showSoundMarkers" checked> <span class="visibilityItemName">Markers - Sound</span> <span class="visibilityItemCount">(0)</span></label>
           <label data-show-category="powerup"><input type="checkbox" id="showPowerups" checked> <span class="visibilityItemName">Powerups</span> <span class="visibilityItemCount">(0)</span></label>
@@ -3446,7 +3447,8 @@
     foliage: { inputId: "showFoliage", label: "Foliage" },
     people: { inputId: "showPeople", label: "People & Person" },
     markerGameplay: { inputId: "showMarkers", label: "Markers - Gameplay" },
-    markerWaypointArea: { inputId: "showWaypointAreaMarkers", label: "Markers - Waypoints & Area Triggers" },
+    markerWaypoint: { inputId: "showWaypointMarkers", label: "Markers - Waypoints" },
+    markerAreaTrigger: { inputId: "showAreaTriggerMarkers", label: "Markers - Area Triggers" },
     markerSound: { inputId: "showSoundMarkers", label: "Markers - Sound" },
     object: { inputId: "showObjects", label: "Objects" },
     powerup: { inputId: "showPowerups", label: "Powerups" },
@@ -3469,7 +3471,8 @@
       const typeId = String(it?.kv?.type_id || "").trim();
       const isWaypoint = catalogId === "106005" || typeId === "6005" || typeId === "106005" || catalogName === "waypoint" || getItemWaypointId(it) != null;
       const isAreaTrigger = catalogId === "106013" || typeId === "6013" || typeId === "106013" || catalogName === "area trigger";
-      if (isWaypoint || isAreaTrigger) return "markerWaypointArea";
+      if (isAreaTrigger) return "markerAreaTrigger";
+      if (isWaypoint) return "markerWaypoint";
       return catalogName.startsWith("snd:") ? "markerSound" : "markerGameplay";
     }
     return Object.prototype.hasOwnProperty.call(SHOW_ITEM_CATEGORIES, type) ? type : "";
@@ -10796,7 +10799,7 @@
   const CAMERA_FIT_CATEGORY_PRIORITIES = [
     new Set(["vehicle", "building", "object", "decoration", "powerup"]),
     new Set(["people"]),
-    new Set(["markerGameplay", "markerWaypointArea", "markerSound"]),
+    new Set(["markerGameplay", "markerWaypoint", "markerAreaTrigger", "markerSound"]),
   ];
 
   function getCameraFitItems(items){
