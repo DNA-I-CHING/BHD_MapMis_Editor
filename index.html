@@ -7477,7 +7477,9 @@
     debugFogBtn?.classList.toggle("active", visible);
   }
 
-  const MAP_REFERENCE_FOCUS_DISTANCE_SCALE=0.5;
+  // Events/Groups references use one quarter of the regular framing distance:
+  // half of the previous reference distance, while other focus flows stay unchanged.
+  const MAP_REFERENCE_FOCUS_DISTANCE_SCALE=0.25;
 
   function focusCameraNearItem(it,options={}){
     if (!it) return;
