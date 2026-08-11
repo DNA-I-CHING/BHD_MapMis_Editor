@@ -1524,8 +1524,11 @@
             <label><span>Link to visual grid</span><input id="linkTranslationGrid" type="checkbox" checked></label>
             <label>Translation <input id="translationSnap" type="number" min="0.00390625" step="0.25" value="512" title="Translation snap, world units"></label>
             <label>Snap Mode <select id="translationSnapMode" title="Absolute aligns the gizmo pivot to the grid; Relative quantizes only the drag distance"><option value="absolute">Absolute grid</option><option value="relative">Relative increment</option></select></label>
+            <label>Snap Target <select id="translationSnapTarget" title="Snap translation to the grid or to item anchors and mesh vertices"><option value="grid">Grid</option><option value="anchorVertex">Anchor / Vertex</option></select></label>
             <label><span>Infinite work grid</span><input id="infiniteWorkGrid" type="checkbox" checked></label>
             <label>Rotation <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees"></label>
+            <label>Rotation Mode <select id="rotationSnapMode"><option value="relative">Relative increment</option><option value="absolute">Absolute angle</option></select></label>
+            <div class="shortcutHint">Hold Ctrl while dragging to temporarily invert snap.</div>
           </div>
         </section>
       </div>
@@ -2107,7 +2110,10 @@
     translationSnap: 512,
     linkTranslationGrid: true,
     translationSnapMode: "absolute",
+    translationSnapTarget: "grid",
     rotationSnap: 15,
+    rotationSnapMode: "relative",
+    snapCandidateWorld: null,
     hoveredGizmoHandle: null,
 
     gameStrings: new Map(),
@@ -7966,6 +7972,58 @@
     itemContextMenu.setAttribute("aria-hidden", "true");
   }
 
+  function runSelectionTransformCommand(label, transform){
+    const items=selectedTransformItems().filter(it=>kvHas(it,'position'));
+    if(!items.length){statusEl.textContent=`${label}: no positioned items selected.`;return;}
+    beginUndoTransaction();
+    let changed=0;
+    try{
+      changed=transform(items)||0;
+      if(changed)commitGizmoUpdates(items);
+    } finally {endUndoTransaction();}
+    updateItemGizmo();requestRender();
+    statusEl.textContent=changed?`${label}: ${changed} item${changed===1?'':'s'} updated.`:`${label}: no valid target found.`;
+  }
+
+  function snapSelectedItemsToGrid(){
+    runSelectionTransformCommand('Snap to Grid',items=>{
+      const step=state.linkTranslationGrid?gridSizeMeters():state.translationSnap;
+      const origin=vec3(originWorldX(),originWorldY(),0),pivot=gizmoPivot(items);
+      if(!pivot||!(step>0))return 0;
+      if(state.transformPivot==='individual'){
+        for(const it of items){it.x=worldToRaw(origin.x+snapValue(rawToWorld(it.x,'x')-origin.x,step),'x');it.y=worldToRaw(origin.y+snapValue(rawToWorld(it.y,'y')-origin.y,step),'y');}
+      } else {
+        const dx=origin.x+snapValue(pivot.x-origin.x,step)-pivot.x,dy=origin.y+snapValue(pivot.y-origin.y,step)-pivot.y;
+        for(const it of items){it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x');it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y');}
+      }
+      return items.length;
+    });
+  }
+
+  function floorHeightForItem(it,excludedIds){
+    const x=rawToWorld(it.x,'x'),y=rawToWorld(it.y,'y'),currentZ=getItemWorldZ(it);
+    let best=heightAtWorld(x,y,1.0);
+    if(!Number.isFinite(best)||best<=-1e8)best=-Infinity;
+    if(state.glb.ready&&state.glb.THREE){
+      const THREE=state.glb.THREE,roots=[];
+      if(!state.glb.raycaster)state.glb.raycaster=new THREE.Raycaster();
+      for(const [id,instance] of state.glb.itemInstances)if(!excludedIds.has(id)&&instance.visible)roots.push(instance);
+      state.glb.raycaster.set(new THREE.Vector3(x,y,currentZ+100000),new THREE.Vector3(0,0,-1));
+      for(const hit of state.glb.raycaster.intersectObjects(roots,true)){
+        const z=Number(hit.point?.z);if(Number.isFinite(z)&&z<=currentZ+1e-4){best=Math.max(best,z);break;}
+      }
+    }
+    return best;
+  }
+
+  function snapSelectedItemsToFloor(){
+    runSelectionTransformCommand('Snap to Floor',items=>{
+      const excluded=new Set(items.map(it=>it.id));let changed=0;
+      for(const it of items){const z=floorHeightForItem(it,excluded);if(!Number.isFinite(z))continue;it.z=worldToRaw(z,'z');changed++;}
+      return changed;
+    });
+  }
+
   function showItemContextMenu(clientX, clientY, menuItems = null){
     const selected = getSelected();
     if (!menuItems && !selected) return;
@@ -7982,7 +8040,7 @@
       { label: "Move", action: () => statusEl.textContent = "Use Shift + arrastar para mover o item selecionado." },
       { label: "Numeric Move", action: () => showNotImplemented("Numeric Move") },
       { label: "Group Rotate", action: () => showNotImplemented("Group Rotate") },
-      { label: "Snap to Grid", action: () => showNotImplemented("Snap to Grid") },
+      { label: "Snap to Grid", action: snapSelectedItemsToGrid },
       { separator: true },
       { label: "Hide Selected", action: () => showNotImplemented("Hide Selected") },
       { label: "Hide Unselected", action: () => showNotImplemented("Hide Unselected") },
@@ -7995,7 +8053,7 @@
       { separator: true },
       { label: "Deselect This Type", action: () => showNotImplemented("Deselect This Type") },
       { separator: true },
-      { label: "Snap to Terrain", action: () => showNotImplemented("Snap to Terrain") },
+      { label: "Snap to Floor", action: snapSelectedItemsToFloor },
       { separator: true },
       { label: "Delete", action: () => deleteSelectedItem() }
     ];
@@ -10467,6 +10525,7 @@
     updateGizmoMaterials();
     state.gizmoVisual={mode:state.transformMode,center:{world:center},basis,handles:{moveX:{kind:'axis',axis:basis.x},moveY:{kind:'axis',axis:basis.y},moveZ:{kind:'axis',axis:basis.z},moveXY:{kind:'plane',axisA:basis.x,axisB:basis.y},moveXZ:{kind:'plane',axisA:basis.x,axisB:basis.z},moveYZ:{kind:'plane',axisA:basis.y,axisB:basis.z},rotX:{kind:'ring',axis:basis.x},rotZ:{kind:'ring',axis:basis.z}}};
     if(state.gizmoDrag?.label&&gizmoCtx){if(state.gizmoDrag.handle?.kind==='ring')drawRotationDragFeedback(center,state.gizmoDrag);else{const c=worldToScreen(center.x,center.y,center.z);gizmoCtx.font='12px sans-serif';gizmoCtx.fillStyle='#fff';gizmoCtx.fillText(state.gizmoDrag.label,c.sx+14,c.sy-14);}}
+    if(state.snapCandidateWorld&&gizmoCtx){const p=worldToScreen(state.snapCandidateWorld.x,state.snapCandidateWorld.y,state.snapCandidateWorld.z);if(p.visible){gizmoCtx.save();gizmoCtx.strokeStyle='#fff176';gizmoCtx.lineWidth=2;gizmoCtx.beginPath();gizmoCtx.moveTo(p.sx-7,p.sy);gizmoCtx.lineTo(p.sx+7,p.sy);gizmoCtx.moveTo(p.sx,p.sy-7);gizmoCtx.lineTo(p.sx,p.sy+7);gizmoCtx.stroke();gizmoCtx.restore();}}
   }
   function drawThreeGizmo(){
     if(!state.glb.ready||!state.glb.gizmoScene||!state.glb.gizmoGroup?.visible)return;
@@ -11180,16 +11239,20 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   const linkTranslationGridEl=document.getElementById('linkTranslationGrid');
   const translationSnapEl=document.getElementById('translationSnap');
   const translationSnapModeEl=document.getElementById('translationSnapMode');
+  const translationSnapTargetEl=document.getElementById('translationSnapTarget');
   const infiniteWorkGridEl=document.getElementById('infiniteWorkGrid');
   const rotationSnapEl=document.getElementById('rotationSnap');
+  const rotationSnapModeEl=document.getElementById('rotationSnapMode');
   transformSpaceEl?.addEventListener('change',()=>{state.transformSpace=transformSpaceEl.value;updateItemGizmo();});
   transformPivotEl?.addEventListener('change',()=>{state.transformPivot=transformPivotEl.value;updateItemGizmo();});
   transformSnapEnabledEl?.addEventListener('change',()=>{state.transformSnapEnabled=transformSnapEnabledEl.checked;updateItemGizmo();});
   linkTranslationGridEl?.addEventListener('change',()=>{state.linkTranslationGrid=linkTranslationGridEl.checked;translationSnapEl.disabled=state.linkTranslationGrid;if(state.linkTranslationGrid)updateGridUi();});
   translationSnapEl?.addEventListener('change',()=>{state.translationSnap=Math.max(Math.pow(2,GRID_EXP_MIN),Number(translationSnapEl.value)||1);if(state.linkTranslationGrid){gridExponent=Math.max(GRID_EXP_MIN,Math.min(GRID_EXP_MAX,Math.round(Math.log2(state.translationSnap))));updateGridUi();}else translationSnapEl.value=String(state.translationSnap);});
   translationSnapModeEl?.addEventListener('change',()=>{state.translationSnapMode=translationSnapModeEl.value;});
+  translationSnapTargetEl?.addEventListener('change',()=>{state.translationSnapTarget=translationSnapTargetEl.value;state.snapCandidateWorld=null;updateItemGizmo();});
   infiniteWorkGridEl?.addEventListener('change',()=>{renderUiState.infiniteWorkGrid=infiniteWorkGridEl.checked;requestRender();});
   rotationSnapEl?.addEventListener('change',()=>{state.rotationSnap=Math.max(.1,Number(rotationSnapEl.value)||15);rotationSnapEl.value=String(state.rotationSnap);});
+  rotationSnapModeEl?.addEventListener('change',()=>{state.rotationSnapMode=rotationSnapModeEl.value;});
   document.getElementById('gridPlus')?.addEventListener('click',()=>stepGridExponent(1));
   document.getElementById('gridMinus')?.addEventListener('click',()=>stepGridExponent(-1));
   updateGridUi();
@@ -11314,6 +11377,45 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     const initial=vec3Dot(pivotFromOrigin,axis);
     return snapValue(initial+value,state.translationSnap)-initial;
   }
+  function collectAnchorVertexSnapCandidates(excludedIds){
+    const candidates=[];
+    for(const it of getFilteredItems()){
+      if(excludedIds.has(it.id)||!isItemVisibilityFilterMatch(it))continue;
+      candidates.push(vec3(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)));
+      const instance=state.glb.itemInstances.get(it.id);
+      if(!instance||!state.glb.THREE||candidates.length>=5000)continue;
+      instance.updateMatrixWorld(true);
+      instance.traverse(obj=>{
+        const positions=obj.geometry?.getAttribute?.('position');
+        if(!obj.isMesh||!positions||candidates.length>=5000)return;
+        const stride=Math.max(1,Math.ceil(positions.count/64)),point=new state.glb.THREE.Vector3();
+        for(let i=0;i<positions.count&&candidates.length<5000;i+=stride){
+          point.fromBufferAttribute(positions,i).applyMatrix4(obj.matrixWorld);
+          candidates.push(vec3(point.x,point.y,point.z));
+        }
+      });
+    }
+    return candidates;
+  }
+  function nearestAnchorVertexCandidate(world,excludedIds,maxPixels=16){
+    const projected=worldToScreen(world.x,world.y,world.z);if(!projected.visible)return null;
+    let best=null,bestD2=maxPixels*maxPixels;
+    for(const candidate of collectAnchorVertexSnapCandidates(excludedIds)){
+      const p=worldToScreen(candidate.x,candidate.y,candidate.z);if(!p.visible)continue;
+      const d2=(p.sx-projected.sx)**2+(p.sy-projected.sy)**2;
+      if(d2<bestD2){bestD2=d2;best=candidate;}
+    }
+    return best;
+  }
+  function snapDeltaToAnchorVertex(d,delta){
+    const target=vec3Add(d.pivot,delta),candidate=nearestAnchorVertexCandidate(target,new Set(d.itemIds));
+    state.snapCandidateWorld=candidate;
+    if(!candidate)return delta;
+    const correction=vec3Sub(candidate,target);
+    if(d.handle.kind==='axis')return vec3Add(delta,vec3Scale(d.handle.axis,vec3Dot(correction,d.handle.axis)));
+    if(d.handle.kind==='plane')return vec3Add(delta,vec3Add(vec3Scale(d.handle.axisA,vec3Dot(correction,d.handle.axisA)),vec3Scale(d.handle.axisB,vec3Dot(correction,d.handle.axisB))));
+    return delta;
+  }
   function applyTranslationDelta(it,start,delta){
     if(Math.abs(delta.x)>1e-9)it.x=worldToRaw(start.world.x+delta.x,'x');else it.x=start.x;
     if(Math.abs(delta.y)>1e-9)it.y=worldToRaw(start.world.y+delta.y,'y');else it.y=start.y;
@@ -11336,21 +11438,26 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
   window.addEventListener('mousemove',e=>{
     if(!state.gizmoDrag)return;
-    const d=state.gizmoDrag,rect=cv.getBoundingClientRect(),ray=screenRay(e.clientX-rect.left,e.clientY-rect.top),snapOn=state.transformSnapEnabled;
+    const d=state.gizmoDrag,rect=cv.getBoundingClientRect(),ray=screenRay(e.clientX-rect.left,e.clientY-rect.top),snapOn=state.transformSnapEnabled!==e.ctrlKey;
+    state.snapCandidateWorld=null;
     if(!isGizmoHandleInteractive(d.mode)||state.modalOpen||!d.snapshots.every(start=>getItemByIdFast(start.id))){state.gizmoDrag=null;state.hoveredGizmoHandle=null;endUndoTransaction();updateItemGizmo();return;}
     if(d.handle.kind==='axis'){
-      let delta=rayAxisParameter(ray,d.pivot,d.handle.axis)-d.startScalar;if(snapOn)delta=snapTranslationComponent(delta,d.pivot,d.handle.axis);d.label=`${delta.toFixed(2)}`;
-      for(const start of d.snapshots){const it=getItemByIdFast(start.id),move=vec3Scale(d.handle.axis,delta);if(!it)continue;applyTranslationDelta(it,start,move);}
+      let scalar=rayAxisParameter(ray,d.pivot,d.handle.axis)-d.startScalar,move=vec3Scale(d.handle.axis,scalar);
+      if(snapOn){if(state.translationSnapTarget==='anchorVertex')move=snapDeltaToAnchorVertex(d,move);else{scalar=snapTranslationComponent(scalar,d.pivot,d.handle.axis);move=vec3Scale(d.handle.axis,scalar);}}
+      d.label=`${vec3Dot(move,d.handle.axis).toFixed(2)}`;
+      for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;applyTranslationDelta(it,start,move);}
     }else if(d.handle.kind==='plane'){
-      const hit=rayPlanePoint(ray,d.pivot,d.planeNormal);if(!hit||!d.startPoint)return;let delta=vec3Sub(hit,d.startPoint),da=vec3Dot(delta,d.handle.axisA),db=vec3Dot(delta,d.handle.axisB);if(snapOn){da=snapTranslationComponent(da,d.pivot,d.handle.axisA);db=snapTranslationComponent(db,d.pivot,d.handle.axisB);}delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));d.label=`${da.toFixed(2)}, ${db.toFixed(2)}`;
+      const hit=rayPlanePoint(ray,d.pivot,d.planeNormal);if(!hit||!d.startPoint)return;let delta=vec3Sub(hit,d.startPoint),da=vec3Dot(delta,d.handle.axisA),db=vec3Dot(delta,d.handle.axisB);delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));if(snapOn){if(state.translationSnapTarget==='anchorVertex')delta=snapDeltaToAnchorVertex(d,delta);else{da=snapTranslationComponent(da,d.pivot,d.handle.axisA);db=snapTranslationComponent(db,d.pivot,d.handle.axisB);delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));}}da=vec3Dot(delta,d.handle.axisA);db=vec3Dot(delta,d.handle.axisB);d.label=`${da.toFixed(2)}, ${db.toFixed(2)}`;
       for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;applyTranslationDelta(it,start,delta);}
     }else if(d.handle.kind==='ring'){
-      const hit=rayPlanePoint(ray,d.pivot,d.handle.axis);if(!hit||!d.lastVector)return;const cur=vec3Norm(vec3Sub(hit,d.pivot)),deltaAngle=Math.atan2(vec3Dot(d.handle.axis,vec3Cross(d.lastVector,cur)),vec3Dot(d.lastVector,cur));d.accumulatedAngle+=deltaAngle;d.lastVector=cur;let angle=d.accumulatedAngle,deg=angle*180/Math.PI;if(snapOn){deg=snapValue(deg,state.rotationSnap);angle=deg*Math.PI/180;}d.appliedAngle=angle;d.currentVector=vec3Norm(rotateAroundAxis(d.startVector,d.handle.axis,angle));d.label=`${deg.toFixed(1)}°`;
-      for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;if(d.mode==='rotX')it.pitch=start.pitch+deg;else it.heading=start.heading-deg;if(state.transformPivot!=='individual'&&d.snapshots.length>1){const p=vec3Add(d.pivot,rotateAroundAxis(vec3Sub(start.world,d.pivot),d.handle.axis,angle));it.x=worldToRaw(p.x,'x');it.y=worldToRaw(p.y,'y');it.z=worldToRaw(p.z,'z');}}
+      const hit=rayPlanePoint(ray,d.pivot,d.handle.axis);if(!hit||!d.lastVector)return;const cur=vec3Norm(vec3Sub(hit,d.pivot)),deltaAngle=Math.atan2(vec3Dot(d.handle.axis,vec3Cross(d.lastVector,cur)),vec3Dot(d.lastVector,cur));d.accumulatedAngle+=deltaAngle;d.lastVector=cur;let deg=d.accumulatedAngle*180/Math.PI;
+      const reference=d.snapshots[0];if(snapOn){if(state.rotationSnapMode==='absolute'){const initial=d.mode==='rotX'?reference.pitch:reference.heading,sign=d.mode==='rotX'?1:-1;deg=(snapValue(initial+sign*deg,state.rotationSnap)-initial)/sign;}else deg=snapValue(deg,state.rotationSnap);}
+      const angle=deg*Math.PI/180;d.appliedAngle=angle;d.currentVector=vec3Norm(rotateAroundAxis(d.startVector,d.handle.axis,angle));d.label=`${deg.toFixed(1)}°`;
+      for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;let itemDeg=deg;if(snapOn&&state.rotationSnapMode==='absolute'&&state.transformPivot==='individual'){const initial=d.mode==='rotX'?start.pitch:start.heading,sign=d.mode==='rotX'?1:-1;itemDeg=(snapValue(initial+sign*d.accumulatedAngle*180/Math.PI,state.rotationSnap)-initial)/sign;}if(d.mode==='rotX')it.pitch=start.pitch+itemDeg;else it.heading=start.heading-itemDeg;if(state.transformPivot!=='individual'&&d.snapshots.length>1){const p=vec3Add(d.pivot,rotateAroundAxis(vec3Sub(start.world,d.pivot),d.handle.axis,angle));it.x=worldToRaw(p.x,'x');it.y=worldToRaw(p.y,'y');it.z=worldToRaw(p.z,'z');}}
     }
     commitGizmoUpdates(d.snapshots.map(x=>getItemByIdFast(x.id)).filter(Boolean));updateItemGizmo();
   });
-  window.addEventListener('mouseup',()=>{if(!state.gizmoDrag)return;state.gizmoDrag=null;state.hoveredGizmoHandle=null;endUndoTransaction();updateItemGizmo();});
+  window.addEventListener('mouseup',()=>{if(!state.gizmoDrag)return;state.gizmoDrag=null;state.hoveredGizmoHandle=null;state.snapCandidateWorld=null;endUndoTransaction();updateItemGizmo();});
 
   const _origLoadMisFile = loadMisFile;
   loadMisFile = async function(file, fileHandle = null){
