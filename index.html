@@ -266,6 +266,7 @@
       font-size:12px;
       pointer-events:none;
     }
+    #insertPreviewLabel{position:absolute;z-index:12;display:none;pointer-events:none;padding:3px 6px;border:1px solid rgba(44,230,255,.8);border-radius:4px;background:rgba(0,0,0,.72);color:#fff;font-size:12px;white-space:nowrap;}
     .canvasFloatingToolbar{
       position:absolute;
       top:10px;
@@ -1468,6 +1469,7 @@
         <div id="fpsCounter">0 FPS</div>
       </div>
       <canvas id="cv"></canvas>
+      <div id="insertPreviewLabel" aria-hidden="true"></div>
       <div id="camDebug"></div>
       <div id="sceneInfoHint">Show Scene Info (I)</div>
       <canvas id="gizmoCanvas" aria-hidden="true"></canvas>
@@ -1839,7 +1841,7 @@
             <select id="insertItemList" size="18" aria-label="Item"></select>
             <div class="insertOptions">
               <label class="checkRow"><input id="insertRandomFacing" type="checkbox" /> Random Facing</label>
-              <label>Drop Count<input id="insertDropCount" type="number" min="1" max="999" value="1" /></label>
+              <label>Drop Count<input id="insertDropCount" type="number" min="1" max="20" value="1" /></label>
               <fieldset class="insertAreaOptions"><legend>Drop Area</legend>
                 <label><input name="insertDropArea" type="radio" value="rectangle" checked /> Rectangle</label>
                 <label><input name="insertDropArea" type="radio" value="oval" /> Oval</label>
@@ -2187,7 +2189,10 @@
     insertDropCount: 1,
     insertDropArea: "rectangle",
     insertDragStart: null,
+    insertDragStartScreen: null,
     insertPreviewWorld: null,
+    insertPreviewSamples: [],
+    insertPreviewPoints: [],
     gizmoDrag: null,
     gizmoVisual: null,
     gizmoAxisScreenDirs: null,
@@ -2278,6 +2283,7 @@
       waterMap: new Map(),
       gridLines: null,
       rectLines: null,
+      insertLines: null,
       ready: false,
     },
     itemsById: new Map(),
@@ -2560,6 +2566,7 @@
   const insertItemList = document.getElementById("insertItemList");
   const insertRandomFacing = document.getElementById("insertRandomFacing");
   const insertDropCount = document.getElementById("insertDropCount");
+  const insertPreviewLabel = document.getElementById("insertPreviewLabel");
   const modalCloseBtn = document.getElementById("modalCloseBtn");
   const okBtn = document.getElementById("okBtn");
   const cancelBtn = document.getElementById("cancelBtn");
@@ -3903,7 +3910,11 @@
     closeInsertDialog();
     state.insertModeActive = false;
     state.insertDragStart = null;
+    state.insertDragStartScreen = null;
     state.insertPreviewWorld = null;
+    state.insertPreviewSamples = [];
+    state.insertPreviewPoints = [];
+    insertPreviewLabel.style.display = "none";
     cv.style.cursor = "";
     renderMenuBar();
     requestRender();
@@ -3920,7 +3931,8 @@
     if (!def){ statusEl.textContent = "Choose an item to insert."; return; }
     state.insertDefinitionId = String(def.id);
     state.insertRandomFacing = insertRandomFacing.checked;
-    state.insertDropCount = Math.max(1, Math.min(999, Math.trunc(Number(insertDropCount.value) || 1)));
+    state.insertDropCount = Math.max(1, Math.min(20, Math.trunc(Number(insertDropCount.value) || 1)));
+    insertDropCount.value = String(state.insertDropCount);
     state.insertDropArea = document.querySelector('input[name="insertDropArea"]:checked')?.value || "rectangle";
     state.pastePlacementActive = false;
     state.pastePreviewWorld = null;
@@ -3932,6 +3944,41 @@
   }
 
   function quoteMisString(value){ return `"${String(value || "").replace(/"/g, "'")}"`; }
+
+  function createInsertPreviewSamples(count, area){
+    return Array.from({ length: count }, () => area === "oval"
+      ? { angle: Math.random() * Math.PI * 2, radius: Math.sqrt(Math.random()) }
+      : { u: Math.random(), v: Math.random() });
+  }
+
+  function terrainPointForInsert(x, y){
+    const terrainZ = heightAtWorld(x, y, 1.0);
+    return { x, y, z: Number.isFinite(terrainZ) && terrainZ > -1e8 ? terrainZ : 0 };
+  }
+
+  function updateInsertPreviewPoints(start, end){
+    if (!start || !end){ state.insertPreviewPoints = []; return; }
+    const minX = Math.min(start.x, end.x), maxX = Math.max(start.x, end.x);
+    const minY = Math.min(start.y, end.y), maxY = Math.max(start.y, end.y);
+    const centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2;
+    state.insertPreviewPoints = state.insertPreviewSamples.map(sample => {
+      if (state.insertDropArea === "oval"){
+        return terrainPointForInsert(
+          centerX + Math.cos(sample.angle) * sample.radius * (maxX - minX) / 2,
+          centerY + Math.sin(sample.angle) * sample.radius * (maxY - minY) / 2
+        );
+      }
+      return terrainPointForInsert(minX + sample.u * (maxX - minX), minY + sample.v * (maxY - minY));
+    });
+  }
+
+  function updateInsertPreviewLabel(sx, sy){
+    if (!state.insertDragStart){ insertPreviewLabel.style.display = "none"; return; }
+    insertPreviewLabel.textContent = `${state.insertDropCount} item${state.insertDropCount === 1 ? "" : "s"} — ${state.insertDropArea === "oval" ? "Oval" : "Rectangle"}`;
+    insertPreviewLabel.style.left = `${Math.round(sx + 14)}px`;
+    insertPreviewLabel.style.top = `${Math.round(sy + 14)}px`;
+    insertPreviewLabel.style.display = "block";
+  }
 
   function createInsertedItem(def, world){
     const editorId = state.items.length ? Math.max(...state.items.map(item => item.id)) + 1 : 1;
@@ -3955,32 +4002,22 @@
     return item;
   }
 
-  function insertItemsInArea(start, end){
+  function insertItemsAtPreviewPoints(){
     const def = state.defsById.get(state.insertDefinitionId);
     if (!def) return;
-    const count = state.insertDropCount;
-    const minX = Math.min(start.x, end.x), maxX = Math.max(start.x, end.x);
-    const minY = Math.min(start.y, end.y), maxY = Math.max(start.y, end.y);
-    const click = Math.abs(maxX - minX) < 1 && Math.abs(maxY - minY) < 1;
+    const points = state.insertPreviewPoints.slice(0, 20);
+    if (!points.length) return;
     const created = [];
     beginUndoTransaction();
     try{
-      for (let i = 0; i < count; i++){
-        let x = end.x, y = end.y;
-        if (!click && state.insertDropArea === "oval"){
-          const angle = Math.random() * Math.PI * 2, radius = Math.sqrt(Math.random());
-          x = (minX + maxX) / 2 + Math.cos(angle) * radius * (maxX - minX) / 2;
-          y = (minY + maxY) / 2 + Math.sin(angle) * radius * (maxY - minY) / 2;
-        } else if (!click){
-          x = minX + Math.random() * (maxX - minX); y = minY + Math.random() * (maxY - minY);
-        }
-        created.push(createInsertedItem(def, { x, y, z: end.z }));
-      }
+      for (const point of points) created.push(createInsertedItem(def, point));
       markItemsChanged({ structure: true });
       state.selectedId = created.at(-1)?.id ?? null;
       state.multiSelectedIds = new Set(created.map(item => item.id));
       renderList(); renderItemWindow(); requestRender(); scheduleLiveMisRefresh();
     } finally { endUndoTransaction(); }
+    state.insertPreviewSamples = [];
+    state.insertPreviewPoints = [];
     statusEl.textContent = `${created.length} ${def.name} item${created.length === 1 ? "" : "s"} inserted.`;
   }
 
@@ -9446,6 +9483,14 @@
     overlays.rectLines = new THREE.LineSegments(rectGeom, rectMat);
     overlays.rectLines.frustumCulled = false;
     overlays.scene.add(overlays.rectLines);
+
+    const insertGeom = new THREE.BufferGeometry();
+    insertGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
+    insertGeom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0), 3));
+    const insertMat = new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95, fog: false });
+    overlays.insertLines = new THREE.LineSegments(insertGeom, insertMat);
+    overlays.insertLines.frustumCulled = false;
+    overlays.scene.add(overlays.insertLines);
     overlays.ready = true;
     addLog('[overlays_three] overlays layer initialized.');
     return true;
@@ -9492,11 +9537,49 @@
     }
   }
 
+  function appendInsertLine(positions, colors, a, b, color){
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    colors.push(...color, ...color);
+  }
+
+  function updateInsertOverlayGeometry(overlays){
+    const positions = [], colors = [], color = [0.15, 0.95, 1.0], pivotColor = [1.0, 0.82, 0.1];
+    const start = state.insertDragStart, end = state.insertPreviewWorld;
+    if (state.insertModeActive && start && end){
+      const minX=Math.min(start.x,end.x),maxX=Math.max(start.x,end.x),minY=Math.min(start.y,end.y),maxY=Math.max(start.y,end.y);
+      const boundary = [];
+      if (state.insertDropArea === 'oval'){
+        const cx=(minX+maxX)/2,cy=(minY+maxY)/2,rx=(maxX-minX)/2,ry=(maxY-minY)/2;
+        for(let i=0;i<=48;i++){const a=i/48*Math.PI*2;boundary.push(terrainPointForInsert(cx+Math.cos(a)*rx,cy+Math.sin(a)*ry));}
+      } else {
+        const corners=[[minX,minY],[maxX,minY],[maxX,maxY],[minX,maxY],[minX,minY]];
+        for(const [x,y] of corners) boundary.push(terrainPointForInsert(x,y));
+      }
+      for(let i=1;i<boundary.length;i++){
+        const a={...boundary[i-1],z:boundary[i-1].z+0.5},b={...boundary[i],z:boundary[i].z+0.5};
+        appendInsertLine(positions,colors,a,b,color);
+      }
+      for(const point of state.insertPreviewPoints){
+        const distance=Math.hypot(cam.pos.x-point.x,cam.pos.y-point.y,cam.pos.z-point.z);
+        const radius=Math.max(1,Math.min(256,topViewLocked?topViewScale*0.009:distance*0.006));
+        const z=point.z+0.75,segments=16;
+        for(let i=0;i<segments;i++){
+          const a=i/segments*Math.PI*2,b=(i+1)/segments*Math.PI*2;
+          appendInsertLine(positions,colors,{x:point.x+Math.cos(a)*radius,y:point.y+Math.sin(a)*radius,z},{x:point.x+Math.cos(b)*radius,y:point.y+Math.sin(b)*radius,z},pivotColor);
+        }
+        appendInsertLine(positions,colors,{x:point.x-radius,y:point.y,z},{x:point.x+radius,y:point.y,z},pivotColor);
+        appendInsertLine(positions,colors,{x:point.x,y:point.y-radius,z},{x:point.x,y:point.y+radius,z},pivotColor);
+      }
+    }
+    updateThreeLineGeometry(overlays.insertLines,new Float32Array(positions),new Float32Array(colors));
+  }
+
   function drawOverlaysThree(P, V, forward){
     if (!ensureThreeOverlaysReady()) return;
     if (!sectors || !Number.isFinite(sectorCount) || sectorCount <= 0){
       updateThreeLineGeometry(state.threeOverlays.gridLines, new Float32Array(0));
       updateThreeLineGeometry(state.threeOverlays.rectLines, new Float32Array(0), new Float32Array(0));
+      updateThreeLineGeometry(state.threeOverlays.insertLines, new Float32Array(0), new Float32Array(0));
       for (const mesh of state.threeOverlays.waterMap.values()) state.threeOverlays.scene.remove(mesh);
       state.threeOverlays.waterMap.clear();
       state.threeOverlays.waterPool.length = 0;
@@ -9596,6 +9679,7 @@
       }
     }
     updateThreeLineGeometry(overlays.rectLines, new Float32Array(rectPos), new Float32Array(rectColors));
+    updateInsertOverlayGeometry(overlays);
 
     applyThreeCameraFromPV(P, V);
     state.glb.renderer.resetState();
@@ -11615,7 +11699,11 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     if (state.insertModeActive){
       const world = screenToWorld(sx, sy, 0);
       state.insertDragStart = world;
+      state.insertDragStartScreen = { sx, sy };
       state.insertPreviewWorld = world;
+      state.insertPreviewSamples = createInsertPreviewSamples(state.insertDropCount, state.insertDropArea);
+      updateInsertPreviewPoints(world, world);
+      updateInsertPreviewLabel(sx, sy);
       state.lastMouse = { sx, sy };
       e.preventDefault();
       return;
@@ -11653,9 +11741,9 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   });
   cv.addEventListener("contextmenu", (e) => { e.preventDefault(); if(state.cameraLookActive || (state.cameraLookPending&&state.cameraLookButton===2)) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; const picked=pickItemAtCanvas(sx,sy); if (picked){ if (!(picked.id===state.selectedId||state.multiSelectedIds.has(picked.id))) selectById(picked.id); showItemContextMenu(e.clientX,e.clientY); return; } if (state.selectedId!==null||state.multiSelectedIds.size>0||state.itemClipboardItems.length) showItemContextMenu(e.clientX,e.clientY); });
   cv.addEventListener("dblclick", (e) => { const rect=cv.getBoundingClientRect(); const picked=pickItemAtCanvas(e.clientX-rect.left,e.clientY-rect.top); if(picked){ selectById(picked.id); openModal(); } });
-  cv.addEventListener("mousemove", (e) => { if(state.modalOpen) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; if(state.insertModeActive){state.insertPreviewWorld=screenToWorld(sx,sy,0);state.lastMouse={sx,sy};requestRender();return;} if(state.cameraLookPending){ const mask=state.cameraLookButton===2?2:1; if(e.buttons & mask){ const start=state.cameraLookStart||{sx,sy}; const moved=Math.hypot(sx-start.sx, sy-start.sy); if(moved>3){ state.cameraLookPending=false; if(state.cameraLookButton===1) state.pendingLeftClick=null; state.cameraLookActive=true; requestCameraPointerLock(); } } else if(!state.cameraLookActive){ state.cameraLookPending=false; state.cameraLookButton=0; } } if(state.pastePlacementActive){ const z=state.selectedId?rawToWorld(getSelected()?.z||0,'z'):0; state.pastePreviewWorld=screenToWorld(sx,sy,z); } if(state.boxSelecting&&state.boxStart) state.boxCurrent={sx,sy}; else if(state.draggingItem&&state.selectedId){ const active=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id)); const zPlane=rawToWorld((active[0]?.z)||0,'z'); const nowW=screenToWorld(sx,sy,zPlane); const prevW=state.dragAnchor||nowW; const dx=nowW.x-prevW.x, dy=nowW.y-prevW.y; for(const it of active){ if(!kvHas(it,'position')) continue; it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x'); it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y'); it.kv.position=`${it.x} ${it.y} ${it.z}`; markItemTransformDirty(it.id);} markItemsChanged({ structure: false }); state.dragAnchor=nowW; scheduleRenderList(); scheduleLiveMisRefresh(); } state.lastMouse={sx,sy}; });
+  cv.addEventListener("mousemove", (e) => { if(state.modalOpen) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; if(state.insertModeActive){state.insertPreviewWorld=screenToWorld(sx,sy,0);if(state.insertDragStart){updateInsertPreviewPoints(state.insertDragStart,state.insertPreviewWorld);updateInsertPreviewLabel(sx,sy);}state.lastMouse={sx,sy};requestRender();return;} if(state.cameraLookPending){ const mask=state.cameraLookButton===2?2:1; if(e.buttons & mask){ const start=state.cameraLookStart||{sx,sy}; const moved=Math.hypot(sx-start.sx, sy-start.sy); if(moved>3){ state.cameraLookPending=false; if(state.cameraLookButton===1) state.pendingLeftClick=null; state.cameraLookActive=true; requestCameraPointerLock(); } } else if(!state.cameraLookActive){ state.cameraLookPending=false; state.cameraLookButton=0; } } if(state.pastePlacementActive){ const z=state.selectedId?rawToWorld(getSelected()?.z||0,'z'):0; state.pastePreviewWorld=screenToWorld(sx,sy,z); } if(state.boxSelecting&&state.boxStart) state.boxCurrent={sx,sy}; else if(state.draggingItem&&state.selectedId){ const active=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id)); const zPlane=rawToWorld((active[0]?.z)||0,'z'); const nowW=screenToWorld(sx,sy,zPlane); const prevW=state.dragAnchor||nowW; const dx=nowW.x-prevW.x, dy=nowW.y-prevW.y; for(const it of active){ if(!kvHas(it,'position')) continue; it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x'); it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y'); it.kv.position=`${it.x} ${it.y} ${it.z}`; markItemTransformDirty(it.id);} markItemsChanged({ structure: false }); state.dragAnchor=nowW; scheduleRenderList(); scheduleLiveMisRefresh(); } state.lastMouse={sx,sy}; });
   function stopDrag(){ const had=state.boxSelecting&&state.boxStart&&state.boxCurrent; const shouldFinalizeClick=!!state.pendingLeftClick && !state.cameraLookActive && !state.gizmoDrag && !state.draggingItem && !had; const x0=had?Math.min(state.boxStart.sx,state.boxCurrent.sx):0, x1=had?Math.max(state.boxStart.sx,state.boxCurrent.sx):0, y0=had?Math.min(state.boxStart.sy,state.boxCurrent.sy):0, y1=had?Math.max(state.boxStart.sy,state.boxCurrent.sy):0, add=state.boxSelectAdditive; state.draggingItem=false; state.boxSelecting=false; state.boxSelectAdditive=false; state.boxStart=null; state.boxCurrent=null; state.lastMouse=null; state.dragAnchor=null; state.cameraLookActive=false; state.cameraLookPending=false; state.cameraLookStart=null; state.cameraLookButton=0; if(document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock(); if(shouldFinalizeClick){ const pickedId=state.pendingLeftClick.pickedId; selectById(pickedId != null ? pickedId : null); } state.pendingLeftClick=null; if(had){ const worldA=screenToWorld(x0,y0,0); const worldB=screenToWorld(x1,y1,0); const minX=Math.min(worldA.x,worldB.x), maxX=Math.max(worldA.x,worldB.x), minY=Math.min(worldA.y,worldB.y), maxY=Math.max(worldA.y,worldB.y); const candidates=getSpatialCandidatesByWorldRect(minX,minY,maxX,maxY); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); const ids=[]; for(const it of candidates){ if(!filteredSet.has(it.id)||!isItemVisibilityFilterMatch(it)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(p.visible&&p.sx>=x0&&p.sx<=x1&&p.sy>=y0&&p.sy<=y1) ids.push(it.id); } if(!add) state.multiSelectedIds.clear(); for(const id of ids) state.multiSelectedIds.add(id); state.selectedId=state.multiSelectedIds.size?Array.from(state.multiSelectedIds).at(-1):null; renderList(); refreshLiveMisWindow(false, { force: true }); } }
-  cv.addEventListener('mouseup',e=>{if(state.insertModeActive&&state.insertDragStart){const rect=cv.getBoundingClientRect(),end=screenToWorld(e.clientX-rect.left,e.clientY-rect.top,0),start=state.insertDragStart;state.insertDragStart=null;state.insertPreviewWorld=end;insertItemsInArea(start,end);return;}stopDrag();}); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; if(state.insertModeActive){state.insertDragStart=null;return;} stopDrag(); });
+  cv.addEventListener('mouseup',e=>{if(state.insertModeActive&&state.insertDragStart){const rect=cv.getBoundingClientRect(),sx=e.clientX-rect.left,sy=e.clientY-rect.top,end=screenToWorld(sx,sy,0),startScreen=state.insertDragStartScreen,moved=startScreen?Math.hypot(sx-startScreen.sx,sy-startScreen.sy):0;state.insertPreviewWorld=end;updateInsertPreviewPoints(state.insertDragStart,end);if(state.insertDropCount>1&&moved<4){state.insertDragStart=null;state.insertDragStartScreen=null;state.insertPreviewSamples=[];state.insertPreviewPoints=[];insertPreviewLabel.style.display='none';requestRender();statusEl.textContent='Drag on the map to define the drop area for multiple items.';return;}insertItemsAtPreviewPoints();insertPreviewLabel.style.display='none';state.insertDragStart=null;state.insertDragStartScreen=null;requestRender();return;}stopDrag();}); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; if(state.insertModeActive){state.insertDragStart=null;state.insertDragStartScreen=null;state.insertPreviewSamples=[];state.insertPreviewPoints=[];insertPreviewLabel.style.display='none';requestRender();return;} stopDrag(); });
   cv.addEventListener('wheel',(e)=>{ e.preventDefault(); if(topViewLocked){ topViewScale=Math.max(1,Math.min(1000000,topViewScale*Math.exp(e.deltaY*0.001))); } else { const dir=e.deltaY<0?1:-1; renderUiState.speedLevel=Math.max(1,Math.min(8,renderUiState.speedLevel+dir)); renderMenuBar(); } requestRender(); },{passive:false});
 
   document.addEventListener("pointerlockchange", () => {
