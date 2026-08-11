@@ -3915,6 +3915,7 @@
     renderInsertDialog();
     insertOverlay.classList.add("open");
     insertOverlay.setAttribute("aria-hidden", "false");
+    statusEl.textContent = "Insert Mode: select an item and placement options.";
   }
 
   function selectInsertDefinition(definitionId, options = {}){
@@ -3968,7 +3969,9 @@
     closeInsertDialog();
     cv.style.cursor = "crosshair";
     renderMenuBar();
-    statusEl.textContent = `Insert Mode: ${def.name}. Drag on the map to place ${state.insertDropCount} item${state.insertDropCount === 1 ? "" : "s"}.`;
+    statusEl.textContent = state.insertDropCount === 1
+      ? `Insert Mode active: click the terrain to insert ${def.name}.`
+      : `Insert Mode active: drag on the terrain to place ${state.insertDropCount} ${def.name} items.`;
   }
 
   function quoteMisString(value){ return `"${String(value || "").replace(/"/g, "'")}"`; }
