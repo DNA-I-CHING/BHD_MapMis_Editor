@@ -276,6 +276,9 @@
     }
     #canvasModeToolbar{ left:10px; }
     #canvasViewToolbar{ right:10px; }
+    .toolbarSplit{ display:flex; gap:0; }
+    .toolbarSplit .modeBtn:first-child{ border-radius:6px 0 0 6px; }
+    .toolbarSplit .modeBtn:last-child{ min-width:24px; padding:0 5px; border-left:0; border-radius:0 6px 6px 0; }
     .canvasFloatingToolbar .modeBtn{
       position:static;
       width:auto;
@@ -451,6 +454,7 @@
       box-shadow:inset 0 0 0 1px rgba(255,255,255,.22);
     }
     #viewModePanel,
+    #rotationSnapPanel,
     #viewportToolsPanel{
       position:absolute;
       top:42px;
@@ -468,6 +472,7 @@
       overflow:auto;
     }
     #viewModePanel.open,
+    #rotationSnapPanel.open,
     #viewportToolsPanel.open{ display:block; }
     #viewModeList{ display:grid; grid-template-columns:1fr; gap:6px; }
     #viewModeList label{ display:flex; align-items:center; gap:6px; }
@@ -963,6 +968,7 @@
       font-size:12px;
     }
     .menuControl input[type="range"]{ grid-column:1 / -1; width:100%; }
+    .menuControl select{ min-width:88px; }
     .menuControlValue{ color:var(--muted); font-variant-numeric:tabular-nums; }
     .menuItemBtn:hover{ background:var(--accent-soft); }
     .menuItemBtn:active:not(:disabled){ background:var(--control-active-bg); }
@@ -1418,6 +1424,10 @@
       </div>
       <div id="canvasViewToolbar" class="canvasFloatingToolbar">
         <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
+        <div class="toolbarSplit">
+          <button id="rotationSnapToggleBtn" type="button" class="modeBtn" aria-pressed="false" title="Enable or disable rotation snapping">Rotation Snap</button>
+          <button id="rotationSnapMenuBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false" aria-label="Rotation Snap settings">&#x25BE;</button>
+        </div>
         <button id="viewportToolsBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">Viewport Tools</button>
         <button id="viewModeBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">Draw Mode</button>
         <div id="fpsCounter">0 FPS</div>
@@ -1506,11 +1516,14 @@
           <label><input type="radio" name="glbViewMode" value="category_colors"> Category Colors</label>
           </div>
         </section>
+      </div>
+
+      <div id="rotationSnapPanel" aria-hidden="true">
         <section class="floatingPanelSection">
-          <div class="floatingPanelTitle">Terrain</div>
+          <div class="floatingPanelTitle">Rotation Snap</div>
           <div class="floatingPanelFields">
-            <label>TRN Mesh Step <select id="step"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
-            <label>Draw Radius <input id="radius" type="range" min="512" max="65536" step="256" value="12288"></label>
+            <label>Angle Increment <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees"></label>
+            <label>Mode <select id="rotationSnapMode"><option value="relative">Relative increment</option><option value="absolute">Absolute angle</option></select></label>
           </div>
         </section>
       </div>
@@ -1521,14 +1534,6 @@
           <div class="floatingPanelFields">
             <label>Transformation Mode <span class="shortcutHint">X</span><select id="transformSpace" title="Transformation space (X)"><option value="global">World</option><option value="local">Local</option></select></label>
             <label>Gizmo Pivot <select id="transformPivot" title="Selection pivot"><option value="center">Selection center</option><option value="active">Active item</option><option value="individual">Individual origins</option></select></label>
-          </div>
-        </section>
-        <section class="floatingPanelSection">
-          <div class="floatingPanelTitle">Snapping</div>
-          <div class="floatingPanelFields">
-            <label><span>Enable Snap</span><input id="transformSnapEnabled" type="checkbox"></label>
-            <label>Translation <input id="translationSnap" type="number" min="0.01" step="0.25" value="1" title="Translation snap, world units"></label>
-            <label>Rotation <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees"></label>
           </div>
         </section>
       </div>
@@ -2106,9 +2111,9 @@
     transformMode: "translate",
     transformSpace: "global",
     transformPivot: "center",
-    transformSnapEnabled: false,
-    translationSnap: 1,
+    rotationSnapEnabled: false,
     rotationSnap: 15,
+    rotationSnapMode: "relative",
     hoveredGizmoHandle: null,
 
     gameStrings: new Map(),
@@ -2325,6 +2330,8 @@
   const showGroupsBtn = document.getElementById("showGroupsBtn");
   const showWaypointsBtn = document.getElementById("showWaypointsBtn");
   const showAreaTriggersBtn = document.getElementById("showAreaTriggersBtn");
+  const rotationSnapToggleBtn = document.getElementById("rotationSnapToggleBtn");
+  const rotationSnapMenuBtn = document.getElementById("rotationSnapMenuBtn");
   const viewportToolsBtn = document.getElementById("viewportToolsBtn");
   const viewModeBtn = document.getElementById("viewModeBtn");
   const debugFogBtn = document.getElementById("debugFogBtn");
@@ -2343,6 +2350,7 @@
   const groupVisibilityPanelEl = document.getElementById("groupVisibilityPanel");
   const waypointVisibilityPanelEl = document.getElementById("waypointVisibilityPanel");
   const areaTriggerVisibilityPanelEl = document.getElementById("areaTriggerVisibilityPanel");
+  const rotationSnapPanelEl = document.getElementById("rotationSnapPanel");
   const viewportToolsPanelEl = document.getElementById("viewportToolsPanel");
   const viewModePanelEl = document.getElementById("viewModePanel");
   const viewModeListEl = document.getElementById("viewModeList");
@@ -2457,7 +2465,6 @@
   const okBtn = document.getElementById("okBtn");
   const cancelBtn = document.getElementById("cancelBtn");
   const itemContextMenu = document.getElementById("itemContextMenu");
-  const radiusEl = document.getElementById("radius");
   const showAreaTriggersEl = document.getElementById("showAreaTriggers");
 
   const renderUiState = {
@@ -2465,21 +2472,22 @@
     speedScalar: 1.0,
     groundClamp: true,
     clearance: 1,
-    drawRadius: parseFloat(radiusEl?.value || '12288') || 12288,
+    drawRadius: 12288,
+    terrainMeshStep: 4,
     mainArea: true,
     showSectors: false,
     showStats: false,
     showGrid: true,
+    infiniteWorkGrid: true,
     showAnchorPoints: true,
     showAreaTriggers: showAreaTriggersEl?.checked !== false,
   };
 
   function syncRenderUiState(){
-    renderUiState.drawRadius = parseFloat(radiusEl?.value || '12288') || 12288;
     renderUiState.showAreaTriggers = showAreaTriggersEl?.checked !== false;
   }
 
-  for (const el of [radiusEl, showAreaTriggersEl]){
+  for (const el of [showAreaTriggersEl]){
     el?.addEventListener('input', syncRenderUiState);
     el?.addEventListener('change', syncRenderUiState);
   }
@@ -4864,6 +4872,27 @@
     const panelWidth = viewportToolsPanelEl.offsetWidth || 220;
     viewportToolsPanelEl.style.top = `${Math.round(Math.max(8, btnRect.bottom - wrapRect.top + 6))}px`;
     viewportToolsPanelEl.style.left = `${Math.round(Math.max(8, btnRect.right - wrapRect.left - panelWidth))}px`;
+  }
+
+  function positionRotationSnapPanel(){
+    if(!rotationSnapPanelEl||!rotationSnapMenuBtn||!canvasWrapEl)return;
+    const wrapRect=canvasWrapEl.getBoundingClientRect(),btnRect=rotationSnapMenuBtn.getBoundingClientRect();
+    const panelWidth=rotationSnapPanelEl.offsetWidth||220;
+    rotationSnapPanelEl.style.top=`${Math.round(Math.max(8,btnRect.bottom-wrapRect.top+6))}px`;
+    rotationSnapPanelEl.style.left=`${Math.round(Math.max(8,btnRect.right-wrapRect.left-panelWidth))}px`;
+  }
+
+  function setRotationSnapPanelOpen(open){
+    const visible=!!open;if(visible)positionRotationSnapPanel();
+    rotationSnapPanelEl?.classList.toggle('open',visible);
+    rotationSnapPanelEl?.setAttribute('aria-hidden',visible?'false':'true');
+    rotationSnapMenuBtn?.setAttribute('aria-expanded',visible?'true':'false');
+    rotationSnapMenuBtn?.classList.toggle('active',visible);
+  }
+
+  function syncRotationSnapButton(){
+    rotationSnapToggleBtn?.classList.toggle('active',state.rotationSnapEnabled);
+    rotationSnapToggleBtn?.setAttribute('aria-pressed',state.rotationSnapEnabled?'true':'false');
   }
 
   function setViewportToolsPanelOpen(open){
@@ -7674,6 +7703,17 @@
     setAreaTriggerVisibilityPanelOpen(next);
   });
 
+  rotationSnapToggleBtn?.addEventListener('click',event=>{
+    event.stopPropagation();state.rotationSnapEnabled=!state.rotationSnapEnabled;syncRotationSnapButton();updateItemGizmo();
+  });
+  rotationSnapMenuBtn?.addEventListener('click',event=>{
+    event.stopPropagation();const next=!rotationSnapPanelEl?.classList.contains('open');
+    if(next){setCanvasShowPanelOpen(false);setLayerVisibilityPanelOpen(false);setGroupVisibilityPanelOpen(false);setWaypointVisibilityPanelOpen(false);setAreaTriggerVisibilityPanelOpen(false);setViewportToolsPanelOpen(false);setViewModePanelOpen(false);setDebugFogPanelOpen(false);}
+    setRotationSnapPanelOpen(next);
+  });
+  rotationSnapPanelEl?.addEventListener('click',event=>event.stopPropagation());
+  syncRotationSnapButton();
+
   viewportToolsBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
     const next = !viewportToolsPanelEl?.classList.contains("open");
@@ -7685,6 +7725,7 @@
       setAreaTriggerVisibilityPanelOpen(false);
       setViewModePanelOpen(false);
       setDebugFogPanelOpen(false);
+      setRotationSnapPanelOpen(false);
     }
     setViewportToolsPanelOpen(next);
   });
@@ -7823,6 +7864,9 @@
     if (viewportToolsPanelEl?.classList.contains("open")){
       if (!(viewportToolsPanelEl.contains(event.target) || viewportToolsBtn?.contains(event.target))) setViewportToolsPanelOpen(false);
     }
+    if(rotationSnapPanelEl?.classList.contains('open')){
+      if(!(rotationSnapPanelEl.contains(event.target)||rotationSnapMenuBtn?.contains(event.target)))setRotationSnapPanelOpen(false);
+    }
   });
 
   addEventListener("resize", () => {
@@ -7834,6 +7878,7 @@
     if (debugFogPanelEl?.classList.contains("open")) positionDebugFogPanel();
     if (viewModePanelEl?.classList.contains("open")) positionViewModePanel();
     if (viewportToolsPanelEl?.classList.contains("open")) positionViewportToolsPanel();
+    if(rotationSnapPanelEl?.classList.contains('open'))positionRotationSnapPanel();
   });
 
   exportBtn.addEventListener("click", () => {
@@ -7967,6 +8012,57 @@
     itemContextMenu.setAttribute("aria-hidden", "true");
   }
 
+  function runSelectionTransformCommand(label, transform){
+    const items=selectedTransformItems().filter(it=>kvHas(it,'position'));
+    if(!items.length){statusEl.textContent=`${label}: no positioned items selected.`;return;}
+    beginUndoTransaction();
+    let changed=0;
+    try{
+      changed=transform(items)||0;
+      if(changed)commitGizmoUpdates(items);
+    } finally {endUndoTransaction();}
+    updateItemGizmo();requestRender();
+    statusEl.textContent=changed?`${label}: ${changed} item${changed===1?'':'s'} updated.`:`${label}: no valid target found.`;
+  }
+
+  function getItemDropBounds(it){
+    if(!it||!state.glb.ready||!state.glb.THREE)return null;
+    const instance=state.glb.itemInstances.get(it.id);if(!instance)return null;
+    applyItemTransformToObject(instance,it);instance.updateMatrixWorld(true);
+    const box=new state.glb.THREE.Box3().setFromObject(instance);
+    if(box.isEmpty()||![box.min.x,box.min.y,box.min.z,box.max.x,box.max.y,box.max.z].every(Number.isFinite))return null;
+    const anchorZ=getItemWorldZ(it);
+    return {box,baseOffsetZ:box.min.z-anchorZ};
+  }
+
+  function floorHeightBelowBounds(bounds,excludedIds){
+    const {THREE}=state.glb,box=bounds.box,roots=[];
+    const cx=(box.min.x+box.max.x)*.5,cy=(box.min.y+box.max.y)*.5;
+    const samples=[[cx,cy],[box.min.x,box.min.y],[box.min.x,box.max.y],[box.max.x,box.min.y],[box.max.x,box.max.y]];
+    let best=-Infinity;
+    for(const [x,y] of samples){const terrainZ=heightAtWorld(x,y,1.0);if(Number.isFinite(terrainZ)&&terrainZ>-1e8)best=Math.max(best,terrainZ);}
+    if(!state.glb.raycaster)state.glb.raycaster=new THREE.Raycaster();
+    for(const [id,instance] of state.glb.itemInstances)if(!excludedIds.has(id)&&instance.visible)roots.push(instance);
+    for(const [x,y] of samples){
+      state.glb.raycaster.set(new THREE.Vector3(x,y,box.min.z+.01),new THREE.Vector3(0,0,-1));
+      const hit=state.glb.raycaster.intersectObjects(roots,true)[0],z=Number(hit?.point?.z);
+      if(Number.isFinite(z)&&z<=box.min.z+.011)best=Math.max(best,z);
+    }
+    return best;
+  }
+
+  function snapSelectedItemsToFloor(){
+    runSelectionTransformCommand('Snap to Floor',items=>{
+      const excluded=new Set(items.map(it=>it.id));let changed=0;
+      for(const it of items){
+        const bounds=getItemDropBounds(it);if(!bounds)continue;
+        const floorZ=floorHeightBelowBounds(bounds,excluded);if(!Number.isFinite(floorZ))continue;
+        it.z=worldToRaw(floorZ-bounds.baseOffsetZ,'z');changed++;
+      }
+      return changed;
+    });
+  }
+
   function showItemContextMenu(clientX, clientY, menuItems = null){
     const selected = getSelected();
     if (!menuItems && !selected) return;
@@ -7983,7 +8079,6 @@
       { label: "Move", action: () => statusEl.textContent = "Use Shift + arrastar para mover o item selecionado." },
       { label: "Numeric Move", action: () => showNotImplemented("Numeric Move") },
       { label: "Group Rotate", action: () => showNotImplemented("Group Rotate") },
-      { label: "Snap to Grid", action: () => showNotImplemented("Snap to Grid") },
       { separator: true },
       { label: "Hide Selected", action: () => showNotImplemented("Hide Selected") },
       { label: "Hide Unselected", action: () => showNotImplemented("Hide Unselected") },
@@ -7996,7 +8091,7 @@
       { separator: true },
       { label: "Deselect This Type", action: () => showNotImplemented("Deselect This Type") },
       { separator: true },
-      { label: "Snap to Terrain", action: () => showNotImplemented("Snap to Terrain") },
+      { label: "Snap to Floor", action: snapSelectedItemsToFloor },
       { separator: true },
       { label: "Delete", action: () => deleteSelectedItem() }
     ];
@@ -8260,6 +8355,13 @@
               { label: "Anchor Points", shortcut: "H", command: "view.showAnchorPoints", checked: renderUiState.showAnchorPoints }
             ]
           },
+          {
+            label: "Terrain",
+            children: [
+              { label: "TRN Mesh Step", control: "select", setting: "terrainMeshStep", options: [1, 2, 4, 8, 16], value: renderUiState.terrainMeshStep, onChange: rebuildTerrain },
+              { label: "Draw Radius", control: "range", setting: "drawRadius", min: 512, max: 65536, step: 256, value: renderUiState.drawRadius }
+            ]
+          },
           { separator: true },
           { label: "View by Layer", command: "view.byLayer" },
           { label: "View by Type", command: "view.byType" },
@@ -8387,9 +8489,38 @@
               const value = parseFloat(input.value);
               renderUiState[child.setting] = value;
               valueEl.textContent = input.value;
+              child.onChange?.(value);
               requestRender();
             });
             control.appendChild(input);
+            container.appendChild(control);
+            continue;
+          }
+
+          if (child.control === "select"){
+            const control = document.createElement("label");
+            control.className = "menuControl";
+
+            const labelEl = document.createElement("span");
+            labelEl.textContent = child.label;
+            control.appendChild(labelEl);
+
+            const select = document.createElement("select");
+            select.setAttribute("aria-label", child.label);
+            for (const optionValue of child.options || []){
+              const option = document.createElement("option");
+              option.value = String(optionValue);
+              option.textContent = String(optionValue);
+              option.selected = String(optionValue) === String(child.value);
+              select.appendChild(option);
+            }
+            select.addEventListener("change", () => {
+              const value = Number(select.value);
+              renderUiState[child.setting] = value;
+              child.onChange?.(value);
+              requestRender();
+            });
+            control.appendChild(select);
             container.appendChild(control);
             continue;
           }
@@ -8606,7 +8737,13 @@
   const GRID_EXP_MIN=-8, GRID_EXP_MAX=12;
   function gridSizeMeters(){ return Math.pow(2, gridExponent); }
   function formatGridValue(m){ if(m<1) return (m*100).toFixed(3)+'cm'; if(m>=1024) return m.toFixed(0)+'m'; if(Number.isInteger(m)) return m.toFixed(0)+'m'; return m.toFixed(3)+'m'; }
-  function updateGridUi(){ const el=document.getElementById('gridValue'); if(el) el.textContent=formatGridValue(gridSizeMeters()); const p=document.getElementById('gridPlus'); const n=document.getElementById('gridMinus'); if(p) p.disabled=gridExponent>=GRID_EXP_MAX; if(n) n.disabled=gridExponent<=GRID_EXP_MIN; }
+  function updateGridUi(){
+    const size=gridSizeMeters(),el=document.getElementById('gridValue');
+    if(el) el.textContent=formatGridValue(size);
+    const p=document.getElementById('gridPlus'),n=document.getElementById('gridMinus');
+    if(p) p.disabled=gridExponent>=GRID_EXP_MAX;
+    if(n) n.disabled=gridExponent<=GRID_EXP_MIN;
+  }
   function stepGridExponent(d){ gridExponent=Math.max(GRID_EXP_MIN,Math.min(GRID_EXP_MAX,gridExponent+d)); updateGridUi(); }
   function setRenderMode(mode){ if(!['C','H','D'].includes(mode)) return; renderMode=mode; const c=document.getElementById('modeC'),h=document.getElementById('modeH'),d=document.getElementById('modeD'); if(c)c.classList.toggle('active',mode==='C'); if(h)h.classList.toggle('active',mode==='H'); if(d)d.classList.toggle('active',mode==='D'); }
   function terrainSpanX(){ return sectorCount*SECTOR_STRIDE; } function terrainSpanY(){ return sectorCount*SECTOR_STRIDE; } function originWorldX(){ return terrainOrigin.x*SECTOR_STRIDE; } function originWorldY(){ return terrainOrigin.y*SECTOR_STRIDE; }
@@ -8654,7 +8791,7 @@
   Mesh.prototype.upload=function(mesh){ this.indexCount=mesh.idx.length; this.sourceVerts=mesh.verts; this.sourceIdx=mesh.idx; };
   function rebuildTerrain(){
     if(!lastDepth||!lastImg||!sectors) return;
-    const baseStep=Math.max(1, parseInt(document.getElementById('step')?.value||'8',10)||8), hmul=1.0;
+    const baseStep=Math.max(1,Math.trunc(Number(renderUiState.terrainMeshStep)||4)),hmul=1.0;
     meshSectorLods = TERRAIN_LOD_STEPS.map((mul)=>{
       const lod=[null,null,null,null,null];
       const lodStep=Math.max(1, baseStep*mul);
@@ -9001,7 +9138,7 @@
 
     const gridGeom = new THREE.BufferGeometry();
     gridGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x000000, depthTest: false, depthWrite: false, transparent: false, fog: false });
+    const gridMat = new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, depthWrite: false, transparent: true, opacity: 0.78, fog: false });
     overlays.gridLines = new THREE.LineSegments(gridGeom, gridMat);
     overlays.gridLines.frustumCulled = false;
     overlays.scene.add(overlays.gridLines);
@@ -9110,27 +9247,40 @@
     }
 
     const gridPositions = [];
+    const gridColors = [];
     if(renderUiState.showGrid){
       const gridSize=gridSizeMeters();
       if(gridSize>0){
-        const spanVisibleX=(overlayI1-overlayI0+1)*SECTOR_STRIDE;
-        const spanVisibleY=(overlayJ1-overlayJ0+1)*SECTOR_STRIDE;
-        let gridMinX=ox + overlayI0*SECTOR_STRIDE;
-        let gridMaxX=gridMinX + spanVisibleX;
-        let gridMinY=oy + overlayJ0*SECTOR_STRIDE;
-        let gridMaxY=gridMinY + spanVisibleY;
+        const axes=['x','y'];
+        const origin={x:ox,y:oy,z:0},center={x:cam.pos.x,y:cam.pos.y,z:cam.pos.z};
+        const renderOrigin={...origin,z:.2};
+        const terrainMin={x:ox+overlayI0*SECTOR_STRIDE,y:oy+overlayJ0*SECTOR_STRIDE,z:0};
+        const terrainMax={x:ox+(overlayI1+1)*SECTOR_STRIDE,y:oy+(overlayJ1+1)*SECTOR_STRIDE,z:0};
         const maxSpan=gridSize*MAX_GRID_LINES_PER_AXIS;
-        if((gridMaxX-gridMinX)>maxSpan){ const cx=cam.pos.x; gridMinX=Math.max(gridMinX, cx-maxSpan*0.5); gridMaxX=Math.min(gridMaxX, cx+maxSpan*0.5); }
-        if((gridMaxY-gridMinY)>maxSpan){ const cy=cam.pos.y; gridMinY=Math.max(gridMinY, cy-maxSpan*0.5); gridMaxY=Math.min(gridMaxY, cy+maxSpan*0.5); }
-        const firstX=ox + Math.ceil((gridMinX-ox)/gridSize)*gridSize;
-        const firstY=oy + Math.ceil((gridMinY-oy)/gridSize)*gridSize;
-        const countX=Math.max(0, Math.floor((gridMaxX-firstX)/gridSize)+1);
-        const countY=Math.max(0, Math.floor((gridMaxY-firstY)/gridSize)+1);
-        for(let i=0;i<countX;i++){ const x=firstX+i*gridSize; gridPositions.push(x, gridMinY, 0.2, x, gridMaxY, 0.2); }
-        for(let i=0;i<countY;i++){ const y=firstY+i*gridSize; gridPositions.push(gridMinX, y, 0.2, gridMaxX, y, 0.2); }
+        const workSpan=Math.min(maxSpan,Math.max(SECTOR_STRIDE*4,radius*OVERLAY_RADIUS_FACTOR*2));
+        const ranges={};
+        for(const axis of axes){
+          if(!renderUiState.infiniteWorkGrid) ranges[axis]=[terrainMin[axis],terrainMax[axis]];
+          else ranges[axis]=[center[axis]-workSpan*.5,center[axis]+workSpan*.5];
+          if(ranges[axis][1]-ranges[axis][0]>maxSpan) ranges[axis]=[center[axis]-maxSpan*.5,center[axis]+maxSpan*.5];
+        }
+        const axisColor={x:[.85,.18,.18],y:[.18,.72,.28],z:[.2,.45,.95]};
+        const appendLine=(a,b,color)=>{gridPositions.push(a.x,a.y,a.z,b.x,b.y,b.z);gridColors.push(...color,...color);};
+        const addParallelLines=(fixedAxis,alongAxis)=>{
+          const [minFixed,maxFixed]=ranges[fixedAxis], [minAlong,maxAlong]=ranges[alongAxis];
+          const first=origin[fixedAxis]+Math.ceil((minFixed-origin[fixedAxis])/gridSize)*gridSize;
+          const count=Math.min(MAX_GRID_LINES_PER_AXIS,Math.max(0,Math.floor((maxFixed-first)/gridSize)+1));
+          for(let i=0;i<count;i++){
+            const value=first+i*gridSize,index=Math.round((value-origin[fixedAxis])/gridSize);
+            const color=index===0?axisColor[alongAxis]:(index%8===0?[.34,.37,.42]:[.16,.18,.22]);
+            const a={...renderOrigin},b={...renderOrigin};a[fixedAxis]=value;b[fixedAxis]=value;a[alongAxis]=minAlong;b[alongAxis]=maxAlong;appendLine(a,b,color);
+          }
+        };
+        addParallelLines(axes[0],axes[1]);
+        addParallelLines(axes[1],axes[0]);
       }
     }
-    updateThreeLineGeometry(overlays.gridLines, new Float32Array(gridPositions));
+    updateThreeLineGeometry(overlays.gridLines, new Float32Array(gridPositions), new Float32Array(gridColors));
 
     const rectPos=[];
     const rectColors=[];
@@ -11121,17 +11271,14 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   document.getElementById('modeD')?.addEventListener('click',()=>setRenderMode('D'));
   const transformSpaceEl=document.getElementById('transformSpace');
   const transformPivotEl=document.getElementById('transformPivot');
-  const transformSnapEnabledEl=document.getElementById('transformSnapEnabled');
-  const translationSnapEl=document.getElementById('translationSnap');
   const rotationSnapEl=document.getElementById('rotationSnap');
+  const rotationSnapModeEl=document.getElementById('rotationSnapMode');
   transformSpaceEl?.addEventListener('change',()=>{state.transformSpace=transformSpaceEl.value;updateItemGizmo();});
   transformPivotEl?.addEventListener('change',()=>{state.transformPivot=transformPivotEl.value;updateItemGizmo();});
-  transformSnapEnabledEl?.addEventListener('change',()=>{state.transformSnapEnabled=transformSnapEnabledEl.checked;updateItemGizmo();});
-  translationSnapEl?.addEventListener('change',()=>{state.translationSnap=Math.max(.01,Number(translationSnapEl.value)||1);translationSnapEl.value=String(state.translationSnap);});
   rotationSnapEl?.addEventListener('change',()=>{state.rotationSnap=Math.max(.1,Number(rotationSnapEl.value)||15);rotationSnapEl.value=String(state.rotationSnap);});
+  rotationSnapModeEl?.addEventListener('change',()=>{state.rotationSnapMode=rotationSnapModeEl.value;});
   document.getElementById('gridPlus')?.addEventListener('click',()=>stepGridExponent(1));
   document.getElementById('gridMinus')?.addEventListener('click',()=>stepGridExponent(-1));
-  document.getElementById('step')?.addEventListener('change',()=>rebuildTerrain());
   updateGridUi();
   syncRenderUiState();
   setRenderMode('C');
@@ -11268,17 +11415,20 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   }
   window.addEventListener('mousemove',e=>{
     if(!state.gizmoDrag)return;
-    const d=state.gizmoDrag,rect=cv.getBoundingClientRect(),ray=screenRay(e.clientX-rect.left,e.clientY-rect.top),snapOn=state.transformSnapEnabled;
+    const d=state.gizmoDrag,rect=cv.getBoundingClientRect(),ray=screenRay(e.clientX-rect.left,e.clientY-rect.top);
     if(!isGizmoHandleInteractive(d.mode)||state.modalOpen||!d.snapshots.every(start=>getItemByIdFast(start.id))){state.gizmoDrag=null;state.hoveredGizmoHandle=null;endUndoTransaction();updateItemGizmo();return;}
     if(d.handle.kind==='axis'){
-      let delta=rayAxisParameter(ray,d.pivot,d.handle.axis)-d.startScalar;if(snapOn)delta=snapValue(delta,state.translationSnap);d.label=`${delta.toFixed(2)}`;
-      for(const start of d.snapshots){const it=getItemByIdFast(start.id),move=vec3Scale(d.handle.axis,delta);if(!it)continue;applyTranslationDelta(it,start,move);}
+      const scalar=rayAxisParameter(ray,d.pivot,d.handle.axis)-d.startScalar,move=vec3Scale(d.handle.axis,scalar);
+      d.label=`${vec3Dot(move,d.handle.axis).toFixed(2)}`;
+      for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;applyTranslationDelta(it,start,move);}
     }else if(d.handle.kind==='plane'){
-      const hit=rayPlanePoint(ray,d.pivot,d.planeNormal);if(!hit||!d.startPoint)return;let delta=vec3Sub(hit,d.startPoint),da=vec3Dot(delta,d.handle.axisA),db=vec3Dot(delta,d.handle.axisB);if(snapOn){da=snapValue(da,state.translationSnap);db=snapValue(db,state.translationSnap);}delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));d.label=`${da.toFixed(2)}, ${db.toFixed(2)}`;
+      const hit=rayPlanePoint(ray,d.pivot,d.planeNormal);if(!hit||!d.startPoint)return;let delta=vec3Sub(hit,d.startPoint),da=vec3Dot(delta,d.handle.axisA),db=vec3Dot(delta,d.handle.axisB);delta=vec3Add(vec3Scale(d.handle.axisA,da),vec3Scale(d.handle.axisB,db));d.label=`${da.toFixed(2)}, ${db.toFixed(2)}`;
       for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;applyTranslationDelta(it,start,delta);}
     }else if(d.handle.kind==='ring'){
-      const hit=rayPlanePoint(ray,d.pivot,d.handle.axis);if(!hit||!d.lastVector)return;const cur=vec3Norm(vec3Sub(hit,d.pivot)),deltaAngle=Math.atan2(vec3Dot(d.handle.axis,vec3Cross(d.lastVector,cur)),vec3Dot(d.lastVector,cur));d.accumulatedAngle+=deltaAngle;d.lastVector=cur;let angle=d.accumulatedAngle,deg=angle*180/Math.PI;if(snapOn){deg=snapValue(deg,state.rotationSnap);angle=deg*Math.PI/180;}d.appliedAngle=angle;d.currentVector=vec3Norm(rotateAroundAxis(d.startVector,d.handle.axis,angle));d.label=`${deg.toFixed(1)}°`;
-      for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;if(d.mode==='rotX')it.pitch=start.pitch+deg;else it.heading=start.heading-deg;if(state.transformPivot!=='individual'&&d.snapshots.length>1){const p=vec3Add(d.pivot,rotateAroundAxis(vec3Sub(start.world,d.pivot),d.handle.axis,angle));it.x=worldToRaw(p.x,'x');it.y=worldToRaw(p.y,'y');it.z=worldToRaw(p.z,'z');}}
+      const hit=rayPlanePoint(ray,d.pivot,d.handle.axis);if(!hit||!d.lastVector)return;const cur=vec3Norm(vec3Sub(hit,d.pivot)),deltaAngle=Math.atan2(vec3Dot(d.handle.axis,vec3Cross(d.lastVector,cur)),vec3Dot(d.lastVector,cur));d.accumulatedAngle+=deltaAngle;d.lastVector=cur;let deg=d.accumulatedAngle*180/Math.PI;
+      const reference=d.snapshots[0];if(state.rotationSnapEnabled){if(state.rotationSnapMode==='absolute'){const initial=d.mode==='rotX'?reference.pitch:reference.heading,sign=d.mode==='rotX'?1:-1;deg=(snapValue(initial+sign*deg,state.rotationSnap)-initial)/sign;}else deg=snapValue(deg,state.rotationSnap);}
+      const angle=deg*Math.PI/180;d.appliedAngle=angle;d.currentVector=vec3Norm(rotateAroundAxis(d.startVector,d.handle.axis,angle));d.label=`${deg.toFixed(1)}°`;
+      for(const start of d.snapshots){const it=getItemByIdFast(start.id);if(!it)continue;let itemDeg=deg;if(state.rotationSnapEnabled&&state.rotationSnapMode==='absolute'&&state.transformPivot==='individual'){const initial=d.mode==='rotX'?start.pitch:start.heading,sign=d.mode==='rotX'?1:-1;itemDeg=(snapValue(initial+sign*d.accumulatedAngle*180/Math.PI,state.rotationSnap)-initial)/sign;}if(d.mode==='rotX')it.pitch=start.pitch+itemDeg;else it.heading=start.heading-itemDeg;if(state.transformPivot!=='individual'&&d.snapshots.length>1){const p=vec3Add(d.pivot,rotateAroundAxis(vec3Sub(start.world,d.pivot),d.handle.axis,angle));it.x=worldToRaw(p.x,'x');it.y=worldToRaw(p.y,'y');it.z=worldToRaw(p.z,'z');}}
     }
     commitGizmoUpdates(d.snapshots.map(x=>getItemByIdFast(x.id)).filter(Boolean));updateItemGizmo();
   });
