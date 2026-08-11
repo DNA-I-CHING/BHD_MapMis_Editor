@@ -1438,6 +1438,7 @@
       </div>
       <div id="canvasViewToolbar" class="canvasFloatingToolbar">
         <button id="debugFogBtn" type="button" class="modeBtn">Debug Fog</button>
+        <button id="transformSpaceBtn" type="button" class="modeBtn iconBtn" aria-pressed="false" aria-label="Transformation Mode: World" title="Transformation Mode: World (X)"><img class="toolbarIcon" src="editor_images/icons/space_world.svg" alt="" /></button>
         <div class="toolbarSplit">
           <button id="rotationSnapToggleBtn" type="button" class="modeBtn iconBtn" aria-pressed="false" aria-label="Rotation Snap" title="Enable or disable rotation snapping"><img class="toolbarIcon" src="editor_images/icons/snap_to_angle.svg" alt="" /></button>
           <button id="rotationSnapMenuBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false" aria-label="Rotation Snap settings">&#x25BE;</button>
@@ -1546,7 +1547,6 @@
         <section class="floatingPanelSection">
           <div class="floatingPanelTitle">Gizmo</div>
           <div class="floatingPanelFields">
-            <label>Transformation Mode <span class="shortcutHint">X</span><select id="transformSpace" title="Transformation space (X)"><option value="global">World</option><option value="local">Local</option></select></label>
             <label>Gizmo Pivot <select id="transformPivot" title="Selection pivot"><option value="center">Selection center</option><option value="active">Active item</option><option value="individual">Individual origins</option></select></label>
           </div>
         </section>
@@ -2344,6 +2344,7 @@
   const showGroupsBtn = document.getElementById("showGroupsBtn");
   const showWaypointsBtn = document.getElementById("showWaypointsBtn");
   const showAreaTriggersBtn = document.getElementById("showAreaTriggersBtn");
+  const transformSpaceBtn = document.getElementById("transformSpaceBtn");
   const rotationSnapToggleBtn = document.getElementById("rotationSnapToggleBtn");
   const rotationSnapMenuBtn = document.getElementById("rotationSnapMenuBtn");
   const viewportToolsBtn = document.getElementById("viewportToolsBtn");
@@ -4907,6 +4908,23 @@
   function syncRotationSnapButton(){
     rotationSnapToggleBtn?.classList.toggle('active',state.rotationSnapEnabled);
     rotationSnapToggleBtn?.setAttribute('aria-pressed',state.rotationSnapEnabled?'true':'false');
+  }
+
+  function syncTransformSpaceButton(){
+    if(!transformSpaceBtn)return;
+    const isLocal=state.transformSpace==='local';
+    const modeLabel=isLocal?'Local':'World';
+    const icon=transformSpaceBtn.querySelector('.toolbarIcon');
+    if(icon)icon.src=isLocal?'editor_images/icons/space_local.svg':'editor_images/icons/space_world.svg';
+    transformSpaceBtn.setAttribute('aria-pressed',isLocal?'true':'false');
+    transformSpaceBtn.setAttribute('aria-label',`Transformation Mode: ${modeLabel}`);
+    transformSpaceBtn.title=`Transformation Mode: ${modeLabel} (X)`;
+  }
+
+  function toggleTransformSpace(){
+    state.transformSpace=state.transformSpace==='global'?'local':'global';
+    syncTransformSpaceButton();
+    updateItemGizmo();
   }
 
   function setViewportToolsPanelOpen(open){
@@ -7720,6 +7738,10 @@
   rotationSnapToggleBtn?.addEventListener('click',event=>{
     event.stopPropagation();state.rotationSnapEnabled=!state.rotationSnapEnabled;syncRotationSnapButton();updateItemGizmo();
   });
+  transformSpaceBtn?.addEventListener('click',event=>{
+    event.stopPropagation();toggleTransformSpace();
+  });
+  syncTransformSpaceButton();
   rotationSnapMenuBtn?.addEventListener('click',event=>{
     event.stopPropagation();const next=!rotationSnapPanelEl?.classList.contains('open');
     if(next){setCanvasShowPanelOpen(false);setLayerVisibilityPanelOpen(false);setGroupVisibilityPanelOpen(false);setWaypointVisibilityPanelOpen(false);setAreaTriggerVisibilityPanelOpen(false);setViewportToolsPanelOpen(false);setViewModePanelOpen(false);setDebugFogPanelOpen(false);}
@@ -11261,7 +11283,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     }
     camVel=vec3(0,0,0); requestRender();
   }
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'&&!e.repeat){ e.preventDefault(); toggleTopView(); } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ state.transformSpace=state.transformSpace==='global'?'local':'global'; if(transformSpaceEl)transformSpaceEl.value=state.transformSpace; updateItemGizmo(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a'&&lookActive) move.a=1; if(k==='s'&&lookActive) move.s=1; if(k==='d'&&lookActive) move.d=1; if(k==='q'&&lookActive) move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'&&!e.repeat){ e.preventDefault(); toggleTopView(); } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ toggleTransformSpace(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a'&&lookActive) move.a=1; if(k==='s'&&lookActive) move.s=1; if(k==='d'&&lookActive) move.d=1; if(k==='q'&&lookActive) move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
@@ -11283,11 +11305,9 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   document.getElementById('modeC')?.addEventListener('click',()=>setRenderMode('C'));
   document.getElementById('modeH')?.addEventListener('click',()=>setRenderMode('H'));
   document.getElementById('modeD')?.addEventListener('click',()=>setRenderMode('D'));
-  const transformSpaceEl=document.getElementById('transformSpace');
   const transformPivotEl=document.getElementById('transformPivot');
   const rotationSnapEl=document.getElementById('rotationSnap');
   const rotationSnapModeEl=document.getElementById('rotationSnapMode');
-  transformSpaceEl?.addEventListener('change',()=>{state.transformSpace=transformSpaceEl.value;updateItemGizmo();});
   transformPivotEl?.addEventListener('change',()=>{state.transformPivot=transformPivotEl.value;updateItemGizmo();});
   rotationSnapEl?.addEventListener('change',()=>{state.rotationSnap=Math.max(.1,Number(rotationSnapEl.value)||15);rotationSnapEl.value=String(state.rotationSnap);});
   rotationSnapModeEl?.addEventListener('change',()=>{state.rotationSnapMode=rotationSnapModeEl.value;});
