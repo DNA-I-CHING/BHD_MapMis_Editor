@@ -651,6 +651,20 @@
       padding: 18px;
     }
     #modalOverlay.open{ display:flex; }
+    #insertOverlay{
+      position:absolute; inset:0; background:var(--overlay); display:none;
+      align-items:center; justify-content:center; z-index:58; padding:18px;
+    }
+    #insertOverlay.open{ display:flex; }
+    #insertWindow{ width:min(760px,100%); height:min(520px,100%); background:var(--panel-muted); border:1px solid var(--line-heavy); padding:10px; display:grid; grid-template-rows:auto 1fr auto; gap:10px; box-shadow:var(--shadow-md); }
+    .insertBody{ display:grid; grid-template-columns:140px minmax(0,1fr) 190px; gap:10px; min-height:0; }
+    #insertCategories{ display:grid; align-content:start; gap:4px; }
+    #insertCategories button.active{ background:var(--accent); color:#fff; }
+    #insertItemList{ width:100%; min-height:0; }
+    .insertOptions{ display:grid; align-content:start; gap:10px; }
+    .insertOptions label{ display:grid; gap:4px; }
+    .insertOptions .checkRow{ display:flex; }
+    .insertAreaOptions{ border:1px solid var(--line); padding:8px; display:grid; gap:5px; }
     #liveMisOverlay{
       position:absolute;
       inset:0;
@@ -1817,6 +1831,26 @@
 
       <div class="contextMenu" id="itemContextMenu" aria-hidden="true"></div>
 
+      <div id="insertOverlay" aria-hidden="true">
+        <div id="insertWindow" role="dialog" aria-modal="true" aria-label="Insert Item">
+          <div class="windowTitle">Insert Item...<span class="spacer"></span><button class="xbtn" id="insertCloseBtn" type="button">X</button></div>
+          <div class="insertBody">
+            <div id="insertCategories" aria-label="Item type"></div>
+            <select id="insertItemList" size="18" aria-label="Item"></select>
+            <div class="insertOptions">
+              <label class="checkRow"><input id="insertRandomFacing" type="checkbox" /> Random Facing</label>
+              <label>Drop Count<input id="insertDropCount" type="number" min="1" max="999" value="1" /></label>
+              <fieldset class="insertAreaOptions"><legend>Drop Area</legend>
+                <label><input name="insertDropArea" type="radio" value="rectangle" checked /> Rectangle</label>
+                <label><input name="insertDropArea" type="radio" value="oval" /> Oval</label>
+              </fieldset>
+              <div class="hint">After choosing an item, drag on the map to define the drop area. A click inserts at that point.</div>
+            </div>
+          </div>
+          <div class="btnRow" style="justify-content:flex-end"><button id="insertOkBtn" type="button">OK</button><button id="insertCancelBtn" type="button">Cancel</button></div>
+        </div>
+      </div>
+
       <div id="modalOverlay" aria-hidden="true">
         <div id="modalWindow" role="dialog" aria-modal="true" aria-label="Item Attributes">
           <div class="windowTitle">
@@ -2146,6 +2180,14 @@
     itemClipboardItems: [],
     pastePlacementActive: false,
     pastePreviewWorld: null,
+    insertModeActive: false,
+    insertDefinitionId: "",
+    insertCategory: "foliage",
+    insertRandomFacing: false,
+    insertDropCount: 1,
+    insertDropArea: "rectangle",
+    insertDragStart: null,
+    insertPreviewWorld: null,
     gizmoDrag: null,
     gizmoVisual: null,
     gizmoAxisScreenDirs: null,
@@ -2513,6 +2555,11 @@
   const giRotate180 = document.getElementById("giRotate180");
 
   const modalOverlay = document.getElementById("modalOverlay");
+  const insertOverlay = document.getElementById("insertOverlay");
+  const insertCategories = document.getElementById("insertCategories");
+  const insertItemList = document.getElementById("insertItemList");
+  const insertRandomFacing = document.getElementById("insertRandomFacing");
+  const insertDropCount = document.getElementById("insertDropCount");
   const modalCloseBtn = document.getElementById("modalCloseBtn");
   const okBtn = document.getElementById("okBtn");
   const cancelBtn = document.getElementById("cancelBtn");
@@ -3734,6 +3781,7 @@
     defStatusEl.textContent = `ITEMS.DEF loaded. defs: ${state.defsSorted.length}`;
     addLog(`Loaded embedded ITEMS.DEF (${state.defsSorted.length} defs)`);
     buildSubtypeOptionsFromDEF();
+    if (insertOverlay?.classList.contains("open")) renderInsertDialog();
     renderList();
     if (state.modalOpen) renderItemWindow();
     requestRender();
@@ -3791,6 +3839,149 @@
       html += `</optgroup>`;
     }
     ui.subtype.innerHTML = html || `<option value="">(no defs)</option>`;
+  }
+
+  const INSERT_CATEGORIES = [
+    ["foliage", "Foliage"], ["decoration", "Decorations"], ["people", "People"],
+    ["building", "Buildings"], ["vehicle", "Vehicles"], ["object", "Objects"],
+    ["powerup", "POWERUP"], ["marker", "Markers"], ["med_fly", "Med fly"]
+  ];
+
+  function insertCategoryForDef(def){
+    const type = String(def?.type || "other").toLowerCase();
+    const name = String(def?.name || "").toLowerCase();
+    if (type.includes("foliage")) return "foliage";
+    if (type.includes("decoration")) return "decoration";
+    if (type.includes("person") || type.includes("people")) return "people";
+    if (type.includes("building")) return "building";
+    if (type.includes("vehicle")) return "vehicle";
+    if (type.includes("powerup")) return "powerup";
+    if (type.includes("marker")) return name.includes("med fly") ? "med_fly" : "marker";
+    return "object";
+  }
+
+  function renderInsertDialog(){
+    insertCategories.innerHTML = "";
+    for (const [value, label] of INSERT_CATEGORIES){
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.classList.toggle("active", value === state.insertCategory);
+      button.addEventListener("click", () => { state.insertCategory = value; renderInsertDialog(); });
+      insertCategories.appendChild(button);
+    }
+    const defs = state.defsSorted.filter(def => insertCategoryForDef(def) === state.insertCategory);
+    insertItemList.innerHTML = "";
+    for (const def of defs){
+      const option = document.createElement("option");
+      option.value = String(def.id);
+      option.textContent = def.name;
+      insertItemList.appendChild(option);
+    }
+    if (!defs.some(def => String(def.id) === state.insertDefinitionId)) state.insertDefinitionId = String(defs[0]?.id || "");
+    insertItemList.value = state.insertDefinitionId;
+    insertRandomFacing.checked = state.insertRandomFacing;
+    insertDropCount.value = String(state.insertDropCount);
+    document.querySelectorAll('input[name="insertDropArea"]').forEach(input => { input.checked = input.value === state.insertDropArea; });
+  }
+
+  function openInsertDialog(){
+    if (!state.defsSorted.length){ statusEl.textContent = "The item catalog is not loaded."; return; }
+    state.pastePlacementActive = false;
+    state.pastePreviewWorld = null;
+    renderInsertDialog();
+    insertOverlay.classList.add("open");
+    insertOverlay.setAttribute("aria-hidden", "false");
+  }
+
+  function closeInsertDialog(){
+    insertOverlay.classList.remove("open");
+    insertOverlay.setAttribute("aria-hidden", "true");
+  }
+
+  function stopInsertMode(message = "Insert Mode canceled."){
+    closeInsertDialog();
+    state.insertModeActive = false;
+    state.insertDragStart = null;
+    state.insertPreviewWorld = null;
+    cv.style.cursor = "";
+    renderMenuBar();
+    requestRender();
+    if (message) statusEl.textContent = message;
+  }
+
+  function toggleInsertMode(){
+    if (state.insertModeActive) return stopInsertMode();
+    openInsertDialog();
+  }
+
+  function confirmInsertMode(){
+    const def = state.defsById.get(String(insertItemList.value));
+    if (!def){ statusEl.textContent = "Choose an item to insert."; return; }
+    state.insertDefinitionId = String(def.id);
+    state.insertRandomFacing = insertRandomFacing.checked;
+    state.insertDropCount = Math.max(1, Math.min(999, Math.trunc(Number(insertDropCount.value) || 1)));
+    state.insertDropArea = document.querySelector('input[name="insertDropArea"]:checked')?.value || "rectangle";
+    state.pastePlacementActive = false;
+    state.pastePreviewWorld = null;
+    state.insertModeActive = true;
+    closeInsertDialog();
+    cv.style.cursor = "crosshair";
+    renderMenuBar();
+    statusEl.textContent = `Insert Mode: ${def.name}. Drag on the map to place ${state.insertDropCount} item${state.insertDropCount === 1 ? "" : "s"}.`;
+  }
+
+  function quoteMisString(value){ return `"${String(value || "").replace(/"/g, "'")}"`; }
+
+  function createInsertedItem(def, world){
+    const editorId = state.items.length ? Math.max(...state.items.map(item => item.id)) + 1 : 1;
+    const blockNumber = getNextBeginItemNumber();
+    const misId = getNextMisItemId();
+    const terrainZ = heightAtWorld(world.x, world.y, 1.0);
+    const z = worldToRaw(Number.isFinite(terrainZ) && terrainZ > -1e8 ? terrainZ : (world.z || 0), "z");
+    const x = worldToRaw(world.x, "x"), y = worldToRaw(world.y, "y");
+    const heading = state.insertRandomFacing ? Math.floor(Math.random() * 360) : 0;
+    const kv = {
+      type_id: toMisTypeIdFromDefId(def.id), name: quoteMisString(def.name), id: String(misId),
+      position: `${x} ${y} ${z}`, facing: `${heading} 0`, layer: "0"
+    };
+    const lines = Object.entries(kv).map(([key, value]) => `  ${key} ${value}`);
+    const start = Number.MAX_SAFE_INTEGER - (state.sectionBlocks.reduce((max, sec) => Math.max(max, sec.id), 0) + 1);
+    const beginLine = `begin item ${blockNumber}`;
+    const item = { id: editorId, start, end: start, beginLine, lines: lines.slice(), kv: { ...kv }, x, y, z, heading, pitch: 0 };
+    const sectionId = state.sectionBlocks.reduce((max, sec) => Math.max(max, sec.id), 0) + 1;
+    state.items.push(item);
+    state.sectionBlocks.push({ id: sectionId, kind: "item", label: String(blockNumber), start, end: start, beginLine, lines: lines.slice(), kv: { ...kv } });
+    return item;
+  }
+
+  function insertItemsInArea(start, end){
+    const def = state.defsById.get(state.insertDefinitionId);
+    if (!def) return;
+    const count = state.insertDropCount;
+    const minX = Math.min(start.x, end.x), maxX = Math.max(start.x, end.x);
+    const minY = Math.min(start.y, end.y), maxY = Math.max(start.y, end.y);
+    const click = Math.abs(maxX - minX) < 1 && Math.abs(maxY - minY) < 1;
+    const created = [];
+    beginUndoTransaction();
+    try{
+      for (let i = 0; i < count; i++){
+        let x = end.x, y = end.y;
+        if (!click && state.insertDropArea === "oval"){
+          const angle = Math.random() * Math.PI * 2, radius = Math.sqrt(Math.random());
+          x = (minX + maxX) / 2 + Math.cos(angle) * radius * (maxX - minX) / 2;
+          y = (minY + maxY) / 2 + Math.sin(angle) * radius * (maxY - minY) / 2;
+        } else if (!click){
+          x = minX + Math.random() * (maxX - minX); y = minY + Math.random() * (maxY - minY);
+        }
+        created.push(createInsertedItem(def, { x, y, z: end.z }));
+      }
+      markItemsChanged({ structure: true });
+      state.selectedId = created.at(-1)?.id ?? null;
+      state.multiSelectedIds = new Set(created.map(item => item.id));
+      renderList(); renderItemWindow(); requestRender(); scheduleLiveMisRefresh();
+    } finally { endUndoTransaction(); }
+    statusEl.textContent = `${created.length} ${def.name} item${created.length === 1 ? "" : "s"} inserted.`;
   }
 
   function buildLayerOptions(){
@@ -7327,6 +7518,11 @@
       requestRender();
       statusEl.textContent = "Paste cancelado.";
     }
+    if (e.key === "Escape" && (state.insertModeActive || insertOverlay.classList.contains("open"))){
+      e.preventDefault();
+      stopInsertMode();
+      return;
+    }
     if (e.key === "Escape" && (state.selectedId != null || state.multiSelectedIds.size || state.selectedWaypointMarkerIds.size)){
       state.selectedId = null;
       state.multiSelectedIds.clear();
@@ -8050,6 +8246,12 @@
   });
 
   sectionCloseBtn.addEventListener("click", closeSectionEditor);
+  document.getElementById("insertCloseBtn").addEventListener("click", () => stopInsertMode());
+  document.getElementById("insertCancelBtn").addEventListener("click", () => stopInsertMode());
+  document.getElementById("insertOkBtn").addEventListener("click", confirmInsertMode);
+  insertItemList.addEventListener("change", () => { state.insertDefinitionId = insertItemList.value; });
+  insertItemList.addEventListener("dblclick", confirmInsertMode);
+  insertOverlay.addEventListener("mousedown", (e) => { if (e.target === insertOverlay) stopInsertMode(); });
   sectionOverlay.addEventListener("mousedown", (e) => { if (e.target === sectionOverlay) closeSectionEditor(); });
   liveMisCloseBtn.addEventListener("click", closeLiveMisWindow);
   liveMisOverlay.addEventListener("mousedown", (e) => { if (e.target === liveMisOverlay) closeLiveMisWindow(); });
@@ -8374,6 +8576,7 @@
     "edit.paste": pasteCopiedItem,
     "edit.cut": cutSelectedItems,
     "edit.delete": deleteSelectedItem,
+    "edit.insertMode": toggleInsertMode,
     "edit.undo": undoLastChange,
     "edit.redo": redoLastChange,
     "edit.globalReplace": runGlobalReplace,
@@ -8421,7 +8624,7 @@
           { label: "Paste", shortcut: "Ctrl + V", command: "edit.paste" },
           { label: "Delete", shortcut: "Delete", command: "edit.delete" },
           { separator: true },
-          { label: "Insert Mode", command: "edit.insertMode" },
+          { label: "Insert Mode", command: "edit.insertMode", checked: state.insertModeActive },
           { separator: true },
           { label: "Briefing", command: "edit.briefing" },
           { label: "General Information", command: "edit.generalInfo" },
@@ -11387,7 +11590,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   setRenderMode('C');
 
   cv.addEventListener("mousedown", (e) => {
-    if (state.modalOpen) return;
+    if (state.modalOpen || insertOverlay.classList.contains("open")) return;
     closeItemContextMenu();
     const rect = cv.getBoundingClientRect();
     const sx = e.clientX - rect.left;
@@ -11406,6 +11609,15 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
       state.cameraLookButton = 2;
       state.cameraLookStart = { sx, sy };
       state.lastMouse = { sx, sy };
+      return;
+    }
+
+    if (state.insertModeActive){
+      const world = screenToWorld(sx, sy, 0);
+      state.insertDragStart = world;
+      state.insertPreviewWorld = world;
+      state.lastMouse = { sx, sy };
+      e.preventDefault();
       return;
     }
 
@@ -11441,9 +11653,9 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   });
   cv.addEventListener("contextmenu", (e) => { e.preventDefault(); if(state.cameraLookActive || (state.cameraLookPending&&state.cameraLookButton===2)) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; const picked=pickItemAtCanvas(sx,sy); if (picked){ if (!(picked.id===state.selectedId||state.multiSelectedIds.has(picked.id))) selectById(picked.id); showItemContextMenu(e.clientX,e.clientY); return; } if (state.selectedId!==null||state.multiSelectedIds.size>0||state.itemClipboardItems.length) showItemContextMenu(e.clientX,e.clientY); });
   cv.addEventListener("dblclick", (e) => { const rect=cv.getBoundingClientRect(); const picked=pickItemAtCanvas(e.clientX-rect.left,e.clientY-rect.top); if(picked){ selectById(picked.id); openModal(); } });
-  cv.addEventListener("mousemove", (e) => { if(state.modalOpen) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; if(state.cameraLookPending){ const mask=state.cameraLookButton===2?2:1; if(e.buttons & mask){ const start=state.cameraLookStart||{sx,sy}; const moved=Math.hypot(sx-start.sx, sy-start.sy); if(moved>3){ state.cameraLookPending=false; if(state.cameraLookButton===1) state.pendingLeftClick=null; state.cameraLookActive=true; requestCameraPointerLock(); } } else if(!state.cameraLookActive){ state.cameraLookPending=false; state.cameraLookButton=0; } } if(state.pastePlacementActive){ const z=state.selectedId?rawToWorld(getSelected()?.z||0,'z'):0; state.pastePreviewWorld=screenToWorld(sx,sy,z); } if(state.boxSelecting&&state.boxStart) state.boxCurrent={sx,sy}; else if(state.draggingItem&&state.selectedId){ const active=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id)); const zPlane=rawToWorld((active[0]?.z)||0,'z'); const nowW=screenToWorld(sx,sy,zPlane); const prevW=state.dragAnchor||nowW; const dx=nowW.x-prevW.x, dy=nowW.y-prevW.y; for(const it of active){ if(!kvHas(it,'position')) continue; it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x'); it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y'); it.kv.position=`${it.x} ${it.y} ${it.z}`; markItemTransformDirty(it.id);} markItemsChanged({ structure: false }); state.dragAnchor=nowW; scheduleRenderList(); scheduleLiveMisRefresh(); } state.lastMouse={sx,sy}; });
+  cv.addEventListener("mousemove", (e) => { if(state.modalOpen) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; if(state.insertModeActive){state.insertPreviewWorld=screenToWorld(sx,sy,0);state.lastMouse={sx,sy};requestRender();return;} if(state.cameraLookPending){ const mask=state.cameraLookButton===2?2:1; if(e.buttons & mask){ const start=state.cameraLookStart||{sx,sy}; const moved=Math.hypot(sx-start.sx, sy-start.sy); if(moved>3){ state.cameraLookPending=false; if(state.cameraLookButton===1) state.pendingLeftClick=null; state.cameraLookActive=true; requestCameraPointerLock(); } } else if(!state.cameraLookActive){ state.cameraLookPending=false; state.cameraLookButton=0; } } if(state.pastePlacementActive){ const z=state.selectedId?rawToWorld(getSelected()?.z||0,'z'):0; state.pastePreviewWorld=screenToWorld(sx,sy,z); } if(state.boxSelecting&&state.boxStart) state.boxCurrent={sx,sy}; else if(state.draggingItem&&state.selectedId){ const active=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id)); const zPlane=rawToWorld((active[0]?.z)||0,'z'); const nowW=screenToWorld(sx,sy,zPlane); const prevW=state.dragAnchor||nowW; const dx=nowW.x-prevW.x, dy=nowW.y-prevW.y; for(const it of active){ if(!kvHas(it,'position')) continue; it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x'); it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y'); it.kv.position=`${it.x} ${it.y} ${it.z}`; markItemTransformDirty(it.id);} markItemsChanged({ structure: false }); state.dragAnchor=nowW; scheduleRenderList(); scheduleLiveMisRefresh(); } state.lastMouse={sx,sy}; });
   function stopDrag(){ const had=state.boxSelecting&&state.boxStart&&state.boxCurrent; const shouldFinalizeClick=!!state.pendingLeftClick && !state.cameraLookActive && !state.gizmoDrag && !state.draggingItem && !had; const x0=had?Math.min(state.boxStart.sx,state.boxCurrent.sx):0, x1=had?Math.max(state.boxStart.sx,state.boxCurrent.sx):0, y0=had?Math.min(state.boxStart.sy,state.boxCurrent.sy):0, y1=had?Math.max(state.boxStart.sy,state.boxCurrent.sy):0, add=state.boxSelectAdditive; state.draggingItem=false; state.boxSelecting=false; state.boxSelectAdditive=false; state.boxStart=null; state.boxCurrent=null; state.lastMouse=null; state.dragAnchor=null; state.cameraLookActive=false; state.cameraLookPending=false; state.cameraLookStart=null; state.cameraLookButton=0; if(document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock(); if(shouldFinalizeClick){ const pickedId=state.pendingLeftClick.pickedId; selectById(pickedId != null ? pickedId : null); } state.pendingLeftClick=null; if(had){ const worldA=screenToWorld(x0,y0,0); const worldB=screenToWorld(x1,y1,0); const minX=Math.min(worldA.x,worldB.x), maxX=Math.max(worldA.x,worldB.x), minY=Math.min(worldA.y,worldB.y), maxY=Math.max(worldA.y,worldB.y); const candidates=getSpatialCandidatesByWorldRect(minX,minY,maxX,maxY); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); const ids=[]; for(const it of candidates){ if(!filteredSet.has(it.id)||!isItemVisibilityFilterMatch(it)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(p.visible&&p.sx>=x0&&p.sx<=x1&&p.sy>=y0&&p.sy<=y1) ids.push(it.id); } if(!add) state.multiSelectedIds.clear(); for(const id of ids) state.multiSelectedIds.add(id); state.selectedId=state.multiSelectedIds.size?Array.from(state.multiSelectedIds).at(-1):null; renderList(); refreshLiveMisWindow(false, { force: true }); } }
-  cv.addEventListener('mouseup',stopDrag); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; stopDrag(); });
+  cv.addEventListener('mouseup',e=>{if(state.insertModeActive&&state.insertDragStart){const rect=cv.getBoundingClientRect(),end=screenToWorld(e.clientX-rect.left,e.clientY-rect.top,0),start=state.insertDragStart;state.insertDragStart=null;state.insertPreviewWorld=end;insertItemsInArea(start,end);return;}stopDrag();}); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; if(state.insertModeActive){state.insertDragStart=null;return;} stopDrag(); });
   cv.addEventListener('wheel',(e)=>{ e.preventDefault(); if(topViewLocked){ topViewScale=Math.max(1,Math.min(1000000,topViewScale*Math.exp(e.deltaY*0.001))); } else { const dir=e.deltaY<0?1:-1; renderUiState.speedLevel=Math.max(1,Math.min(8,renderUiState.speedLevel+dir)); renderMenuBar(); } requestRender(); },{passive:false});
 
   document.addEventListener("pointerlockchange", () => {
