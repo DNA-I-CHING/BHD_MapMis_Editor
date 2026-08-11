@@ -658,9 +658,11 @@
     }
     #insertOverlay.open{ display:flex; }
     #insertWindow{ width:min(760px,100%); height:min(520px,100%); background:var(--panel-muted); border:1px solid var(--line-heavy); padding:10px; display:grid; grid-template-rows:auto 1fr auto; gap:10px; box-shadow:var(--shadow-md); }
-    .insertBody{ display:grid; grid-template-columns:140px minmax(0,1fr) 190px; gap:10px; min-height:0; }
+    .insertBody{ display:grid; grid-template-columns:140px minmax(0,1fr) 210px; gap:10px; min-height:0; }
     #insertCategories{ display:grid; align-content:start; gap:4px; }
     #insertCategories button.active{ background:var(--accent); color:#fff; }
+    .insertCatalogPane{ display:grid; grid-template-rows:auto minmax(0,1fr); gap:6px; min-height:0; }
+    #insertItemSearch{ width:100%; box-sizing:border-box; }
     #insertItemList{ width:100%; min-height:0; overflow:auto; border:1px solid var(--line-muted); background:var(--surface); padding:4px; box-sizing:border-box; }
     .insertItemOption{ display:block; width:100%; border:1px solid var(--line-soft); border-radius:3px; background:var(--surface-subtle); color:inherit; padding:6px 8px; text-align:left; cursor:pointer; }
     .insertItemOption + .insertItemOption{ margin-top:3px; }
@@ -673,6 +675,9 @@
     .insertOptions label{ display:grid; gap:4px; }
     .insertOptions .checkRow{ display:flex; }
     .insertAreaOptions{ border:1px solid var(--line); padding:8px; display:grid; gap:5px; }
+    .insertPreviewPanel{ display:grid; gap:4px; }
+    #insertGlbPreview{ width:100%; height:150px; display:block; border:1px solid var(--line-muted); background:var(--canvas); box-sizing:border-box; }
+    #insertGlbPreviewStatus{ min-height:16px; color:var(--text-subtle); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #liveMisOverlay{
       position:absolute;
       inset:0;
@@ -1845,8 +1850,15 @@
           <div class="windowTitle">Insert Item...<span class="spacer"></span><button class="xbtn" id="insertCloseBtn" type="button">X</button></div>
           <div class="insertBody">
             <div id="insertCategories" aria-label="Item type"></div>
-            <div id="insertItemList" role="listbox" tabindex="0" aria-label="Item"></div>
+            <div class="insertCatalogPane">
+              <input id="insertItemSearch" type="search" placeholder="Search item by name" aria-label="Search item by name" />
+              <div id="insertItemList" role="listbox" tabindex="0" aria-label="Item"></div>
+            </div>
             <div class="insertOptions">
+              <div class="insertPreviewPanel">
+                <canvas id="insertGlbPreview" aria-label="Selected item 3D preview"></canvas>
+                <div id="insertGlbPreviewStatus">Select an item to preview.</div>
+              </div>
               <label class="checkRow"><input id="insertRandomFacing" type="checkbox" /> Random Facing</label>
               <label>Drop Count<input id="insertDropCount" type="number" min="1" max="20" value="1" /></label>
               <fieldset class="insertAreaOptions"><legend>Drop Area</legend>
@@ -2192,6 +2204,7 @@
     insertModeActive: false,
     insertDefinitionId: "",
     insertCategory: "foliage",
+    insertSearchTerm: "",
     insertRandomFacing: false,
     insertDropCount: 1,
     insertDropArea: "rectangle",
@@ -2201,6 +2214,7 @@
     insertPreviewWorld: null,
     insertPreviewSamples: [],
     insertPreviewPoints: [],
+    insertGlbPreview: { renderer: null, scene: null, camera: null, object: null, revision: 0 },
     gizmoDrag: null,
     gizmoVisual: null,
     gizmoAxisScreenDirs: null,
@@ -2571,7 +2585,10 @@
   const modalOverlay = document.getElementById("modalOverlay");
   const insertOverlay = document.getElementById("insertOverlay");
   const insertCategories = document.getElementById("insertCategories");
+  const insertItemSearch = document.getElementById("insertItemSearch");
   const insertItemList = document.getElementById("insertItemList");
+  const insertGlbPreviewCanvas = document.getElementById("insertGlbPreview");
+  const insertGlbPreviewStatus = document.getElementById("insertGlbPreviewStatus");
   const insertRandomFacing = document.getElementById("insertRandomFacing");
   const insertDropCount = document.getElementById("insertDropCount");
   const insertPreviewLabel = document.getElementById("insertPreviewLabel");
@@ -3885,7 +3902,11 @@
       button.addEventListener("click", () => { state.insertCategory = value; renderInsertDialog(); });
       insertCategories.appendChild(button);
     }
-    const defs = state.defsSorted.filter(def => insertCategoryForDef(def) === state.insertCategory);
+    const query = state.insertSearchTerm.trim().toLowerCase();
+    const defs = state.defsSorted.filter(def =>
+      insertCategoryForDef(def) === state.insertCategory
+      && (!query || String(def.name || "").toLowerCase().includes(query))
+    );
     insertItemList.innerHTML = "";
     if (!defs.some(def => String(def.id) === state.insertDefinitionId)) state.insertDefinitionId = String(defs[0]?.id || "");
     if (!defs.length){
@@ -3906,15 +3927,17 @@
     insertRandomFacing.checked = state.insertRandomFacing;
     insertDropCount.value = String(state.insertDropCount);
     document.querySelectorAll('input[name="insertDropArea"]').forEach(input => { input.checked = input.value === state.insertDropArea; });
+    renderInsertGlbPreview();
   }
 
   function openInsertDialog(){
     if (!state.defsSorted.length){ statusEl.textContent = "The item catalog is not loaded."; return; }
     state.pastePlacementActive = false;
     state.pastePreviewWorld = null;
-    renderInsertDialog();
     insertOverlay.classList.add("open");
     insertOverlay.setAttribute("aria-hidden", "false");
+    insertItemSearch.value = state.insertSearchTerm;
+    renderInsertDialog();
     statusEl.textContent = "Insert Mode: select an item and placement options.";
   }
 
@@ -3927,9 +3950,80 @@
       option.setAttribute('aria-selected', String(selected));
       if (selected && options.scroll) option.scrollIntoView({ block: 'nearest' });
     });
+    renderInsertGlbPreview();
+  }
+
+  async function renderInsertGlbPreview(){
+    const preview = state.insertGlbPreview;
+    const revision = ++preview.revision;
+    const def = state.defsById.get(String(state.insertDefinitionId));
+    const graphic = String(def?.graphic || "").trim();
+    if (!def){
+      insertGlbPreviewStatus.textContent = "No item selected.";
+      if (preview.object) preview.object.visible = false;
+      if (preview.renderer && preview.scene && preview.camera) preview.renderer.render(preview.scene, preview.camera);
+      return;
+    }
+    if (!graphic){
+      insertGlbPreviewStatus.textContent = "This item has no GLB graphic.";
+      if (preview.object) preview.object.visible = false;
+      if (preview.renderer && preview.scene && preview.camera) preview.renderer.render(preview.scene, preview.camera);
+      return;
+    }
+    insertGlbPreviewStatus.textContent = `Loading ${graphic}.glb...`;
+    if (!await ensureGlbRendererReady() || revision !== preview.revision){
+      if (revision === preview.revision) insertGlbPreviewStatus.textContent = "3D preview unavailable.";
+      return;
+    }
+    const { THREE } = state.glb;
+    if (!preview.renderer){
+      preview.renderer = new THREE.WebGLRenderer({ canvas: insertGlbPreviewCanvas, antialias: true, alpha: true });
+      preview.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      preview.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      preview.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      preview.renderer.toneMappingExposure = 1.15;
+      preview.scene = new THREE.Scene();
+      preview.scene.add(new THREE.HemisphereLight(0xffffff, 0x425166, 1.35));
+      preview.scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+      const light = new THREE.DirectionalLight(0xffffff, 1.4);
+      light.position.set(3, -4, 6);
+      preview.scene.add(light);
+      preview.camera = new THREE.PerspectiveCamera(42, 1, 0.01, 10000);
+      preview.camera.up.set(0, 0, 1);
+    }
+    const template = await loadGraphicTemplate(graphic);
+    if (revision !== preview.revision || !template) return;
+    if (preview.object) preview.scene.remove(preview.object);
+    preview.object = template.clone(true);
+    preview.object.visible = true;
+    preview.scene.add(preview.object);
+
+    const box = new THREE.Box3().setFromObject(preview.object);
+    const center = new THREE.Vector3();
+    const size = new THREE.Vector3();
+    if (!box.isEmpty()){
+      box.getCenter(center);
+      box.getSize(size);
+      preview.object.position.sub(center);
+    }
+    const extent = Math.max(1, size.x, size.y, size.z);
+    const distance = extent * 2.2;
+    preview.camera.position.set(distance * 0.75, -distance, distance * 0.65);
+    preview.camera.near = Math.max(0.01, distance / 1000);
+    preview.camera.far = distance * 20;
+    preview.camera.lookAt(0, 0, 0);
+    preview.camera.updateProjectionMatrix();
+    const width = Math.max(1, insertGlbPreviewCanvas.clientWidth || 200);
+    const height = Math.max(1, insertGlbPreviewCanvas.clientHeight || 150);
+    preview.camera.aspect = width / height;
+    preview.camera.updateProjectionMatrix();
+    preview.renderer.setSize(width, height, false);
+    preview.renderer.render(preview.scene, preview.camera);
+    insertGlbPreviewStatus.textContent = `${def.name} — ${graphic}.glb`;
   }
 
   function closeInsertDialog(){
+    state.insertGlbPreview.revision += 1;
     insertOverlay.classList.remove("open");
     insertOverlay.setAttribute("aria-hidden", "true");
   }
@@ -8322,6 +8416,10 @@
   document.getElementById("insertCloseBtn").addEventListener("click", () => stopInsertMode());
   document.getElementById("insertCancelBtn").addEventListener("click", () => stopInsertMode());
   document.getElementById("insertOkBtn").addEventListener("click", confirmInsertMode);
+  insertItemSearch.addEventListener("input", () => {
+    state.insertSearchTerm = insertItemSearch.value;
+    renderInsertDialog();
+  });
   insertItemList.addEventListener("click", event => {
     const option = event.target.closest('.insertItemOption');
     if (option) selectInsertDefinition(option.dataset.defId);
