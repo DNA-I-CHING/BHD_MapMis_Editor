@@ -496,6 +496,8 @@
     .floatingPanelFields label{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
     .floatingPanelFields select,.floatingPanelFields input[type="number"]{ min-width:92px; }
     .floatingPanelFields input[type="number"]{ width:72px; }
+    .viewportViewOptions{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .viewportViewOptions .modeBtn{ display:flex; align-items:center; justify-content:flex-start; gap:6px; height:28px; }
     .shortcutHint{ margin-left:auto; color:var(--text-subtle); font-size:10px; }
     #debugFogPanel{
       position:absolute;
@@ -1443,7 +1445,7 @@
           <button id="rotationSnapToggleBtn" type="button" class="modeBtn iconBtn" aria-pressed="false" aria-label="Rotation Snap" title="Enable or disable rotation snapping"><img class="toolbarIcon" src="editor_images/icons/snap_to_angle.svg" alt="" /></button>
           <button id="rotationSnapMenuBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false" aria-label="Rotation Snap settings">&#x25BE;</button>
         </div>
-        <button id="viewportToolsBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false">Viewport Tools</button>
+        <button id="viewportToolsBtn" type="button" class="modeBtn iconBtn" aria-haspopup="true" aria-expanded="false" aria-label="Viewport Tools" title="Viewport Tools"><img class="toolbarIcon" src="editor_images/icons/perspective_view.svg" alt="" /></button>
         <button id="viewModeBtn" type="button" class="modeBtn iconBtn" aria-haspopup="true" aria-expanded="false" aria-label="Draw Mode" title="Draw Mode"><img class="toolbarIcon" src="editor_images/icons/draw_mode.svg" alt="" /></button>
         <div id="fpsCounter">0 FPS</div>
       </div>
@@ -1544,6 +1546,13 @@
       </div>
 
       <div id="viewportToolsPanel" aria-hidden="true">
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">View</div>
+          <div class="viewportViewOptions">
+            <button id="perspectiveViewBtn" type="button" class="modeBtn active" aria-pressed="true"><img class="toolbarIcon" src="editor_images/icons/perspective_view.svg" alt="" /> Perspective</button>
+            <button id="topViewBtn" type="button" class="modeBtn" aria-pressed="false"><img class="toolbarIcon" src="editor_images/icons/top_view.svg" alt="" /> Top <span class="shortcutHint">T</span></button>
+          </div>
+        </section>
         <section class="floatingPanelSection">
           <div class="floatingPanelTitle">Gizmo</div>
           <div class="floatingPanelFields">
@@ -2348,6 +2357,8 @@
   const rotationSnapToggleBtn = document.getElementById("rotationSnapToggleBtn");
   const rotationSnapMenuBtn = document.getElementById("rotationSnapMenuBtn");
   const viewportToolsBtn = document.getElementById("viewportToolsBtn");
+  const perspectiveViewBtn = document.getElementById("perspectiveViewBtn");
+  const topViewBtn = document.getElementById("topViewBtn");
   const viewModeBtn = document.getElementById("viewModeBtn");
   const debugFogBtn = document.getElementById("debugFogBtn");
   const hideAllShowOptionsBtn = document.getElementById("hideAllShowOptionsBtn");
@@ -7767,6 +7778,8 @@
   });
 
   viewportToolsPanelEl?.addEventListener("click", (event) => event.stopPropagation());
+  perspectiveViewBtn?.addEventListener("click", () => setTopView(false));
+  topViewBtn?.addEventListener("click", () => setTopView(true));
 
   viewModeBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -11265,8 +11278,15 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     const fallbackDistance=Math.max(64,Math.abs(cam.pos.z),topViewScale/Math.tan(CAMERA_REFERENCE_VERTICAL_FOV/2));
     return vec3Add(cam.pos,vec3Scale(forward,fallbackDistance));
   }
-  function toggleTopView(){
-    topViewLocked=!topViewLocked;
+  function syncViewportViewButtons(){
+    perspectiveViewBtn?.classList.toggle('active',!topViewLocked);
+    perspectiveViewBtn?.setAttribute('aria-pressed',topViewLocked?'false':'true');
+    topViewBtn?.classList.toggle('active',topViewLocked);
+    topViewBtn?.setAttribute('aria-pressed',topViewLocked?'true':'false');
+  }
+  function setTopView(enabled){
+    if(topViewLocked===enabled){syncViewportViewButtons();return;}
+    topViewLocked=enabled;
     if(topViewLocked){
       const pos=vec3(cam.pos.x,cam.pos.y,cam.pos.z),target=perspectiveFocusForTopView();
       const focusDistance=Math.max(1,vec3Len(vec3Sub(target,pos)));
@@ -11281,8 +11301,10 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
       }
       cam.yaw=topViewRestore.yaw;cam.pitch=topViewRestore.pitch;
     }
+    syncViewportViewButtons();
     camVel=vec3(0,0,0); requestRender();
   }
+  function toggleTopView(){setTopView(!topViewLocked);}
   addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'&&!e.repeat){ e.preventDefault(); toggleTopView(); } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ toggleTransformSpace(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a'&&lookActive) move.a=1; if(k==='s'&&lookActive) move.s=1; if(k==='d'&&lookActive) move.d=1; if(k==='q'&&lookActive) move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
