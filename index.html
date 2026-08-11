@@ -496,8 +496,12 @@
     .floatingPanelFields label{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
     .floatingPanelFields select,.floatingPanelFields input[type="number"]{ min-width:92px; }
     .floatingPanelFields input[type="number"]{ width:72px; }
-    .viewportViewOptions{ display:grid; grid-template-columns:1fr 1fr; gap:6px; }
-    .viewportViewOptions .modeBtn{ display:flex; align-items:center; justify-content:flex-start; gap:6px; height:28px; }
+    #viewportToolsBtn{ display:inline-flex; align-items:center; gap:6px; }
+    .viewportViewOptions{ display:grid; gap:6px; }
+    .viewportViewOptions .modeBtn{ display:flex; align-items:center; justify-content:flex-start; gap:6px; width:100%; height:28px; }
+    .cameraOptionRange{ display:grid !important; grid-template-columns:1fr auto; gap:4px 12px !important; }
+    .cameraOptionRange input[type="range"]{ grid-column:1 / -1; width:100%; }
+    .cameraOptionValue{ color:var(--text-subtle); font-variant-numeric:tabular-nums; }
     .shortcutHint{ margin-left:auto; color:var(--text-subtle); font-size:10px; }
     #debugFogPanel{
       position:absolute;
@@ -1445,7 +1449,7 @@
           <button id="rotationSnapToggleBtn" type="button" class="modeBtn iconBtn" aria-pressed="false" aria-label="Rotation Snap" title="Enable or disable rotation snapping"><img class="toolbarIcon" src="editor_images/icons/snap_to_angle.svg" alt="" /></button>
           <button id="rotationSnapMenuBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false" aria-label="Rotation Snap settings">&#x25BE;</button>
         </div>
-        <button id="viewportToolsBtn" type="button" class="modeBtn iconBtn" aria-haspopup="true" aria-expanded="false" aria-label="Viewport Tools" title="Viewport Tools"><img class="toolbarIcon" src="editor_images/icons/perspective_view.svg" alt="" /></button>
+        <button id="viewportToolsBtn" type="button" class="modeBtn" aria-haspopup="true" aria-expanded="false" aria-label="Viewport Tools: Perspective" title="Viewport Tools"><img class="toolbarIcon" src="editor_images/icons/camera.svg" alt="" /><span id="viewportProjectionLabel">Perspective</span></button>
         <button id="viewModeBtn" type="button" class="modeBtn iconBtn" aria-haspopup="true" aria-expanded="false" aria-label="Draw Mode" title="Draw Mode"><img class="toolbarIcon" src="editor_images/icons/draw_mode.svg" alt="" /></button>
         <div id="fpsCounter">0 FPS</div>
       </div>
@@ -1547,10 +1551,24 @@
 
       <div id="viewportToolsPanel" aria-hidden="true">
         <section class="floatingPanelSection">
-          <div class="floatingPanelTitle">View</div>
+          <div class="floatingPanelTitle">Perspective</div>
           <div class="viewportViewOptions">
             <button id="perspectiveViewBtn" type="button" class="modeBtn active" aria-pressed="true"><img class="toolbarIcon" src="editor_images/icons/perspective_view.svg" alt="" /> Perspective</button>
+          </div>
+        </section>
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">Orthographic</div>
+          <div class="viewportViewOptions">
             <button id="topViewBtn" type="button" class="modeBtn" aria-pressed="false"><img class="toolbarIcon" src="editor_images/icons/top_view.svg" alt="" /> Top <span class="shortcutHint">T</span></button>
+          </div>
+        </section>
+        <section class="floatingPanelSection">
+          <div class="floatingPanelTitle">Camera</div>
+          <div class="floatingPanelFields">
+            <label class="cameraOptionRange"><span>Camera Speed</span><output id="cameraSpeedValue" class="cameraOptionValue">4</output><input id="cameraSpeed" type="range" min="1" max="8" step="1" value="4"></label>
+            <label class="cameraOptionRange"><span>Speed Scalar</span><output id="cameraSpeedScalarValue" class="cameraOptionValue">1</output><input id="cameraSpeedScalar" type="range" min="0.1" max="4" step="0.1" value="1"></label>
+            <label>Ground Clamp <input id="cameraGroundClamp" type="checkbox" checked></label>
+            <label class="cameraOptionRange"><span>Camera Ground Distance</span><output id="cameraGroundDistanceValue" class="cameraOptionValue">1</output><input id="cameraGroundDistance" type="range" min="1" max="200" step="1" value="1"></label>
           </div>
         </section>
         <section class="floatingPanelSection">
@@ -2357,8 +2375,16 @@
   const rotationSnapToggleBtn = document.getElementById("rotationSnapToggleBtn");
   const rotationSnapMenuBtn = document.getElementById("rotationSnapMenuBtn");
   const viewportToolsBtn = document.getElementById("viewportToolsBtn");
+  const viewportProjectionLabel = document.getElementById("viewportProjectionLabel");
   const perspectiveViewBtn = document.getElementById("perspectiveViewBtn");
   const topViewBtn = document.getElementById("topViewBtn");
+  const cameraSpeedEl = document.getElementById("cameraSpeed");
+  const cameraSpeedValueEl = document.getElementById("cameraSpeedValue");
+  const cameraSpeedScalarEl = document.getElementById("cameraSpeedScalar");
+  const cameraSpeedScalarValueEl = document.getElementById("cameraSpeedScalarValue");
+  const cameraGroundClampEl = document.getElementById("cameraGroundClamp");
+  const cameraGroundDistanceEl = document.getElementById("cameraGroundDistance");
+  const cameraGroundDistanceValueEl = document.getElementById("cameraGroundDistanceValue");
   const viewModeBtn = document.getElementById("viewModeBtn");
   const debugFogBtn = document.getElementById("debugFogBtn");
   const hideAllShowOptionsBtn = document.getElementById("hideAllShowOptionsBtn");
@@ -4940,7 +4966,7 @@
 
   function setViewportToolsPanelOpen(open){
     const visible = !!open;
-    if (visible) positionViewportToolsPanel();
+    if (visible){positionViewportToolsPanel();syncCameraControls();}
     viewportToolsPanelEl?.classList.toggle("open", visible);
     viewportToolsPanelEl?.setAttribute("aria-hidden", visible ? "false" : "true");
     viewportToolsBtn?.setAttribute("aria-expanded", visible ? "true" : "false");
@@ -7780,6 +7806,33 @@
   viewportToolsPanelEl?.addEventListener("click", (event) => event.stopPropagation());
   perspectiveViewBtn?.addEventListener("click", () => setTopView(false));
   topViewBtn?.addEventListener("click", () => setTopView(true));
+  function bindCameraRange(input,valueOutput,setting){
+    input?.addEventListener("input", () => {
+      const value=parseFloat(input.value);
+      renderUiState[setting]=value;
+      if(valueOutput)valueOutput.textContent=input.value;
+      requestRender();
+    });
+  }
+  bindCameraRange(cameraSpeedEl,cameraSpeedValueEl,"speedLevel");
+  bindCameraRange(cameraSpeedScalarEl,cameraSpeedScalarValueEl,"speedScalar");
+  bindCameraRange(cameraGroundDistanceEl,cameraGroundDistanceValueEl,"clearance");
+  function syncCameraControls(){
+    const values=[
+      [cameraSpeedEl,cameraSpeedValueEl,renderUiState.speedLevel],
+      [cameraSpeedScalarEl,cameraSpeedScalarValueEl,renderUiState.speedScalar],
+      [cameraGroundDistanceEl,cameraGroundDistanceValueEl,renderUiState.clearance]
+    ];
+    for(const [input,output,value] of values){
+      if(input)input.value=String(value);
+      if(output)output.textContent=String(value);
+    }
+    if(cameraGroundClampEl)cameraGroundClampEl.checked=renderUiState.groundClamp;
+  }
+  cameraGroundClampEl?.addEventListener("change", () => {
+    renderUiState.groundClamp=cameraGroundClampEl.checked;
+    requestRender();
+  });
 
   viewModeBtn?.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -8386,15 +8439,6 @@
         children: [
           { label: "Scene Info", shortcut: "I", command: "view.sceneInfo" },
           { label: "Sidebar", shortcut: "C", command: "view.sidebar", checked: !appLayoutEl?.classList.contains("sidebarClosed") },
-          {
-            label: "Camera",
-            children: [
-              { label: "Camera Speed", control: "range", setting: "speedLevel", min: 1, max: 8, step: 1, value: renderUiState.speedLevel },
-              { label: "Speed Scalar", control: "range", setting: "speedScalar", min: 0.1, max: 4, step: 0.1, value: renderUiState.speedScalar },
-              { label: "Ground Clamp", command: "view.groundClamp", checked: renderUiState.groundClamp },
-              { label: "Camera Ground Distance", control: "range", setting: "clearance", min: 1, max: 200, step: 1, value: renderUiState.clearance }
-            ]
-          },
           {
             label: "Guides",
             children: [
@@ -11279,6 +11323,9 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     return vec3Add(cam.pos,vec3Scale(forward,fallbackDistance));
   }
   function syncViewportViewButtons(){
+    const projectionLabel=topViewLocked?'Top':'Perspective';
+    if(viewportProjectionLabel)viewportProjectionLabel.textContent=projectionLabel;
+    viewportToolsBtn?.setAttribute('aria-label',`Viewport Tools: ${projectionLabel}`);
     perspectiveViewBtn?.classList.toggle('active',!topViewLocked);
     perspectiveViewBtn?.setAttribute('aria-pressed',topViewLocked?'false':'true');
     topViewBtn?.classList.toggle('active',topViewLocked);
