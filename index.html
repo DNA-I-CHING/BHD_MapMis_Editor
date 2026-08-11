@@ -11805,7 +11805,21 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     selectById(picked ? picked.id : null, { additive: additiveSelection });
     state.lastMouse = { sx, sy };
   });
-  cv.addEventListener("contextmenu", (e) => { e.preventDefault(); if(state.cameraLookActive || (state.cameraLookPending&&state.cameraLookButton===2)) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; const picked=pickItemAtCanvas(sx,sy); if (picked){ if (!(picked.id===state.selectedId||state.multiSelectedIds.has(picked.id))) selectById(picked.id); showItemContextMenu(e.clientX,e.clientY); return; } if (state.selectedId!==null||state.multiSelectedIds.size>0||state.itemClipboardItems.length) showItemContextMenu(e.clientX,e.clientY); });
+  cv.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (state.cameraLookActive || (state.cameraLookPending && state.cameraLookButton === 2)) return;
+    const rect = cv.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    const picked = pickItemAtCanvas(sx, sy);
+    if (picked){
+      if (!(picked.id === state.selectedId || state.multiSelectedIds.has(picked.id))) selectById(picked.id);
+      showItemContextMenu(e.clientX, e.clientY);
+      return;
+    }
+    showItemContextMenu(e.clientX, e.clientY, [
+      { label: "Insert Item", action: toggleInsertMode }
+    ]);
+  });
   cv.addEventListener("dblclick", (e) => { const rect=cv.getBoundingClientRect(); const picked=pickItemAtCanvas(e.clientX-rect.left,e.clientY-rect.top); if(picked){ selectById(picked.id); openModal(); } });
   cv.addEventListener("mousemove", (e) => {
     if (state.modalOpen) return;
