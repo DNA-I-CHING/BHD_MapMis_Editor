@@ -8025,18 +8025,28 @@
     statusEl.textContent=changed?`${label}: ${changed} item${changed===1?'':'s'} updated.`:`${label}: no valid target found.`;
   }
 
-  function floorHeightForItem(it,excludedIds){
-    const x=rawToWorld(it.x,'x'),y=rawToWorld(it.y,'y'),currentZ=getItemWorldZ(it);
-    let best=heightAtWorld(x,y,1.0);
-    if(!Number.isFinite(best)||best<=-1e8)best=-Infinity;
-    if(state.glb.ready&&state.glb.THREE){
-      const THREE=state.glb.THREE,roots=[];
-      if(!state.glb.raycaster)state.glb.raycaster=new THREE.Raycaster();
-      for(const [id,instance] of state.glb.itemInstances)if(!excludedIds.has(id)&&instance.visible)roots.push(instance);
-      state.glb.raycaster.set(new THREE.Vector3(x,y,currentZ+100000),new THREE.Vector3(0,0,-1));
-      for(const hit of state.glb.raycaster.intersectObjects(roots,true)){
-        const z=Number(hit.point?.z);if(Number.isFinite(z)&&z<=currentZ+1e-4){best=Math.max(best,z);break;}
-      }
+  function getItemDropBounds(it){
+    if(!it||!state.glb.ready||!state.glb.THREE)return null;
+    const instance=state.glb.itemInstances.get(it.id);if(!instance)return null;
+    applyItemTransformToObject(instance,it);instance.updateMatrixWorld(true);
+    const box=new state.glb.THREE.Box3().setFromObject(instance);
+    if(box.isEmpty()||![box.min.x,box.min.y,box.min.z,box.max.x,box.max.y,box.max.z].every(Number.isFinite))return null;
+    const anchorZ=getItemWorldZ(it);
+    return {box,baseOffsetZ:box.min.z-anchorZ};
+  }
+
+  function floorHeightBelowBounds(bounds,excludedIds){
+    const {THREE}=state.glb,box=bounds.box,roots=[];
+    const cx=(box.min.x+box.max.x)*.5,cy=(box.min.y+box.max.y)*.5;
+    const samples=[[cx,cy],[box.min.x,box.min.y],[box.min.x,box.max.y],[box.max.x,box.min.y],[box.max.x,box.max.y]];
+    let best=-Infinity;
+    for(const [x,y] of samples){const terrainZ=heightAtWorld(x,y,1.0);if(Number.isFinite(terrainZ)&&terrainZ>-1e8)best=Math.max(best,terrainZ);}
+    if(!state.glb.raycaster)state.glb.raycaster=new THREE.Raycaster();
+    for(const [id,instance] of state.glb.itemInstances)if(!excludedIds.has(id)&&instance.visible)roots.push(instance);
+    for(const [x,y] of samples){
+      state.glb.raycaster.set(new THREE.Vector3(x,y,box.min.z+.01),new THREE.Vector3(0,0,-1));
+      const hit=state.glb.raycaster.intersectObjects(roots,true)[0],z=Number(hit?.point?.z);
+      if(Number.isFinite(z)&&z<=box.min.z+.011)best=Math.max(best,z);
     }
     return best;
   }
@@ -8044,7 +8054,11 @@
   function snapSelectedItemsToFloor(){
     runSelectionTransformCommand('Snap to Floor',items=>{
       const excluded=new Set(items.map(it=>it.id));let changed=0;
-      for(const it of items){const z=floorHeightForItem(it,excluded);if(!Number.isFinite(z))continue;it.z=worldToRaw(z,'z');changed++;}
+      for(const it of items){
+        const bounds=getItemDropBounds(it);if(!bounds)continue;
+        const floorZ=floorHeightBelowBounds(bounds,excluded);if(!Number.isFinite(floorZ))continue;
+        it.z=worldToRaw(floorZ-bounds.baseOffsetZ,'z');changed++;
+      }
       return changed;
     });
   }
