@@ -1471,7 +1471,7 @@
       <canvas id="cv"></canvas>
       <div id="insertPreviewLabel" aria-hidden="true"></div>
       <div id="camDebug"></div>
-      <div id="sceneInfoHint">Show Scene Info (I)</div>
+      <div id="sceneInfoHint">Show Scene Info (Home)</div>
       <canvas id="gizmoCanvas" aria-hidden="true"></canvas>
 
       <div id="canvasShowPanel" aria-hidden="true">
@@ -8661,7 +8661,7 @@
           { label: "Paste", shortcut: "Ctrl + V", command: "edit.paste" },
           { label: "Delete", shortcut: "Delete", command: "edit.delete" },
           { separator: true },
-          { label: "Insert Mode", command: "edit.insertMode", checked: state.insertModeActive },
+          { label: "Insert Mode", shortcut: "I", command: "edit.insertMode", checked: state.insertModeActive },
           { separator: true },
           { label: "Briefing", command: "edit.briefing" },
           { label: "General Information", command: "edit.generalInfo" },
@@ -8677,7 +8677,7 @@
       {
         label: "View",
         children: [
-          { label: "Scene Info", shortcut: "I", command: "view.sceneInfo" },
+          { label: "Scene Info", shortcut: "Home", command: "view.sceneInfo" },
           { label: "Sidebar", shortcut: "C", command: "view.sidebar", checked: !appLayoutEl?.classList.contains("sidebarClosed") },
           {
             label: "Guides",
@@ -11688,7 +11688,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     camVel=vec3(0,0,0); requestRender();
   }
   function toggleTopView(){setTopView(!topViewLocked);}
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'&&!e.repeat){ e.preventDefault(); toggleTopView(); } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ toggleTransformSpace(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a'&&lookActive) move.a=1; if(k==='s'&&lookActive) move.s=1; if(k==='d'&&lookActive) move.d=1; if(k==='q'&&lookActive) move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'&&!e.repeat){ e.preventDefault(); toggleTopView(); } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='home'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); toggleSceneInfo(); } if(k==='i'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); toggleInsertMode(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ toggleTransformSpace(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a'&&lookActive) move.a=1; if(k==='s'&&lookActive) move.s=1; if(k==='d'&&lookActive) move.d=1; if(k==='q'&&lookActive) move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
