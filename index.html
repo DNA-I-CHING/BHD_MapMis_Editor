@@ -2190,6 +2190,7 @@
     insertDropArea: "rectangle",
     insertDragStart: null,
     insertDragStartScreen: null,
+    insertHoverPoint: null,
     insertPreviewWorld: null,
     insertPreviewSamples: [],
     insertPreviewPoints: [],
@@ -3911,6 +3912,7 @@
     state.insertModeActive = false;
     state.insertDragStart = null;
     state.insertDragStartScreen = null;
+    state.insertHoverPoint = null;
     state.insertPreviewWorld = null;
     state.insertPreviewSamples = [];
     state.insertPreviewPoints = [];
@@ -3973,8 +3975,13 @@
   }
 
   function updateInsertPreviewLabel(sx, sy){
-    if (!state.insertDragStart){ insertPreviewLabel.style.display = "none"; return; }
-    insertPreviewLabel.textContent = `${state.insertDropCount} item${state.insertDropCount === 1 ? "" : "s"} — ${state.insertDropArea === "oval" ? "Oval" : "Rectangle"}`;
+    if (!state.insertDragStart && !state.insertHoverPoint){ insertPreviewLabel.style.display = "none"; return; }
+    const def = state.defsById.get(state.insertDefinitionId);
+    insertPreviewLabel.textContent = state.insertDragStart
+      ? `${state.insertDropCount} item${state.insertDropCount === 1 ? "" : "s"} — ${state.insertDropArea === "oval" ? "Oval" : "Rectangle"}`
+      : state.insertDropCount === 1
+        ? `Click to insert ${def?.name || "item"}`
+        : `${state.insertDropCount} items — drag to define ${state.insertDropArea === "oval" ? "Oval" : "Rectangle"}`;
     insertPreviewLabel.style.left = `${Math.round(sx + 14)}px`;
     insertPreviewLabel.style.top = `${Math.round(sy + 14)}px`;
     insertPreviewLabel.style.display = "block";
@@ -9592,8 +9599,20 @@
   }
 
   function updateInsertOverlayGeometry(overlays){
-    const positions = [], colors = [], color = [0.15, 0.95, 1.0], pivotColor = [1.0, 0.82, 0.1];
+    const positions = [], colors = [], color = [0.15, 0.95, 1.0], pivotColor = [1.0, 0.82, 0.1], hoverColor = [0.35, 0.9, 1.0];
+    const appendPivot = (point, markerColor) => {
+      const distance=Math.hypot(cam.pos.x-point.x,cam.pos.y-point.y,cam.pos.z-point.z);
+      const radius=Math.max(1,Math.min(256,topViewLocked?topViewScale*0.009:distance*0.006));
+      const z=point.z+0.75,segments=16;
+      for(let i=0;i<segments;i++){
+        const a=i/segments*Math.PI*2,b=(i+1)/segments*Math.PI*2;
+        appendInsertLine(positions,colors,{x:point.x+Math.cos(a)*radius,y:point.y+Math.sin(a)*radius,z},{x:point.x+Math.cos(b)*radius,y:point.y+Math.sin(b)*radius,z},markerColor);
+      }
+      appendInsertLine(positions,colors,{x:point.x-radius,y:point.y,z},{x:point.x+radius,y:point.y,z},markerColor);
+      appendInsertLine(positions,colors,{x:point.x,y:point.y-radius,z},{x:point.x,y:point.y+radius,z},markerColor);
+    };
     const start = state.insertDragStart, end = state.insertPreviewWorld;
+    if (state.insertModeActive && !start && state.insertHoverPoint) appendPivot(state.insertHoverPoint, hoverColor);
     if (state.insertModeActive && start && end){
       const minX=Math.min(start.x,end.x),maxX=Math.max(start.x,end.x),minY=Math.min(start.y,end.y),maxY=Math.max(start.y,end.y);
       const boundary = [];
@@ -9608,17 +9627,7 @@
         const a={...boundary[i-1],z:boundary[i-1].z+0.5},b={...boundary[i],z:boundary[i].z+0.5};
         appendInsertLine(positions,colors,a,b,color);
       }
-      for(const point of state.insertPreviewPoints){
-        const distance=Math.hypot(cam.pos.x-point.x,cam.pos.y-point.y,cam.pos.z-point.z);
-        const radius=Math.max(1,Math.min(256,topViewLocked?topViewScale*0.009:distance*0.006));
-        const z=point.z+0.75,segments=16;
-        for(let i=0;i<segments;i++){
-          const a=i/segments*Math.PI*2,b=(i+1)/segments*Math.PI*2;
-          appendInsertLine(positions,colors,{x:point.x+Math.cos(a)*radius,y:point.y+Math.sin(a)*radius,z},{x:point.x+Math.cos(b)*radius,y:point.y+Math.sin(b)*radius,z},pivotColor);
-        }
-        appendInsertLine(positions,colors,{x:point.x-radius,y:point.y,z},{x:point.x+radius,y:point.y,z},pivotColor);
-        appendInsertLine(positions,colors,{x:point.x,y:point.y-radius,z},{x:point.x,y:point.y+radius,z},pivotColor);
-      }
+      for(const point of state.insertPreviewPoints) appendPivot(point, pivotColor);
     }
     updateThreeLineGeometry(overlays.insertLines,new Float32Array(positions),new Float32Array(colors));
   }
@@ -11738,6 +11747,9 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
 
     if (e.button === 2){
       e.preventDefault();
+      state.insertHoverPoint = null;
+      insertPreviewLabel.style.display = "none";
+      requestRender();
       state.cameraLookPending = true;
       state.cameraLookButton = 2;
       state.cameraLookStart = { sx, sy };
@@ -11746,11 +11758,12 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     }
 
     if (state.insertModeActive){
-      const world = screenToTerrain(sx, sy);
+      const world = state.insertHoverPoint || screenToTerrain(sx, sy);
       if (!world){
         statusEl.textContent = "The cursor is not over the terrain.";
         return;
       }
+      state.insertHoverPoint = null;
       state.insertDragStart = world;
       state.insertDragStartScreen = { sx, sy };
       state.insertPreviewWorld = world;
@@ -11824,6 +11837,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     if (state.insertModeActive){
       const terrainPoint = screenToTerrain(sx, sy);
       if (!terrainPoint){
+        state.insertHoverPoint = null;
         state.insertPreviewWorld = null;
         state.insertPreviewPoints = [];
         insertPreviewLabel.style.display = "none";
@@ -11834,6 +11848,9 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
       state.insertPreviewWorld = terrainPoint;
       if (state.insertDragStart){
         updateInsertPreviewPoints(state.insertDragStart, state.insertPreviewWorld);
+        updateInsertPreviewLabel(sx, sy);
+      } else {
+        state.insertHoverPoint = terrainPoint;
         updateInsertPreviewLabel(sx, sy);
       }
       state.lastMouse = { sx, sy };
@@ -11876,6 +11893,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
       if (!end){
         state.insertDragStart = null;
         state.insertDragStartScreen = null;
+        state.insertHoverPoint = null;
         state.insertPreviewWorld = null;
         state.insertPreviewSamples = [];
         state.insertPreviewPoints = [];
@@ -11891,22 +11909,24 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
       if (state.insertDropCount > 1 && moved < 4){
         state.insertDragStart = null;
         state.insertDragStartScreen = null;
+        state.insertHoverPoint = end;
         state.insertPreviewSamples = [];
         state.insertPreviewPoints = [];
-        insertPreviewLabel.style.display = 'none';
+        updateInsertPreviewLabel(sx, sy);
         requestRender();
         statusEl.textContent = 'Drag on the map to define the drop area for multiple items.';
         return;
       }
       insertItemsAtPreviewPoints();
-      insertPreviewLabel.style.display = 'none';
       state.insertDragStart = null;
       state.insertDragStartScreen = null;
+      state.insertHoverPoint = end;
+      updateInsertPreviewLabel(sx, sy);
       requestRender();
       return;
     }
     stopDrag();
-  }); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; if(state.insertModeActive){state.insertDragStart=null;state.insertDragStartScreen=null;state.insertPreviewSamples=[];state.insertPreviewPoints=[];insertPreviewLabel.style.display='none';requestRender();return;} stopDrag(); });
+  }); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; if(state.insertModeActive){state.insertDragStart=null;state.insertDragStartScreen=null;state.insertHoverPoint=null;state.insertPreviewSamples=[];state.insertPreviewPoints=[];insertPreviewLabel.style.display='none';requestRender();return;} stopDrag(); });
   cv.addEventListener('wheel',(e)=>{ e.preventDefault(); if(topViewLocked){ topViewScale=Math.max(1,Math.min(1000000,topViewScale*Math.exp(e.deltaY*0.001))); } else { const dir=e.deltaY<0?1:-1; renderUiState.speedLevel=Math.max(1,Math.min(8,renderUiState.speedLevel+dir)); renderMenuBar(); } requestRender(); },{passive:false});
 
   document.addEventListener("pointerlockchange", () => {
