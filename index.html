@@ -963,6 +963,7 @@
       font-size:12px;
     }
     .menuControl input[type="range"]{ grid-column:1 / -1; width:100%; }
+    .menuControl select{ min-width:88px; }
     .menuControlValue{ color:var(--muted); font-variant-numeric:tabular-nums; }
     .menuItemBtn:hover{ background:var(--accent-soft); }
     .menuItemBtn:active:not(:disabled){ background:var(--control-active-bg); }
@@ -1504,13 +1505,6 @@
           <label><input type="radio" name="glbViewMode" value="wireframe"> Wireframe</label>
           <label><input type="radio" name="glbViewMode" value="transparent_wireframe"> Transparent Wireframe</label>
           <label><input type="radio" name="glbViewMode" value="category_colors"> Category Colors</label>
-          </div>
-        </section>
-        <section class="floatingPanelSection">
-          <div class="floatingPanelTitle">Terrain</div>
-          <div class="floatingPanelFields">
-            <label>TRN Mesh Step <select id="step"><option>1</option><option>2</option><option selected>4</option><option>8</option><option>16</option></select></label>
-            <label>Draw Radius <input id="radius" type="range" min="512" max="65536" step="256" value="12288"></label>
           </div>
         </section>
       </div>
@@ -2462,7 +2456,6 @@
   const okBtn = document.getElementById("okBtn");
   const cancelBtn = document.getElementById("cancelBtn");
   const itemContextMenu = document.getElementById("itemContextMenu");
-  const radiusEl = document.getElementById("radius");
   const showAreaTriggersEl = document.getElementById("showAreaTriggers");
 
   const renderUiState = {
@@ -2470,7 +2463,8 @@
     speedScalar: 1.0,
     groundClamp: true,
     clearance: 1,
-    drawRadius: parseFloat(radiusEl?.value || '12288') || 12288,
+    drawRadius: 12288,
+    terrainMeshStep: 4,
     mainArea: true,
     showSectors: false,
     showStats: false,
@@ -2481,11 +2475,10 @@
   };
 
   function syncRenderUiState(){
-    renderUiState.drawRadius = parseFloat(radiusEl?.value || '12288') || 12288;
     renderUiState.showAreaTriggers = showAreaTriggersEl?.checked !== false;
   }
 
-  for (const el of [radiusEl, showAreaTriggersEl]){
+  for (const el of [showAreaTriggersEl]){
     el?.addEventListener('input', syncRenderUiState);
     el?.addEventListener('change', syncRenderUiState);
   }
@@ -8266,6 +8259,13 @@
               { label: "Anchor Points", shortcut: "H", command: "view.showAnchorPoints", checked: renderUiState.showAnchorPoints }
             ]
           },
+          {
+            label: "Terrain",
+            children: [
+              { label: "TRN Mesh Step", control: "select", setting: "terrainMeshStep", options: [1, 2, 4, 8, 16], value: renderUiState.terrainMeshStep, onChange: rebuildTerrain },
+              { label: "Draw Radius", control: "range", setting: "drawRadius", min: 512, max: 65536, step: 256, value: renderUiState.drawRadius }
+            ]
+          },
           { separator: true },
           { label: "View by Layer", command: "view.byLayer" },
           { label: "View by Type", command: "view.byType" },
@@ -8393,9 +8393,38 @@
               const value = parseFloat(input.value);
               renderUiState[child.setting] = value;
               valueEl.textContent = input.value;
+              child.onChange?.(value);
               requestRender();
             });
             control.appendChild(input);
+            container.appendChild(control);
+            continue;
+          }
+
+          if (child.control === "select"){
+            const control = document.createElement("label");
+            control.className = "menuControl";
+
+            const labelEl = document.createElement("span");
+            labelEl.textContent = child.label;
+            control.appendChild(labelEl);
+
+            const select = document.createElement("select");
+            select.setAttribute("aria-label", child.label);
+            for (const optionValue of child.options || []){
+              const option = document.createElement("option");
+              option.value = String(optionValue);
+              option.textContent = String(optionValue);
+              option.selected = String(optionValue) === String(child.value);
+              select.appendChild(option);
+            }
+            select.addEventListener("change", () => {
+              const value = Number(select.value);
+              renderUiState[child.setting] = value;
+              child.onChange?.(value);
+              requestRender();
+            });
+            control.appendChild(select);
             container.appendChild(control);
             continue;
           }
@@ -8667,7 +8696,7 @@
   Mesh.prototype.upload=function(mesh){ this.indexCount=mesh.idx.length; this.sourceVerts=mesh.verts; this.sourceIdx=mesh.idx; };
   function rebuildTerrain(){
     if(!lastDepth||!lastImg||!sectors) return;
-    const baseStep=Math.max(1, parseInt(document.getElementById('step')?.value||'8',10)||8), hmul=1.0;
+    const baseStep=Math.max(1,Math.trunc(Number(renderUiState.terrainMeshStep)||4)),hmul=1.0;
     meshSectorLods = TERRAIN_LOD_STEPS.map((mul)=>{
       const lod=[null,null,null,null,null];
       const lodStep=Math.max(1, baseStep*mul);
@@ -11163,7 +11192,6 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   rotationSnapEl?.addEventListener('change',()=>{state.rotationSnap=Math.max(.1,Number(rotationSnapEl.value)||15);rotationSnapEl.value=String(state.rotationSnap);});
   document.getElementById('gridPlus')?.addEventListener('click',()=>stepGridExponent(1));
   document.getElementById('gridMinus')?.addEventListener('click',()=>stepGridExponent(-1));
-  document.getElementById('step')?.addEventListener('change',()=>rebuildTerrain());
   updateGridUi();
   if(translationSnapEl)translationSnapEl.disabled=state.linkTranslationGrid;
   syncRenderUiState();
