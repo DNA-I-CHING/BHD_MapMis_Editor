@@ -661,7 +661,14 @@
     .insertBody{ display:grid; grid-template-columns:140px minmax(0,1fr) 190px; gap:10px; min-height:0; }
     #insertCategories{ display:grid; align-content:start; gap:4px; }
     #insertCategories button.active{ background:var(--accent); color:#fff; }
-    #insertItemList{ width:100%; min-height:0; }
+    #insertItemList{ width:100%; min-height:0; overflow:auto; border:1px solid var(--line-muted); background:var(--surface); padding:4px; box-sizing:border-box; }
+    .insertItemOption{ display:block; width:100%; border:1px solid var(--line-soft); border-radius:3px; background:var(--surface-subtle); color:inherit; padding:6px 8px; text-align:left; cursor:pointer; }
+    .insertItemOption + .insertItemOption{ margin-top:3px; }
+    .insertItemOption:nth-child(even){ background:var(--panel-subtle); }
+    .insertItemOption:hover{ background:var(--accent-soft); }
+    .insertItemOption.selected{ border-color:var(--accent); background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+    .insertItemOptionId{ color:var(--text-subtle); font-size:11px; margin-left:6px; }
+    .insertItemsEmpty{ color:var(--text-subtle); padding:8px; }
     .insertOptions{ display:grid; align-content:start; gap:10px; }
     .insertOptions label{ display:grid; gap:4px; }
     .insertOptions .checkRow{ display:flex; }
@@ -1838,7 +1845,7 @@
           <div class="windowTitle">Insert Item...<span class="spacer"></span><button class="xbtn" id="insertCloseBtn" type="button">X</button></div>
           <div class="insertBody">
             <div id="insertCategories" aria-label="Item type"></div>
-            <select id="insertItemList" size="18" aria-label="Item"></select>
+            <div id="insertItemList" role="listbox" tabindex="0" aria-label="Item"></div>
             <div class="insertOptions">
               <label class="checkRow"><input id="insertRandomFacing" type="checkbox" /> Random Facing</label>
               <label>Drop Count<input id="insertDropCount" type="number" min="1" max="20" value="1" /></label>
@@ -3880,14 +3887,22 @@
     }
     const defs = state.defsSorted.filter(def => insertCategoryForDef(def) === state.insertCategory);
     insertItemList.innerHTML = "";
-    for (const def of defs){
-      const option = document.createElement("option");
-      option.value = String(def.id);
-      option.textContent = def.name;
-      insertItemList.appendChild(option);
-    }
     if (!defs.some(def => String(def.id) === state.insertDefinitionId)) state.insertDefinitionId = String(defs[0]?.id || "");
-    insertItemList.value = state.insertDefinitionId;
+    if (!defs.length){
+      insertItemList.innerHTML = '<div class="insertItemsEmpty">No items in this category.</div>';
+    } else {
+      for (const def of defs){
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "insertItemOption";
+        option.dataset.defId = String(def.id);
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", String(String(def.id) === state.insertDefinitionId));
+        option.classList.toggle("selected", String(def.id) === state.insertDefinitionId);
+        option.innerHTML = `<span>${escapeHtml(def.name)}</span><span class="insertItemOptionId">#${escapeHtml(toMisTypeIdFromDefId(def.id))}</span>`;
+        insertItemList.appendChild(option);
+      }
+    }
     insertRandomFacing.checked = state.insertRandomFacing;
     insertDropCount.value = String(state.insertDropCount);
     document.querySelectorAll('input[name="insertDropArea"]').forEach(input => { input.checked = input.value === state.insertDropArea; });
@@ -3900,6 +3915,17 @@
     renderInsertDialog();
     insertOverlay.classList.add("open");
     insertOverlay.setAttribute("aria-hidden", "false");
+  }
+
+  function selectInsertDefinition(definitionId, options = {}){
+    if (!state.defsById.has(String(definitionId))) return;
+    state.insertDefinitionId = String(definitionId);
+    insertItemList.querySelectorAll('.insertItemOption').forEach(option => {
+      const selected = option.dataset.defId === state.insertDefinitionId;
+      option.classList.toggle('selected', selected);
+      option.setAttribute('aria-selected', String(selected));
+      if (selected && options.scroll) option.scrollIntoView({ block: 'nearest' });
+    });
   }
 
   function closeInsertDialog(){
@@ -3929,7 +3955,7 @@
   }
 
   function confirmInsertMode(){
-    const def = state.defsById.get(String(insertItemList.value));
+    const def = state.defsById.get(String(state.insertDefinitionId));
     if (!def){ statusEl.textContent = "Choose an item to insert."; return; }
     state.insertDefinitionId = String(def.id);
     state.insertRandomFacing = insertRandomFacing.checked;
@@ -8293,8 +8319,28 @@
   document.getElementById("insertCloseBtn").addEventListener("click", () => stopInsertMode());
   document.getElementById("insertCancelBtn").addEventListener("click", () => stopInsertMode());
   document.getElementById("insertOkBtn").addEventListener("click", confirmInsertMode);
-  insertItemList.addEventListener("change", () => { state.insertDefinitionId = insertItemList.value; });
-  insertItemList.addEventListener("dblclick", confirmInsertMode);
+  insertItemList.addEventListener("click", event => {
+    const option = event.target.closest('.insertItemOption');
+    if (option) selectInsertDefinition(option.dataset.defId);
+  });
+  insertItemList.addEventListener("dblclick", event => {
+    if (event.target.closest('.insertItemOption')) confirmInsertMode();
+  });
+  insertItemList.addEventListener("keydown", event => {
+    const options = Array.from(insertItemList.querySelectorAll('.insertItemOption'));
+    if (!options.length) return;
+    if (event.key === 'Enter'){
+      event.preventDefault();
+      confirmInsertMode();
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    const current = options.findIndex(option => option.dataset.defId === state.insertDefinitionId);
+    const delta = event.key === 'ArrowDown' ? 1 : -1;
+    const next = Math.max(0, Math.min(options.length - 1, (current < 0 ? 0 : current) + delta));
+    selectInsertDefinition(options[next].dataset.defId, { scroll: true });
+  });
   insertOverlay.addEventListener("mousedown", (e) => { if (e.target === insertOverlay) stopInsertMode(); });
   sectionOverlay.addEventListener("mousedown", (e) => { if (e.target === sectionOverlay) closeSectionEditor(); });
   liveMisCloseBtn.addEventListener("click", closeLiveMisWindow);
