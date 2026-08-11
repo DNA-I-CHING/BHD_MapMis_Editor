@@ -478,6 +478,9 @@
     .floatingPanelFields select,.floatingPanelFields input[type="number"]{ min-width:92px; }
     .floatingPanelFields input[type="number"]{ width:72px; }
     .shortcutHint{ margin-left:auto; color:var(--text-subtle); font-size:10px; }
+    .snapGroup{ display:grid; gap:7px; margin:2px 0 0; padding:9px; border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface-subtle); }
+    .snapGroup legend{ padding:0 5px; color:var(--text); font-size:11px; font-weight:700; }
+    .snapHint{ margin:2px 0 0; padding:7px 9px; border-left:3px solid var(--accent); background:var(--accent-soft); color:var(--text-subtle); font-size:10px; line-height:1.35; }
     #debugFogPanel{
       position:absolute;
       top:42px;
@@ -1520,15 +1523,21 @@
         <section class="floatingPanelSection">
           <div class="floatingPanelTitle">Snapping</div>
           <div class="floatingPanelFields">
-            <label><span>Enable Snap</span><input id="transformSnapEnabled" type="checkbox"></label>
-            <label><span>Link to visual grid</span><input id="linkTranslationGrid" type="checkbox" checked></label>
-            <label>Translation <input id="translationSnap" type="number" min="0.00390625" step="0.25" value="512" title="Translation snap, world units"></label>
-            <label>Snap Mode <select id="translationSnapMode" title="Absolute aligns the gizmo pivot to the grid; Relative quantizes only the drag distance"><option value="absolute">Absolute grid</option><option value="relative">Relative increment</option></select></label>
-            <label>Snap Target <select id="translationSnapTarget" title="Snap translation to the grid or to item anchors and mesh vertices"><option value="grid">Grid</option><option value="anchorVertex">Anchor / Vertex</option></select></label>
-            <label><span>Infinite work grid</span><input id="infiniteWorkGrid" type="checkbox" checked></label>
-            <label>Rotation <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees"></label>
-            <label>Rotation Mode <select id="rotationSnapMode"><option value="relative">Relative increment</option><option value="absolute">Absolute angle</option></select></label>
-            <div class="shortcutHint">Hold Ctrl while dragging to temporarily invert snap.</div>
+            <label title="Master switch for translation and rotation snapping"><strong>Enable Snapping</strong><input id="transformSnapEnabled" type="checkbox"></label>
+            <fieldset class="snapGroup">
+              <legend>Translation Snap</legend>
+              <label><span>Link increment to grid</span><input id="linkTranslationGrid" type="checkbox" checked></label>
+              <label>Increment <input id="translationSnap" type="number" min="0.00390625" step="0.25" value="512" title="Translation snap, world units"></label>
+              <label>Mode <select id="translationSnapMode" title="Absolute aligns the gizmo pivot to the grid; Relative quantizes only the drag distance"><option value="absolute">Absolute grid</option><option value="relative">Relative increment</option></select></label>
+              <label>Target <select id="translationSnapTarget" title="Snap translation to the grid or to item anchors and mesh vertices"><option value="grid">Grid</option><option value="anchorVertex">Anchor / Vertex</option></select></label>
+              <label><span>Infinite visual grid</span><input id="infiniteWorkGrid" type="checkbox" checked></label>
+            </fieldset>
+            <fieldset class="snapGroup">
+              <legend>Rotation Snap</legend>
+              <label>Angle increment <input id="rotationSnap" type="number" min="0.1" step="1" value="15" title="Rotation snap, degrees"></label>
+              <label>Mode <select id="rotationSnapMode"><option value="relative">Relative increment</option><option value="absolute">Absolute angle</option></select></label>
+            </fieldset>
+            <div class="snapHint"><strong>Temporary override:</strong> hold Ctrl while dragging to invert Enable Snapping.</div>
           </div>
         </section>
       </div>
