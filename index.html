@@ -676,8 +676,6 @@
     .insertItemOption.selected{ border-color:var(--accent); background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
     .insertItemOptionId{ color:var(--text-subtle); font-size:11px; margin-left:6px; }
     .insertItemUsageBadge{ float:right; min-width:20px; padding:1px 5px; border-radius:10px; background:#39764c; color:#fff; font-size:11px; text-align:center; }
-    .insertGlbBadge{ float:right; margin-left:6px; color:var(--text-subtle); font-size:10px; font-weight:600; }
-    .insertItemOption.missingGraphic .insertGlbBadge{ color:#e37a7a; }
     .insertItemsEmpty{ color:var(--text-subtle); padding:8px; }
     .insertOptions{ display:grid; align-content:start; gap:10px; min-height:0; overflow:auto; padding-right:2px; }
     .insertOptions label{ display:grid; gap:4px; }
@@ -3897,12 +3895,14 @@
   const INSERT_CATEGORIES = [
     ["foliage", "Foliage"], ["decoration", "Decorations"], ["people", "People"],
     ["building", "Buildings"], ["vehicle", "Vehicles"], ["object", "Objects"],
-    ["powerup", "POWERUP"], ["marker", "Markers"], ["med_fly", "Med fly"]
+    ["powerup", "POWERUP"], ["marker", "Markers"], ["med_fly", "Med fly"],
+    ["sound", "Sounds"]
   ];
 
   function insertCategoryForDef(def){
     const type = String(def?.type || "other").toLowerCase();
     const name = String(def?.name || "").toLowerCase();
+    if (name.startsWith("snd:")) return "sound";
     if (type.includes("foliage")) return "foliage";
     if (type.includes("decoration")) return "decoration";
     if (type.includes("person") || type.includes("people")) return "people";
@@ -4008,7 +4008,6 @@
     option.classList.toggle("missingGraphic", availability === "missing");
     option.classList.toggle("glbUnknown", availability === "unknown" || availability === "checking");
     const label = availability === "missing" ? "GLB missing" : availability === "available" ? "GLB available" : "Checking GLB";
-    option.querySelector(".insertGlbBadge")?.replaceChildren(document.createTextNode(label));
     option.title = `${label} · ${usageCount ? `${usageCount} instance${usageCount === 1 ? "" : "s"} in the map` : "Not used in the map"}`;
   }
 
@@ -4088,7 +4087,7 @@
         if (familyHue !== undefined) option.style.setProperty("--family-hue", String(familyHue));
         const availability = missingGraphic ? "GLB missing" : availabilityState === "available" ? "GLB available" : "GLB not verified";
         option.title = `${availability} · ${usageCount ? `${usageCount} instance${usageCount === 1 ? "" : "s"} in the map` : "Not used in the map"}`;
-        option.innerHTML = `<span>${escapeHtml(def.name)}</span><span class="insertItemOptionId">#${escapeHtml(toMisTypeIdFromDefId(def.id))}</span><span class="insertGlbBadge">${escapeHtml(availability)}</span>${usageCount ? `<span class="insertItemUsageBadge" aria-label="${usageCount} in map">${usageCount}</span>` : ""}`;
+        option.innerHTML = `<span>${escapeHtml(def.name)}</span><span class="insertItemOptionId">#${escapeHtml(toMisTypeIdFromDefId(def.id))}</span>${usageCount ? `<span class="insertItemUsageBadge" aria-label="${usageCount} in map">${usageCount}</span>` : ""}`;
         insertItemList.appendChild(option);
         if (availabilityState === "unknown") queueHttpGlbCheck(def);
       }
