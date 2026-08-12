@@ -657,26 +657,31 @@
       align-items:center; justify-content:center; z-index:58; padding:18px;
     }
     #insertOverlay.open{ display:flex; }
-    #insertWindow{ width:min(760px,100%); height:min(520px,100%); background:var(--panel-muted); border:1px solid var(--line-heavy); padding:10px; display:grid; grid-template-rows:auto 1fr auto; gap:10px; box-shadow:var(--shadow-md); }
+    #insertWindow{ width:min(800px,100%); height:min(600px,100%); background:var(--panel-muted); border:1px solid var(--line-heavy); padding:10px; display:grid; grid-template-rows:auto minmax(0,1fr) auto; gap:10px; box-shadow:var(--shadow-md); box-sizing:border-box; }
     .insertBody{ display:grid; grid-template-columns:140px minmax(0,1fr) 210px; gap:10px; min-height:0; }
     #insertCategories{ display:grid; align-content:start; gap:4px; }
     #insertCategories button.active{ background:var(--accent); color:#fff; }
     .insertCatalogPane{ display:grid; grid-template-rows:auto minmax(0,1fr); gap:6px; min-height:0; }
     #insertItemSearch{ width:100%; box-sizing:border-box; }
     #insertItemList{ width:100%; min-height:0; overflow:auto; border:1px solid var(--line-muted); background:var(--surface); padding:4px; box-sizing:border-box; }
-    .insertItemOption{ display:block; width:100%; border:1px solid var(--line-soft); border-radius:3px; background:var(--surface-subtle); color:inherit; padding:6px 8px; text-align:left; cursor:pointer; }
+    .insertItemOption{ display:block; width:100%; border:1px solid var(--line-soft); border-left:5px solid hsl(var(--family-hue, 0) 0% 55% / .35); border-radius:3px; background:var(--surface-subtle); color:inherit; padding:6px 8px; text-align:left; cursor:pointer; }
     .insertItemOption + .insertItemOption{ margin-top:3px; }
     .insertItemOption:nth-child(even){ background:var(--panel-subtle); }
     .insertItemOption.inMap{ border-color:#4f9b67; background:rgba(52,130,76,.2); }
+    .insertItemOption.family{ border-left-color:hsl(var(--family-hue) 62% 48%); background-image:linear-gradient(90deg, hsl(var(--family-hue) 70% 50% / .16), transparent 45%); }
+    .insertItemOption.missingGraphic{ color:#d86161; border-color:#a94444; border-left-color:#d86161; background-color:rgba(130,35,35,.13); background-image:repeating-linear-gradient(-45deg, transparent, transparent 6px, rgba(180,55,55,.08) 6px, rgba(180,55,55,.08) 12px); }
+    .insertItemOption.missingGraphic .insertItemOptionId{ color:#ba6262; }
     .insertItemOption:hover{ background:var(--accent-soft); }
     .insertItemOption.selected{ border-color:var(--accent); background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
     .insertItemOptionId{ color:var(--text-subtle); font-size:11px; margin-left:6px; }
     .insertItemUsageBadge{ float:right; min-width:20px; padding:1px 5px; border-radius:10px; background:#39764c; color:#fff; font-size:11px; text-align:center; }
     .insertItemsEmpty{ color:var(--text-subtle); padding:8px; }
-    .insertOptions{ display:grid; align-content:start; gap:10px; }
+    .insertOptions{ display:grid; align-content:start; gap:10px; min-height:0; overflow:auto; padding-right:2px; }
     .insertOptions label{ display:grid; gap:4px; }
     .insertOptions .checkRow{ display:flex; }
     .insertAreaOptions{ border:1px solid var(--line); padding:8px; display:grid; gap:5px; }
+    .insertAreaOptions label{ display:flex; align-items:center; gap:7px; line-height:1.25; }
+    .insertAreaOptions input[type="radio"]{ margin:0; flex:0 0 auto; }
     .insertPreviewPanel{ display:grid; gap:4px; }
     #insertGlbPreview{ width:100%; height:150px; display:block; border:1px solid var(--line-muted); background:var(--canvas); box-sizing:border-box; }
     #insertGlbPreviewStatus{ min-height:16px; color:var(--text-subtle); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -2242,6 +2247,7 @@
     generalTerrainNames: [],
     soundGraphicFromOtherItems: "",
     soundGraphicScaleFromOtherItems: 1,
+    availableGlbFiles: null,
 
     itemsVersion: 0,
     filteredItemsCache: null,
@@ -3826,7 +3832,13 @@
   async function loadAndApplyItemCatalogs(){
     const defText = (window.BHD_ITEMS_DEF_TEXT || "").toString();
     const defs = parseItemsDef(defText);
-    const otherItemsText = await loadTextResource("resources/items_lists/otheritems.js");
+    const [otherItemsText, availableGlbsText] = await Promise.all([
+      loadTextResource("resources/items_lists/otheritems.js"),
+      loadTextResource("all_items.txt"),
+    ]);
+    state.availableGlbFiles = availableGlbsText
+      ? new Set(availableGlbsText.split(/\r?\n/).map(name => name.trim().toLowerCase()).filter(Boolean))
+      : null;
     const soundDef = extractSoundDefinitionFromOtherItems(otherItemsText);
     state.soundGraphicFromOtherItems = soundDef.graphic;
     state.soundGraphicScaleFromOtherItems = soundDef.graphicScale;
@@ -3924,6 +3936,36 @@
     insertUsageCount.textContent = `In map: ${count} instance${count === 1 ? "" : "s"}`;
   }
 
+  function normalizedInsertFamilyName(name){
+    return String(name || "").toLowerCase().replace(/[^a-z0-9]+/g, "").replace(/\d+$/g, "");
+  }
+
+  function insertFamilyHues(defs){
+    const groups = new Map();
+    for (const def of defs){
+      const key = normalizedInsertFamilyName(def.name);
+      if (key.length < 3) continue;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(String(def.id));
+    }
+    const hues = new Map();
+    let familyIndex = 0;
+    for (const ids of groups.values()){
+      if (ids.length < 2) continue;
+      const hue = (familyIndex * 67 + 24) % 360;
+      for (const id of ids) hues.set(id, hue);
+      familyIndex += 1;
+    }
+    return hues;
+  }
+
+  function insertGraphicIsMissing(def){
+    const graphic = String(def?.graphic || "").trim();
+    if (!graphic) return true;
+    if (!(state.availableGlbFiles instanceof Set)) return false;
+    return !state.availableGlbFiles.has(`${graphic}.glb`.toLowerCase());
+  }
+
   function renderInsertDialog(){
     insertCategories.innerHTML = "";
     for (const [value, label] of INSERT_CATEGORIES){
@@ -3940,6 +3982,7 @@
       insertCategoryForDef(def) === state.insertCategory
       && insertDefinitionMatchesQuery(def, query)
     );
+    const familyHues = insertFamilyHues(defs);
     insertItemList.innerHTML = "";
     if (!defs.some(def => String(def.id) === state.insertDefinitionId)) state.insertDefinitionId = String(defs[0]?.id || "");
     if (!defs.length){
@@ -3954,8 +3997,14 @@
         option.setAttribute("aria-selected", String(String(def.id) === state.insertDefinitionId));
         option.classList.toggle("selected", String(def.id) === state.insertDefinitionId);
         const usageCount = usageCounts.get(String(def.id)) || 0;
+        const familyHue = familyHues.get(String(def.id));
+        const missingGraphic = insertGraphicIsMissing(def);
         option.classList.toggle("inMap", usageCount > 0);
-        option.title = usageCount ? `${usageCount} instance${usageCount === 1 ? "" : "s"} in the map` : "Not used in the map";
+        option.classList.toggle("family", familyHue !== undefined);
+        option.classList.toggle("missingGraphic", missingGraphic);
+        if (familyHue !== undefined) option.style.setProperty("--family-hue", String(familyHue));
+        const availability = missingGraphic ? "File not found" : `${def.graphic}.glb`;
+        option.title = `${availability} · ${usageCount ? `${usageCount} instance${usageCount === 1 ? "" : "s"} in the map` : "Not used in the map"}`;
         option.innerHTML = `<span>${escapeHtml(def.name)}</span><span class="insertItemOptionId">#${escapeHtml(toMisTypeIdFromDefId(def.id))}</span>${usageCount ? `<span class="insertItemUsageBadge" aria-label="${usageCount} in map">${usageCount}</span>` : ""}`;
         insertItemList.appendChild(option);
       }
@@ -4004,6 +4053,12 @@
     }
     if (!graphic){
       insertGlbPreviewStatus.textContent = "This item has no GLB graphic.";
+      if (preview.object) preview.object.visible = false;
+      if (preview.renderer && preview.scene && preview.camera) preview.renderer.render(preview.scene, preview.camera);
+      return;
+    }
+    if (insertGraphicIsMissing(def)){
+      insertGlbPreviewStatus.textContent = graphic ? `${graphic}.glb — file not found` : "File not found.";
       if (preview.object) preview.object.visible = false;
       if (preview.renderer && preview.scene && preview.camera) preview.renderer.render(preview.scene, preview.camera);
       return;
@@ -4068,7 +4123,7 @@
     preview.camera.updateProjectionMatrix();
     preview.renderer.setSize(width, height, false);
     preview.renderer.render(preview.scene, preview.camera);
-    insertGlbPreviewStatus.textContent = `${def.name} — ${graphic}.glb`;
+    insertGlbPreviewStatus.textContent = `${graphic}.glb`;
   }
 
   function closeInsertDialog(){
