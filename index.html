@@ -1853,7 +1853,7 @@
           <div class="insertBody">
             <div id="insertCategories" aria-label="Item type"></div>
             <div class="insertCatalogPane">
-              <input id="insertItemSearch" type="search" placeholder="Search item by name" aria-label="Search item by name" />
+              <input id="insertItemSearch" type="search" placeholder="Search by item or GLB filename" aria-label="Search by item name or GLB filename" />
               <div id="insertItemList" role="listbox" tabindex="0" aria-label="Item"></div>
             </div>
             <div class="insertOptions">
@@ -3896,6 +3896,14 @@
     return "object";
   }
 
+  function insertDefinitionMatchesQuery(def, query){
+    if (!query) return true;
+    const itemName = String(def?.name || "").toLowerCase();
+    const graphic = String(def?.graphic || "").toLowerCase();
+    const glbFilename = graphic && !graphic.endsWith(".glb") ? `${graphic}.glb` : graphic;
+    return itemName.includes(query) || glbFilename.includes(query);
+  }
+
   function buildInsertDefinitionUsageCounts(){
     const counts = new Map();
     for (const item of state.items){
@@ -3930,7 +3938,7 @@
     const query = state.insertSearchTerm.trim().toLowerCase();
     const defs = state.defsSorted.filter(def =>
       insertCategoryForDef(def) === state.insertCategory
-      && (!query || String(def.name || "").toLowerCase().includes(query))
+      && insertDefinitionMatchesQuery(def, query)
     );
     insertItemList.innerHTML = "";
     if (!defs.some(def => String(def.id) === state.insertDefinitionId)) state.insertDefinitionId = String(defs[0]?.id || "");
