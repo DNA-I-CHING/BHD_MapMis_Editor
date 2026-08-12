@@ -266,6 +266,7 @@
       font-size:12px;
       pointer-events:none;
     }
+    #insertPreviewLabel{position:absolute;z-index:12;display:none;pointer-events:none;padding:3px 6px;border:1px solid rgba(44,230,255,.8);border-radius:4px;background:rgba(0,0,0,.72);color:#fff;font-size:12px;white-space:nowrap;}
     .canvasFloatingToolbar{
       position:absolute;
       top:10px;
@@ -651,6 +652,34 @@
       padding: 18px;
     }
     #modalOverlay.open{ display:flex; }
+    #insertOverlay{
+      position:absolute; inset:0; background:var(--overlay); display:none;
+      align-items:center; justify-content:center; z-index:58; padding:18px;
+    }
+    #insertOverlay.open{ display:flex; }
+    #insertWindow{ width:min(760px,100%); height:min(520px,100%); background:var(--panel-muted); border:1px solid var(--line-heavy); padding:10px; display:grid; grid-template-rows:auto 1fr auto; gap:10px; box-shadow:var(--shadow-md); }
+    .insertBody{ display:grid; grid-template-columns:140px minmax(0,1fr) 210px; gap:10px; min-height:0; }
+    #insertCategories{ display:grid; align-content:start; gap:4px; }
+    #insertCategories button.active{ background:var(--accent); color:#fff; }
+    .insertCatalogPane{ display:grid; grid-template-rows:auto minmax(0,1fr); gap:6px; min-height:0; }
+    #insertItemSearch{ width:100%; box-sizing:border-box; }
+    #insertItemList{ width:100%; min-height:0; overflow:auto; border:1px solid var(--line-muted); background:var(--surface); padding:4px; box-sizing:border-box; }
+    .insertItemOption{ display:block; width:100%; border:1px solid var(--line-soft); border-radius:3px; background:var(--surface-subtle); color:inherit; padding:6px 8px; text-align:left; cursor:pointer; }
+    .insertItemOption + .insertItemOption{ margin-top:3px; }
+    .insertItemOption:nth-child(even){ background:var(--panel-subtle); }
+    .insertItemOption.inMap{ border-color:#4f9b67; background:rgba(52,130,76,.2); }
+    .insertItemOption:hover{ background:var(--accent-soft); }
+    .insertItemOption.selected{ border-color:var(--accent); background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
+    .insertItemOptionId{ color:var(--text-subtle); font-size:11px; margin-left:6px; }
+    .insertItemUsageBadge{ float:right; min-width:20px; padding:1px 5px; border-radius:10px; background:#39764c; color:#fff; font-size:11px; text-align:center; }
+    .insertItemsEmpty{ color:var(--text-subtle); padding:8px; }
+    .insertOptions{ display:grid; align-content:start; gap:10px; }
+    .insertOptions label{ display:grid; gap:4px; }
+    .insertOptions .checkRow{ display:flex; }
+    .insertAreaOptions{ border:1px solid var(--line); padding:8px; display:grid; gap:5px; }
+    .insertPreviewPanel{ display:grid; gap:4px; }
+    #insertGlbPreview{ width:100%; height:150px; display:block; border:1px solid var(--line-muted); background:var(--canvas); box-sizing:border-box; }
+    #insertGlbPreviewStatus{ min-height:16px; color:var(--text-subtle); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
     #liveMisOverlay{
       position:absolute;
       inset:0;
@@ -1454,8 +1483,9 @@
         <div id="fpsCounter">0 FPS</div>
       </div>
       <canvas id="cv"></canvas>
+      <div id="insertPreviewLabel" aria-hidden="true"></div>
       <div id="camDebug"></div>
-      <div id="sceneInfoHint">Show Scene Info (I)</div>
+      <div id="sceneInfoHint">Show Scene Info (Home)</div>
       <canvas id="gizmoCanvas" aria-hidden="true"></canvas>
 
       <div id="canvasShowPanel" aria-hidden="true">
@@ -1817,6 +1847,34 @@
 
       <div class="contextMenu" id="itemContextMenu" aria-hidden="true"></div>
 
+      <div id="insertOverlay" aria-hidden="true">
+        <div id="insertWindow" role="dialog" aria-modal="true" aria-label="Insert Item">
+          <div class="windowTitle">Insert Item...<span class="spacer"></span><button class="xbtn" id="insertCloseBtn" type="button">X</button></div>
+          <div class="insertBody">
+            <div id="insertCategories" aria-label="Item type"></div>
+            <div class="insertCatalogPane">
+              <input id="insertItemSearch" type="search" placeholder="Search item by name" aria-label="Search item by name" />
+              <div id="insertItemList" role="listbox" tabindex="0" aria-label="Item"></div>
+            </div>
+            <div class="insertOptions">
+              <div class="insertPreviewPanel">
+                <canvas id="insertGlbPreview" aria-label="Selected item 3D preview"></canvas>
+                <div id="insertGlbPreviewStatus">Select an item to preview.</div>
+                <div id="insertUsageCount" class="hint">In map: 0 instances</div>
+              </div>
+              <label class="checkRow"><input id="insertRandomFacing" type="checkbox" /> Random Facing</label>
+              <label>Drop Count<input id="insertDropCount" type="number" min="1" max="20" value="1" /></label>
+              <fieldset class="insertAreaOptions"><legend>Drop Area</legend>
+                <label><input name="insertDropArea" type="radio" value="rectangle" checked /> Rectangle</label>
+                <label><input name="insertDropArea" type="radio" value="oval" /> Oval</label>
+              </fieldset>
+              <div class="hint">After choosing an item, drag on the map to define the drop area. A click inserts at that point.</div>
+            </div>
+          </div>
+          <div class="btnRow" style="justify-content:flex-end"><button id="insertOkBtn" type="button">OK</button><button id="insertCancelBtn" type="button">Cancel</button></div>
+        </div>
+      </div>
+
       <div id="modalOverlay" aria-hidden="true">
         <div id="modalWindow" role="dialog" aria-modal="true" aria-label="Item Attributes">
           <div class="windowTitle">
@@ -2146,6 +2204,20 @@
     itemClipboardItems: [],
     pastePlacementActive: false,
     pastePreviewWorld: null,
+    insertModeActive: false,
+    insertDefinitionId: "",
+    insertCategory: "foliage",
+    insertSearchTerm: "",
+    insertRandomFacing: false,
+    insertDropCount: 1,
+    insertDropArea: "rectangle",
+    insertDragStart: null,
+    insertDragStartScreen: null,
+    insertHoverPoint: null,
+    insertPreviewWorld: null,
+    insertPreviewSamples: [],
+    insertPreviewPoints: [],
+    insertGlbPreview: { renderer: null, scene: null, camera: null, object: null, revision: 0 },
     gizmoDrag: null,
     gizmoVisual: null,
     gizmoAxisScreenDirs: null,
@@ -2236,6 +2308,7 @@
       waterMap: new Map(),
       gridLines: null,
       rectLines: null,
+      insertLines: null,
       ready: false,
     },
     itemsById: new Map(),
@@ -2513,6 +2586,16 @@
   const giRotate180 = document.getElementById("giRotate180");
 
   const modalOverlay = document.getElementById("modalOverlay");
+  const insertOverlay = document.getElementById("insertOverlay");
+  const insertCategories = document.getElementById("insertCategories");
+  const insertItemSearch = document.getElementById("insertItemSearch");
+  const insertItemList = document.getElementById("insertItemList");
+  const insertGlbPreviewCanvas = document.getElementById("insertGlbPreview");
+  const insertGlbPreviewStatus = document.getElementById("insertGlbPreviewStatus");
+  const insertUsageCount = document.getElementById("insertUsageCount");
+  const insertRandomFacing = document.getElementById("insertRandomFacing");
+  const insertDropCount = document.getElementById("insertDropCount");
+  const insertPreviewLabel = document.getElementById("insertPreviewLabel");
   const modalCloseBtn = document.getElementById("modalCloseBtn");
   const okBtn = document.getElementById("okBtn");
   const cancelBtn = document.getElementById("cancelBtn");
@@ -3734,6 +3817,7 @@
     defStatusEl.textContent = `ITEMS.DEF loaded. defs: ${state.defsSorted.length}`;
     addLog(`Loaded embedded ITEMS.DEF (${state.defsSorted.length} defs)`);
     buildSubtypeOptionsFromDEF();
+    if (insertOverlay?.classList.contains("open")) renderInsertDialog();
     renderList();
     if (state.modalOpen) renderItemWindow();
     requestRender();
@@ -3791,6 +3875,321 @@
       html += `</optgroup>`;
     }
     ui.subtype.innerHTML = html || `<option value="">(no defs)</option>`;
+  }
+
+  const INSERT_CATEGORIES = [
+    ["foliage", "Foliage"], ["decoration", "Decorations"], ["people", "People"],
+    ["building", "Buildings"], ["vehicle", "Vehicles"], ["object", "Objects"],
+    ["powerup", "POWERUP"], ["marker", "Markers"], ["med_fly", "Med fly"]
+  ];
+
+  function insertCategoryForDef(def){
+    const type = String(def?.type || "other").toLowerCase();
+    const name = String(def?.name || "").toLowerCase();
+    if (type.includes("foliage")) return "foliage";
+    if (type.includes("decoration")) return "decoration";
+    if (type.includes("person") || type.includes("people")) return "people";
+    if (type.includes("building")) return "building";
+    if (type.includes("vehicle")) return "vehicle";
+    if (type.includes("powerup")) return "powerup";
+    if (type.includes("marker")) return name.includes("med fly") ? "med_fly" : "marker";
+    return "object";
+  }
+
+  function buildInsertDefinitionUsageCounts(){
+    const counts = new Map();
+    for (const item of state.items){
+      const typeId = String(item?.kv?.type_id || "").trim();
+      if (!typeId) continue;
+      const directId = state.defsById.has(typeId) ? typeId : "";
+      const mappedId = toDefIdFromMisTypeId(typeId);
+      const definitionId = directId || (state.defsById.has(mappedId) ? mappedId : "");
+      if (!definitionId) continue;
+      counts.set(definitionId, (counts.get(definitionId) || 0) + 1);
+    }
+    return counts;
+  }
+
+  function updateInsertUsageCount(counts = null){
+    const usageCounts = counts || buildInsertDefinitionUsageCounts();
+    const count = usageCounts.get(String(state.insertDefinitionId)) || 0;
+    insertUsageCount.textContent = `In map: ${count} instance${count === 1 ? "" : "s"}`;
+  }
+
+  function renderInsertDialog(){
+    insertCategories.innerHTML = "";
+    for (const [value, label] of INSERT_CATEGORIES){
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = label;
+      button.classList.toggle("active", value === state.insertCategory);
+      button.addEventListener("click", () => { state.insertCategory = value; renderInsertDialog(); });
+      insertCategories.appendChild(button);
+    }
+    const usageCounts = buildInsertDefinitionUsageCounts();
+    const query = state.insertSearchTerm.trim().toLowerCase();
+    const defs = state.defsSorted.filter(def =>
+      insertCategoryForDef(def) === state.insertCategory
+      && (!query || String(def.name || "").toLowerCase().includes(query))
+    );
+    insertItemList.innerHTML = "";
+    if (!defs.some(def => String(def.id) === state.insertDefinitionId)) state.insertDefinitionId = String(defs[0]?.id || "");
+    if (!defs.length){
+      insertItemList.innerHTML = '<div class="insertItemsEmpty">No items in this category.</div>';
+    } else {
+      for (const def of defs){
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "insertItemOption";
+        option.dataset.defId = String(def.id);
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", String(String(def.id) === state.insertDefinitionId));
+        option.classList.toggle("selected", String(def.id) === state.insertDefinitionId);
+        const usageCount = usageCounts.get(String(def.id)) || 0;
+        option.classList.toggle("inMap", usageCount > 0);
+        option.title = usageCount ? `${usageCount} instance${usageCount === 1 ? "" : "s"} in the map` : "Not used in the map";
+        option.innerHTML = `<span>${escapeHtml(def.name)}</span><span class="insertItemOptionId">#${escapeHtml(toMisTypeIdFromDefId(def.id))}</span>${usageCount ? `<span class="insertItemUsageBadge" aria-label="${usageCount} in map">${usageCount}</span>` : ""}`;
+        insertItemList.appendChild(option);
+      }
+    }
+    insertRandomFacing.checked = state.insertRandomFacing;
+    insertDropCount.value = String(state.insertDropCount);
+    document.querySelectorAll('input[name="insertDropArea"]').forEach(input => { input.checked = input.value === state.insertDropArea; });
+    updateInsertUsageCount(usageCounts);
+    renderInsertGlbPreview();
+  }
+
+  function openInsertDialog(){
+    if (!state.defsSorted.length){ statusEl.textContent = "The item catalog is not loaded."; return; }
+    state.pastePlacementActive = false;
+    state.pastePreviewWorld = null;
+    insertOverlay.classList.add("open");
+    insertOverlay.setAttribute("aria-hidden", "false");
+    insertItemSearch.value = state.insertSearchTerm;
+    renderInsertDialog();
+    statusEl.textContent = "Insert Mode: select an item and placement options.";
+  }
+
+  function selectInsertDefinition(definitionId, options = {}){
+    if (!state.defsById.has(String(definitionId))) return;
+    state.insertDefinitionId = String(definitionId);
+    insertItemList.querySelectorAll('.insertItemOption').forEach(option => {
+      const selected = option.dataset.defId === state.insertDefinitionId;
+      option.classList.toggle('selected', selected);
+      option.setAttribute('aria-selected', String(selected));
+      if (selected && options.scroll) option.scrollIntoView({ block: 'nearest' });
+    });
+    updateInsertUsageCount();
+    renderInsertGlbPreview();
+  }
+
+  async function renderInsertGlbPreview(){
+    const preview = state.insertGlbPreview;
+    const revision = ++preview.revision;
+    const def = state.defsById.get(String(state.insertDefinitionId));
+    const graphic = String(def?.graphic || "").trim();
+    if (!def){
+      insertGlbPreviewStatus.textContent = "No item selected.";
+      if (preview.object) preview.object.visible = false;
+      if (preview.renderer && preview.scene && preview.camera) preview.renderer.render(preview.scene, preview.camera);
+      return;
+    }
+    if (!graphic){
+      insertGlbPreviewStatus.textContent = "This item has no GLB graphic.";
+      if (preview.object) preview.object.visible = false;
+      if (preview.renderer && preview.scene && preview.camera) preview.renderer.render(preview.scene, preview.camera);
+      return;
+    }
+    insertGlbPreviewStatus.textContent = `Loading ${graphic}.glb...`;
+    if (!await ensureGlbRendererReady() || revision !== preview.revision){
+      if (revision === preview.revision) insertGlbPreviewStatus.textContent = "3D preview unavailable.";
+      return;
+    }
+    const { THREE } = state.glb;
+    if (!preview.renderer){
+      preview.renderer = new THREE.WebGLRenderer({ canvas: insertGlbPreviewCanvas, antialias: true, alpha: true });
+      preview.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+      preview.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      preview.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      preview.renderer.toneMappingExposure = 1.15;
+      preview.scene = new THREE.Scene();
+      preview.scene.add(new THREE.HemisphereLight(0xffffff, 0x425166, 1.35));
+      preview.scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+      const light = new THREE.DirectionalLight(0xffffff, 1.4);
+      light.position.set(3, -4, 6);
+      preview.scene.add(light);
+      preview.camera = new THREE.PerspectiveCamera(42, 1, 0.01, 10000);
+      preview.camera.up.set(0, 0, 1);
+    }
+    const template = await loadGraphicTemplate(graphic);
+    if (revision !== preview.revision || !template) return;
+    if (preview.object) preview.scene.remove(preview.object);
+    preview.object = template.clone(true);
+    cloneGlbMaterials(preview.object);
+    applyItemModelTransform(preview.object, 0, 0, def.graphicScale);
+    preview.object.visible = true;
+    preview.scene.add(preview.object);
+    preview.object.updateMatrixWorld(true);
+
+    let box = new THREE.Box3().setFromObject(preview.object);
+    const center = new THREE.Vector3();
+    const size = new THREE.Vector3();
+    if (!box.isEmpty()){
+      box.getCenter(center);
+      preview.object.position.sub(center);
+      preview.object.updateMatrixWorld(true);
+      box = new THREE.Box3().setFromObject(preview.object);
+      box.getSize(size);
+    }
+
+    const width = Math.max(1, insertGlbPreviewCanvas.clientWidth || 200);
+    const height = Math.max(1, insertGlbPreviewCanvas.clientHeight || 150);
+    preview.camera.aspect = width / height;
+    const verticalFov = THREE.MathUtils.degToRad(preview.camera.fov);
+    const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * preview.camera.aspect);
+    const fill = 0.92;
+    const fallbackExtent = Math.max(1, size.x, size.y, size.z);
+    const verticalDistance = size.z > 1e-6 ? (size.z * 0.5 / fill) / Math.tan(verticalFov / 2) : fallbackExtent;
+    const horizontalDistance = size.x > 1e-6 ? (size.x * 0.5 / fill) / Math.tan(horizontalFov / 2) : fallbackExtent;
+    const distance = Math.max(verticalDistance, horizontalDistance) * 1.06 + Math.max(size.y * 0.5, fallbackExtent * 0.05);
+    const viewDirection = new THREE.Vector3(0.75, -1, 0.65).normalize();
+    preview.camera.position.copy(viewDirection.multiplyScalar(distance));
+    preview.camera.near = Math.max(0.01, distance / 1000);
+    preview.camera.far = distance * 20;
+    preview.camera.lookAt(0, 0, 0);
+    preview.camera.updateProjectionMatrix();
+    preview.renderer.setSize(width, height, false);
+    preview.renderer.render(preview.scene, preview.camera);
+    insertGlbPreviewStatus.textContent = `${def.name} — ${graphic}.glb`;
+  }
+
+  function closeInsertDialog(){
+    state.insertGlbPreview.revision += 1;
+    insertOverlay.classList.remove("open");
+    insertOverlay.setAttribute("aria-hidden", "true");
+  }
+
+  function stopInsertMode(message = "Insert Mode canceled."){
+    closeInsertDialog();
+    state.insertModeActive = false;
+    state.insertDragStart = null;
+    state.insertDragStartScreen = null;
+    state.insertHoverPoint = null;
+    state.insertPreviewWorld = null;
+    state.insertPreviewSamples = [];
+    state.insertPreviewPoints = [];
+    insertPreviewLabel.style.display = "none";
+    cv.style.cursor = "";
+    renderMenuBar();
+    requestRender();
+    if (message) statusEl.textContent = message;
+  }
+
+  function toggleInsertMode(){
+    if (state.insertModeActive) return stopInsertMode();
+    openInsertDialog();
+  }
+
+  function confirmInsertMode(){
+    const def = state.defsById.get(String(state.insertDefinitionId));
+    if (!def){ statusEl.textContent = "Choose an item to insert."; return; }
+    state.insertDefinitionId = String(def.id);
+    state.insertRandomFacing = insertRandomFacing.checked;
+    state.insertDropCount = Math.max(1, Math.min(20, Math.trunc(Number(insertDropCount.value) || 1)));
+    insertDropCount.value = String(state.insertDropCount);
+    state.insertDropArea = document.querySelector('input[name="insertDropArea"]:checked')?.value || "rectangle";
+    state.pastePlacementActive = false;
+    state.pastePreviewWorld = null;
+    state.insertModeActive = true;
+    closeInsertDialog();
+    cv.style.cursor = "crosshair";
+    renderMenuBar();
+    statusEl.textContent = state.insertDropCount === 1
+      ? `Insert Mode active: click the terrain to insert ${def.name}.`
+      : `Insert Mode active: drag on the terrain to place ${state.insertDropCount} ${def.name} items.`;
+  }
+
+  function quoteMisString(value){ return `"${String(value || "").replace(/"/g, "'")}"`; }
+
+  function createInsertPreviewSamples(count, area){
+    return Array.from({ length: count }, () => area === "oval"
+      ? { angle: Math.random() * Math.PI * 2, radius: Math.sqrt(Math.random()) }
+      : { u: Math.random(), v: Math.random() });
+  }
+
+  function terrainPointForInsert(x, y){
+    const terrainZ = heightAtWorld(x, y, 1.0);
+    return { x, y, z: Number.isFinite(terrainZ) && terrainZ > -1e8 ? terrainZ : 0 };
+  }
+
+  function updateInsertPreviewPoints(start, end){
+    if (!start || !end){ state.insertPreviewPoints = []; return; }
+    const minX = Math.min(start.x, end.x), maxX = Math.max(start.x, end.x);
+    const minY = Math.min(start.y, end.y), maxY = Math.max(start.y, end.y);
+    const centerX = (minX + maxX) / 2, centerY = (minY + maxY) / 2;
+    state.insertPreviewPoints = state.insertPreviewSamples.map(sample => {
+      if (state.insertDropArea === "oval"){
+        return terrainPointForInsert(
+          centerX + Math.cos(sample.angle) * sample.radius * (maxX - minX) / 2,
+          centerY + Math.sin(sample.angle) * sample.radius * (maxY - minY) / 2
+        );
+      }
+      return terrainPointForInsert(minX + sample.u * (maxX - minX), minY + sample.v * (maxY - minY));
+    });
+  }
+
+  function updateInsertPreviewLabel(sx, sy){
+    if (!state.insertDragStart && !state.insertHoverPoint){ insertPreviewLabel.style.display = "none"; return; }
+    const def = state.defsById.get(state.insertDefinitionId);
+    insertPreviewLabel.textContent = state.insertDragStart
+      ? `${state.insertDropCount} item${state.insertDropCount === 1 ? "" : "s"} — ${state.insertDropArea === "oval" ? "Oval" : "Rectangle"}`
+      : state.insertDropCount === 1
+        ? `Click to insert ${def?.name || "item"}`
+        : `${state.insertDropCount} items — drag to define ${state.insertDropArea === "oval" ? "Oval" : "Rectangle"}`;
+    insertPreviewLabel.style.left = `${Math.round(sx + 14)}px`;
+    insertPreviewLabel.style.top = `${Math.round(sy + 14)}px`;
+    insertPreviewLabel.style.display = "block";
+  }
+
+  function createInsertedItem(def, world){
+    const editorId = state.items.length ? Math.max(...state.items.map(item => item.id)) + 1 : 1;
+    const blockNumber = getNextBeginItemNumber();
+    const misId = getNextMisItemId();
+    const terrainZ = heightAtWorld(world.x, world.y, 1.0);
+    const z = worldToRaw(Number.isFinite(terrainZ) && terrainZ > -1e8 ? terrainZ : (world.z || 0), "z");
+    const x = worldToRaw(world.x, "x"), y = worldToRaw(world.y, "y");
+    const heading = state.insertRandomFacing ? Math.floor(Math.random() * 360) : 0;
+    const kv = {
+      type_id: toMisTypeIdFromDefId(def.id), name: quoteMisString(def.name), id: String(misId),
+      position: `${x} ${y} ${z}`, facing: `${heading} 0`, layer: "0"
+    };
+    const lines = Object.entries(kv).map(([key, value]) => `  ${key} ${value}`);
+    const start = Number.MAX_SAFE_INTEGER - (state.sectionBlocks.reduce((max, sec) => Math.max(max, sec.id), 0) + 1);
+    const beginLine = `begin item ${blockNumber}`;
+    const item = { id: editorId, start, end: start, beginLine, lines: lines.slice(), kv: { ...kv }, x, y, z, heading, pitch: 0 };
+    const sectionId = state.sectionBlocks.reduce((max, sec) => Math.max(max, sec.id), 0) + 1;
+    state.items.push(item);
+    state.sectionBlocks.push({ id: sectionId, kind: "item", label: String(blockNumber), start, end: start, beginLine, lines: lines.slice(), kv: { ...kv } });
+    return item;
+  }
+
+  function insertItemsAtPreviewPoints(){
+    const def = state.defsById.get(state.insertDefinitionId);
+    if (!def) return;
+    const points = state.insertPreviewPoints.slice(0, 20);
+    if (!points.length) return;
+    const created = [];
+    beginUndoTransaction();
+    try{
+      for (const point of points) created.push(createInsertedItem(def, point));
+      markItemsChanged({ structure: true });
+      state.selectedId = created.at(-1)?.id ?? null;
+      state.multiSelectedIds = new Set(created.map(item => item.id));
+      renderList(); renderItemWindow(); requestRender(); scheduleLiveMisRefresh();
+    } finally { endUndoTransaction(); }
+    state.insertPreviewSamples = [];
+    state.insertPreviewPoints = [];
+    statusEl.textContent = `${created.length} ${def.name} item${created.length === 1 ? "" : "s"} inserted.`;
   }
 
   function buildLayerOptions(){
@@ -7327,6 +7726,11 @@
       requestRender();
       statusEl.textContent = "Paste cancelado.";
     }
+    if (e.key === "Escape" && (state.insertModeActive || insertOverlay.classList.contains("open"))){
+      e.preventDefault();
+      stopInsertMode();
+      return;
+    }
     if (e.key === "Escape" && (state.selectedId != null || state.multiSelectedIds.size || state.selectedWaypointMarkerIds.size)){
       state.selectedId = null;
       state.multiSelectedIds.clear();
@@ -8050,6 +8454,36 @@
   });
 
   sectionCloseBtn.addEventListener("click", closeSectionEditor);
+  document.getElementById("insertCloseBtn").addEventListener("click", () => stopInsertMode());
+  document.getElementById("insertCancelBtn").addEventListener("click", () => stopInsertMode());
+  document.getElementById("insertOkBtn").addEventListener("click", confirmInsertMode);
+  insertItemSearch.addEventListener("input", () => {
+    state.insertSearchTerm = insertItemSearch.value;
+    renderInsertDialog();
+  });
+  insertItemList.addEventListener("click", event => {
+    const option = event.target.closest('.insertItemOption');
+    if (option) selectInsertDefinition(option.dataset.defId);
+  });
+  insertItemList.addEventListener("dblclick", event => {
+    if (event.target.closest('.insertItemOption')) confirmInsertMode();
+  });
+  insertItemList.addEventListener("keydown", event => {
+    const options = Array.from(insertItemList.querySelectorAll('.insertItemOption'));
+    if (!options.length) return;
+    if (event.key === 'Enter'){
+      event.preventDefault();
+      confirmInsertMode();
+      return;
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    event.preventDefault();
+    const current = options.findIndex(option => option.dataset.defId === state.insertDefinitionId);
+    const delta = event.key === 'ArrowDown' ? 1 : -1;
+    const next = Math.max(0, Math.min(options.length - 1, (current < 0 ? 0 : current) + delta));
+    selectInsertDefinition(options[next].dataset.defId, { scroll: true });
+  });
+  insertOverlay.addEventListener("mousedown", (e) => { if (e.target === insertOverlay) stopInsertMode(); });
   sectionOverlay.addEventListener("mousedown", (e) => { if (e.target === sectionOverlay) closeSectionEditor(); });
   liveMisCloseBtn.addEventListener("click", closeLiveMisWindow);
   liveMisOverlay.addEventListener("mousedown", (e) => { if (e.target === liveMisOverlay) closeLiveMisWindow(); });
@@ -8374,6 +8808,7 @@
     "edit.paste": pasteCopiedItem,
     "edit.cut": cutSelectedItems,
     "edit.delete": deleteSelectedItem,
+    "edit.insertMode": toggleInsertMode,
     "edit.undo": undoLastChange,
     "edit.redo": redoLastChange,
     "edit.globalReplace": runGlobalReplace,
@@ -8421,7 +8856,7 @@
           { label: "Paste", shortcut: "Ctrl + V", command: "edit.paste" },
           { label: "Delete", shortcut: "Delete", command: "edit.delete" },
           { separator: true },
-          { label: "Insert Mode", command: "edit.insertMode" },
+          { label: "Insert Mode", shortcut: "I", command: "edit.insertMode", checked: state.insertModeActive },
           { separator: true },
           { label: "Briefing", command: "edit.briefing" },
           { label: "General Information", command: "edit.generalInfo" },
@@ -8437,7 +8872,7 @@
       {
         label: "View",
         children: [
-          { label: "Scene Info", shortcut: "I", command: "view.sceneInfo" },
+          { label: "Scene Info", shortcut: "Home", command: "view.sceneInfo" },
           { label: "Sidebar", shortcut: "C", command: "view.sidebar", checked: !appLayoutEl?.classList.contains("sidebarClosed") },
           {
             label: "Guides",
@@ -8981,6 +9416,55 @@
   function screenRay(sx,sy){ const {width,height,aspect,tanHalfVerticalFov,orthographic,orthographicHalfHeight}=getCameraProjection(), nx=(sx/width)*2-1, ny=1-(sy/height)*2; const {forward,right}=cameraBasis(); const up=vec3Norm(vec3Cross(right,forward)); if(orthographic){ const origin=vec3Add(cam.pos,vec3Add(vec3Scale(right,nx*orthographicHalfHeight*aspect),vec3Scale(up,ny*orthographicHalfHeight))); return {origin,dir:forward}; } const dir=vec3Norm(vec3Add(vec3Add(forward,vec3Scale(right,nx*tanHalfVerticalFov*aspect)),vec3Scale(up,ny*tanHalfVerticalFov))); return {origin:cam.pos,dir}; }
   function screenToWorld(sx,sy,zPlane=0){ const ray=screenRay(sx,sy), dz=ray.dir.z; if(Math.abs(dz)<1e-6) return {x:ray.origin.x,y:ray.origin.y,z:zPlane}; const t=(zPlane-ray.origin.z)/dz; return {x:ray.origin.x+ray.dir.x*Math.max(t,0), y:ray.origin.y+ray.dir.y*Math.max(t,0), z:zPlane}; }
 
+  function screenToTerrain(sx, sy){
+    if (!lastDepth || !sectors) return null;
+    const ray = screenRay(sx, sy);
+    const pointAt = t => ({
+      x: ray.origin.x + ray.dir.x * t,
+      y: ray.origin.y + ray.dir.y * t,
+      z: ray.origin.z + ray.dir.z * t,
+    });
+    const clearanceAt = t => {
+      const point = pointAt(t);
+      const terrainZ = heightAtWorld(point.x, point.y, 1.0);
+      return Number.isFinite(terrainZ) && terrainZ > -1e8
+        ? { difference: point.z - terrainZ, terrainZ }
+        : null;
+    };
+
+    let lowerT = 0;
+    let lower = clearanceAt(lowerT);
+    if (!lower) return null;
+    if (lower.difference <= 0){
+      return { x: ray.origin.x, y: ray.origin.y, z: lower.terrainZ };
+    }
+
+    // Exponentially bracket the first point below the height field. This keeps
+    // cursor movement inexpensive even when the camera is far from the map.
+    let upperT = 8;
+    let upper = null;
+    const maxDistance = 1000000;
+    while (upperT <= maxDistance){
+      upper = clearanceAt(upperT);
+      if (upper && upper.difference <= 0) break;
+      if (upper){ lowerT = upperT; lower = upper; }
+      upperT *= 1.35;
+    }
+    if (!upper || upper.difference > 0) return null;
+
+    // Refine the crossing so perspective placement follows the visible terrain
+    // rather than the unrelated Z=0 plane.
+    for (let i = 0; i < 18; i++){
+      const middleT = (lowerT + upperT) * 0.5;
+      const middle = clearanceAt(middleT);
+      if (!middle) return null;
+      if (middle.difference > 0){ lowerT = middleT; lower = middle; }
+      else { upperT = middleT; upper = middle; }
+    }
+    const point = pointAt(upperT);
+    return { x: point.x, y: point.y, z: upper.terrainZ };
+  }
+
 
   function extractFrustumPlanes(m){
     const planes=[
@@ -9243,6 +9727,14 @@
     overlays.rectLines = new THREE.LineSegments(rectGeom, rectMat);
     overlays.rectLines.frustumCulled = false;
     overlays.scene.add(overlays.rectLines);
+
+    const insertGeom = new THREE.BufferGeometry();
+    insertGeom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(0), 3));
+    insertGeom.setAttribute('color', new THREE.BufferAttribute(new Float32Array(0), 3));
+    const insertMat = new THREE.LineBasicMaterial({ vertexColors: true, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95, fog: false });
+    overlays.insertLines = new THREE.LineSegments(insertGeom, insertMat);
+    overlays.insertLines.frustumCulled = false;
+    overlays.scene.add(overlays.insertLines);
     overlays.ready = true;
     addLog('[overlays_three] overlays layer initialized.');
     return true;
@@ -9289,11 +9781,51 @@
     }
   }
 
+  function appendInsertLine(positions, colors, a, b, color){
+    positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
+    colors.push(...color, ...color);
+  }
+
+  function updateInsertOverlayGeometry(overlays){
+    const positions = [], colors = [], color = [0.15, 0.95, 1.0], pivotColor = [1.0, 0.82, 0.1], hoverColor = [0.35, 0.9, 1.0];
+    const appendPivot = (point, markerColor) => {
+      const distance=Math.hypot(cam.pos.x-point.x,cam.pos.y-point.y,cam.pos.z-point.z);
+      const radius=Math.max(1,Math.min(256,topViewLocked?topViewScale*0.009:distance*0.006));
+      const z=point.z+0.75,segments=16;
+      for(let i=0;i<segments;i++){
+        const a=i/segments*Math.PI*2,b=(i+1)/segments*Math.PI*2;
+        appendInsertLine(positions,colors,{x:point.x+Math.cos(a)*radius,y:point.y+Math.sin(a)*radius,z},{x:point.x+Math.cos(b)*radius,y:point.y+Math.sin(b)*radius,z},markerColor);
+      }
+      appendInsertLine(positions,colors,{x:point.x-radius,y:point.y,z},{x:point.x+radius,y:point.y,z},markerColor);
+      appendInsertLine(positions,colors,{x:point.x,y:point.y-radius,z},{x:point.x,y:point.y+radius,z},markerColor);
+    };
+    const start = state.insertDragStart, end = state.insertPreviewWorld;
+    if (state.insertModeActive && !start && state.insertHoverPoint) appendPivot(state.insertHoverPoint, hoverColor);
+    if (state.insertModeActive && start && end){
+      const minX=Math.min(start.x,end.x),maxX=Math.max(start.x,end.x),minY=Math.min(start.y,end.y),maxY=Math.max(start.y,end.y);
+      const boundary = [];
+      if (state.insertDropArea === 'oval'){
+        const cx=(minX+maxX)/2,cy=(minY+maxY)/2,rx=(maxX-minX)/2,ry=(maxY-minY)/2;
+        for(let i=0;i<=48;i++){const a=i/48*Math.PI*2;boundary.push(terrainPointForInsert(cx+Math.cos(a)*rx,cy+Math.sin(a)*ry));}
+      } else {
+        const corners=[[minX,minY],[maxX,minY],[maxX,maxY],[minX,maxY],[minX,minY]];
+        for(const [x,y] of corners) boundary.push(terrainPointForInsert(x,y));
+      }
+      for(let i=1;i<boundary.length;i++){
+        const a={...boundary[i-1],z:boundary[i-1].z+0.5},b={...boundary[i],z:boundary[i].z+0.5};
+        appendInsertLine(positions,colors,a,b,color);
+      }
+      for(const point of state.insertPreviewPoints) appendPivot(point, pivotColor);
+    }
+    updateThreeLineGeometry(overlays.insertLines,new Float32Array(positions),new Float32Array(colors));
+  }
+
   function drawOverlaysThree(P, V, forward){
     if (!ensureThreeOverlaysReady()) return;
     if (!sectors || !Number.isFinite(sectorCount) || sectorCount <= 0){
       updateThreeLineGeometry(state.threeOverlays.gridLines, new Float32Array(0));
       updateThreeLineGeometry(state.threeOverlays.rectLines, new Float32Array(0), new Float32Array(0));
+      updateThreeLineGeometry(state.threeOverlays.insertLines, new Float32Array(0), new Float32Array(0));
       for (const mesh of state.threeOverlays.waterMap.values()) state.threeOverlays.scene.remove(mesh);
       state.threeOverlays.waterMap.clear();
       state.threeOverlays.waterPool.length = 0;
@@ -9393,6 +9925,7 @@
       }
     }
     updateThreeLineGeometry(overlays.rectLines, new Float32Array(rectPos), new Float32Array(rectColors));
+    updateInsertOverlayGeometry(overlays);
 
     applyThreeCameraFromPV(P, V);
     state.glb.renderer.resetState();
@@ -9606,6 +10139,27 @@
   }
 
 
+  function cloneGlbMaterials(root){
+    root?.traverse?.(obj => {
+      if (!obj.isMesh) return;
+      if (Array.isArray(obj.material)) obj.material = obj.material.map(material => material?.clone?.() || material);
+      else if (obj.material) obj.material = obj.material.clone();
+    });
+  }
+
+  function applyItemModelTransform(obj, heading = 0, pitch = 0, graphicScale = 1){
+    if (!obj) return;
+    // OpenNova-style orientation correction: sign-flip yaw/pitch and apply a +180° yaw phase shift.
+    const yawRad = ((-(Number(heading) || 0)) + 180) * Math.PI / 180;
+    const pitchCalibratedDeg = (-(Number(pitch) || 0)) + 90;
+    const pitchRad = pitchCalibratedDeg * Math.PI / 180;
+    obj.rotation.order = "ZXY";
+    obj.rotation.z = yawRad;
+    obj.rotation.x = pitchRad;
+    const scale = Number.isFinite(Number(graphicScale)) && Number(graphicScale) > 0 ? Number(graphicScale) : 1;
+    obj.scale.set(scale, scale, scale);
+  }
+
   function applyItemTransformToObject(obj, it){
     if (!obj || !it) return;
     obj.position.set(
@@ -9613,15 +10167,7 @@
       rawToWorld(it.y,'y'),
       getItemWorldZ(it)
     );
-    // OpenNova-style orientation correction: sign-flip yaw/pitch and apply a +180° yaw phase shift.
-    const yawRad = ((-(Number(it.heading) || 0)) + 180) * Math.PI / 180;
-    const pitchCalibratedDeg = (-(Number(it.pitch) || 0)) + 90;
-    const pitchRad = pitchCalibratedDeg * Math.PI / 180;
-    obj.rotation.order = "ZXY";
-    obj.rotation.z = yawRad;
-    obj.rotation.x = pitchRad;
-    const scale = getItemGraphicScale(it);
-    obj.scale.set(scale, scale, scale);
+    applyItemModelTransform(obj, it.heading, it.pitch, getItemGraphicScale(it));
   }
 
   function lodDistanceForLevel(level){
@@ -10299,11 +10845,7 @@
           const template = await loadGraphicTemplate(graphic);
           if (!template) continue;
           instance = template.clone(true);
-          instance.traverse((obj) => {
-            if (!obj.isMesh) return;
-            if (Array.isArray(obj.material)) obj.material = obj.material.map(m => m ? m.clone() : m);
-            else if (obj.material) obj.material = obj.material.clone();
-          });
+          cloneGlbMaterials(instance);
           applyWaypointColorToGlbObject(instance, it);
           applyAreaTriggerColorToGlbObject(instance, it);
           applyWaypointOutlineToGlbObject(instance, it);
@@ -11352,7 +11894,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     camVel=vec3(0,0,0); requestRender();
   }
   function toggleTopView(){setTopView(!topViewLocked);}
-  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'&&!e.repeat){ e.preventDefault(); toggleTopView(); } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='i'&&!e.repeat){ toggleSceneInfo(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ toggleTransformSpace(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a'&&lookActive) move.a=1; if(k==='s'&&lookActive) move.s=1; if(k==='d'&&lookActive) move.d=1; if(k==='q'&&lookActive) move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
+  addEventListener('keydown',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); const lookActive=(document.pointerLockElement===cv&&state.cameraLookActive); if(k==='delete'){ e.preventDefault(); deleteSelectedItem(); return; } if(k==='c'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); setSidebarOpen(appLayoutEl?.classList.contains('sidebarClosed')); return; } if(k==='t'&&!e.repeat){ e.preventDefault(); toggleTopView(); } if(k==='g'&&!e.repeat){ toggleViewOption('showGrid'); } if(k==='home'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); toggleSceneInfo(); } if(k==='i'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey&&!e.repeat){ e.preventDefault(); toggleInsertMode(); } if(k==='h'&&!e.repeat){ toggleViewOption('showAnchorPoints'); } if(k==='f'){ e.preventDefault(); if(!e.repeat) cycleGlbViewMode(); } if(k==='x'&&!lookActive&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.repeat){ toggleTransformSpace(); } if(k==='w'&&!lookActive){ state.transformMode='translate'; updateItemGizmo(); } if(k==='e'&&!lookActive){ state.transformMode='rotate'; updateItemGizmo(); } if(k==='w'&&lookActive) move.w=1; if(k==='a'&&lookActive) move.a=1; if(k==='s'&&lookActive) move.s=1; if(k==='d'&&lookActive) move.d=1; if(k==='q'&&lookActive) move.q=1; if(k==='e'&&lookActive) move.e=1; if(k==='r') setRenderMode(renderMode==='C'?'H':(renderMode==='H'?'D':'C')); state.keysDown.add(e.code); });
   addEventListener('keyup',e=>{ if(hasTypingFocus()) return; const k=e.key.toLowerCase(); if(k==='w') move.w=0; if(k==='a') move.a=0; if(k==='s') move.s=0; if(k==='d') move.d=0; if(k==='q') move.q=0; if(k==='e') move.e=0; state.keysDown.delete(e.code); });
   addEventListener('mousemove',e=>{
     if(document.pointerLockElement!==cv) return;
@@ -11387,7 +11929,7 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
   setRenderMode('C');
 
   cv.addEventListener("mousedown", (e) => {
-    if (state.modalOpen) return;
+    if (state.modalOpen || insertOverlay.classList.contains("open")) return;
     closeItemContextMenu();
     const rect = cv.getBoundingClientRect();
     const sx = e.clientX - rect.left;
@@ -11402,10 +11944,31 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
 
     if (e.button === 2){
       e.preventDefault();
+      state.insertHoverPoint = null;
+      insertPreviewLabel.style.display = "none";
+      requestRender();
       state.cameraLookPending = true;
       state.cameraLookButton = 2;
       state.cameraLookStart = { sx, sy };
       state.lastMouse = { sx, sy };
+      return;
+    }
+
+    if (state.insertModeActive){
+      const world = state.insertHoverPoint || screenToTerrain(sx, sy);
+      if (!world){
+        statusEl.textContent = "The cursor is not over the terrain.";
+        return;
+      }
+      state.insertHoverPoint = null;
+      state.insertDragStart = world;
+      state.insertDragStartScreen = { sx, sy };
+      state.insertPreviewWorld = world;
+      state.insertPreviewSamples = createInsertPreviewSamples(state.insertDropCount, state.insertDropArea);
+      updateInsertPreviewPoints(world, world);
+      updateInsertPreviewLabel(sx, sy);
+      state.lastMouse = { sx, sy };
+      e.preventDefault();
       return;
     }
 
@@ -11439,11 +12002,142 @@ PointerLock: ${document.pointerLockElement===cv?'on':'off'}`;
     selectById(picked ? picked.id : null, { additive: additiveSelection });
     state.lastMouse = { sx, sy };
   });
-  cv.addEventListener("contextmenu", (e) => { e.preventDefault(); if(state.cameraLookActive || (state.cameraLookPending&&state.cameraLookButton===2)) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; const picked=pickItemAtCanvas(sx,sy); if (picked){ if (!(picked.id===state.selectedId||state.multiSelectedIds.has(picked.id))) selectById(picked.id); showItemContextMenu(e.clientX,e.clientY); return; } if (state.selectedId!==null||state.multiSelectedIds.size>0||state.itemClipboardItems.length) showItemContextMenu(e.clientX,e.clientY); });
+  cv.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    if (state.cameraLookActive || (state.cameraLookPending && state.cameraLookButton === 2)) return;
+    const rect = cv.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+    const picked = pickItemAtCanvas(sx, sy);
+    if (picked){
+      if (!(picked.id === state.selectedId || state.multiSelectedIds.has(picked.id))) selectById(picked.id);
+      showItemContextMenu(e.clientX, e.clientY);
+      return;
+    }
+    showItemContextMenu(e.clientX, e.clientY, [
+      { label: "Insert Item", action: toggleInsertMode }
+    ]);
+  });
   cv.addEventListener("dblclick", (e) => { const rect=cv.getBoundingClientRect(); const picked=pickItemAtCanvas(e.clientX-rect.left,e.clientY-rect.top); if(picked){ selectById(picked.id); openModal(); } });
-  cv.addEventListener("mousemove", (e) => { if(state.modalOpen) return; const rect=cv.getBoundingClientRect(); const sx=e.clientX-rect.left, sy=e.clientY-rect.top; if(state.cameraLookPending){ const mask=state.cameraLookButton===2?2:1; if(e.buttons & mask){ const start=state.cameraLookStart||{sx,sy}; const moved=Math.hypot(sx-start.sx, sy-start.sy); if(moved>3){ state.cameraLookPending=false; if(state.cameraLookButton===1) state.pendingLeftClick=null; state.cameraLookActive=true; requestCameraPointerLock(); } } else if(!state.cameraLookActive){ state.cameraLookPending=false; state.cameraLookButton=0; } } if(state.pastePlacementActive){ const z=state.selectedId?rawToWorld(getSelected()?.z||0,'z'):0; state.pastePreviewWorld=screenToWorld(sx,sy,z); } if(state.boxSelecting&&state.boxStart) state.boxCurrent={sx,sy}; else if(state.draggingItem&&state.selectedId){ const active=state.items.filter(it=>it.id===state.selectedId||state.multiSelectedIds.has(it.id)); const zPlane=rawToWorld((active[0]?.z)||0,'z'); const nowW=screenToWorld(sx,sy,zPlane); const prevW=state.dragAnchor||nowW; const dx=nowW.x-prevW.x, dy=nowW.y-prevW.y; for(const it of active){ if(!kvHas(it,'position')) continue; it.x=worldToRaw(rawToWorld(it.x,'x')+dx,'x'); it.y=worldToRaw(rawToWorld(it.y,'y')+dy,'y'); it.kv.position=`${it.x} ${it.y} ${it.z}`; markItemTransformDirty(it.id);} markItemsChanged({ structure: false }); state.dragAnchor=nowW; scheduleRenderList(); scheduleLiveMisRefresh(); } state.lastMouse={sx,sy}; });
+  cv.addEventListener("mousemove", (e) => {
+    if (state.modalOpen) return;
+    const rect = cv.getBoundingClientRect();
+    const sx = e.clientX - rect.left;
+    const sy = e.clientY - rect.top;
+
+    // Camera look has priority over editing modes. In particular, Insert Mode
+    // must not consume right-button movement before pointer lock can start.
+    if (state.cameraLookPending){
+      const mask = state.cameraLookButton === 2 ? 2 : 1;
+      if (e.buttons & mask){
+        const start = state.cameraLookStart || { sx, sy };
+        const moved = Math.hypot(sx - start.sx, sy - start.sy);
+        if (moved > 3){
+          state.cameraLookPending = false;
+          if (state.cameraLookButton === 1) state.pendingLeftClick = null;
+          state.cameraLookActive = true;
+          requestCameraPointerLock();
+          return;
+        }
+      } else if (!state.cameraLookActive){
+        state.cameraLookPending = false;
+        state.cameraLookButton = 0;
+      }
+    }
+    if (state.cameraLookActive) return;
+
+    if (state.insertModeActive){
+      const terrainPoint = screenToTerrain(sx, sy);
+      if (!terrainPoint){
+        state.insertHoverPoint = null;
+        state.insertPreviewWorld = null;
+        state.insertPreviewPoints = [];
+        insertPreviewLabel.style.display = "none";
+        state.lastMouse = { sx, sy };
+        requestRender();
+        return;
+      }
+      state.insertPreviewWorld = terrainPoint;
+      if (state.insertDragStart){
+        updateInsertPreviewPoints(state.insertDragStart, state.insertPreviewWorld);
+        updateInsertPreviewLabel(sx, sy);
+      } else {
+        state.insertHoverPoint = terrainPoint;
+        updateInsertPreviewLabel(sx, sy);
+      }
+      state.lastMouse = { sx, sy };
+      requestRender();
+      return;
+    }
+
+    if (state.pastePlacementActive){
+      const z = state.selectedId ? rawToWorld(getSelected()?.z || 0, 'z') : 0;
+      state.pastePreviewWorld = screenToWorld(sx, sy, z);
+    }
+    if (state.boxSelecting && state.boxStart){
+      state.boxCurrent = { sx, sy };
+    } else if (state.draggingItem && state.selectedId){
+      const active = state.items.filter(it => it.id === state.selectedId || state.multiSelectedIds.has(it.id));
+      const zPlane = rawToWorld(active[0]?.z || 0, 'z');
+      const nowW = screenToWorld(sx, sy, zPlane);
+      const prevW = state.dragAnchor || nowW;
+      const dx = nowW.x - prevW.x, dy = nowW.y - prevW.y;
+      for (const it of active){
+        if (!kvHas(it, 'position')) continue;
+        it.x = worldToRaw(rawToWorld(it.x, 'x') + dx, 'x');
+        it.y = worldToRaw(rawToWorld(it.y, 'y') + dy, 'y');
+        it.kv.position = `${it.x} ${it.y} ${it.z}`;
+        markItemTransformDirty(it.id);
+      }
+      markItemsChanged({ structure: false });
+      state.dragAnchor = nowW;
+      scheduleRenderList();
+      scheduleLiveMisRefresh();
+    }
+    state.lastMouse = { sx, sy };
+  });
   function stopDrag(){ const had=state.boxSelecting&&state.boxStart&&state.boxCurrent; const shouldFinalizeClick=!!state.pendingLeftClick && !state.cameraLookActive && !state.gizmoDrag && !state.draggingItem && !had; const x0=had?Math.min(state.boxStart.sx,state.boxCurrent.sx):0, x1=had?Math.max(state.boxStart.sx,state.boxCurrent.sx):0, y0=had?Math.min(state.boxStart.sy,state.boxCurrent.sy):0, y1=had?Math.max(state.boxStart.sy,state.boxCurrent.sy):0, add=state.boxSelectAdditive; state.draggingItem=false; state.boxSelecting=false; state.boxSelectAdditive=false; state.boxStart=null; state.boxCurrent=null; state.lastMouse=null; state.dragAnchor=null; state.cameraLookActive=false; state.cameraLookPending=false; state.cameraLookStart=null; state.cameraLookButton=0; if(document.pointerLockElement===cv && document.exitPointerLock) document.exitPointerLock(); if(shouldFinalizeClick){ const pickedId=state.pendingLeftClick.pickedId; selectById(pickedId != null ? pickedId : null); } state.pendingLeftClick=null; if(had){ const worldA=screenToWorld(x0,y0,0); const worldB=screenToWorld(x1,y1,0); const minX=Math.min(worldA.x,worldB.x), maxX=Math.max(worldA.x,worldB.x), minY=Math.min(worldA.y,worldB.y), maxY=Math.max(worldA.y,worldB.y); const candidates=getSpatialCandidatesByWorldRect(minX,minY,maxX,maxY); const filteredSet=new Set(getFilteredItems().map(it=>it.id)); const ids=[]; for(const it of candidates){ if(!filteredSet.has(it.id)||!isItemVisibilityFilterMatch(it)) continue; const p=worldToScreen(rawToWorld(it.x,'x'),rawToWorld(it.y,'y'),getItemWorldZ(it)); if(p.visible&&p.sx>=x0&&p.sx<=x1&&p.sy>=y0&&p.sy<=y1) ids.push(it.id); } if(!add) state.multiSelectedIds.clear(); for(const id of ids) state.multiSelectedIds.add(id); state.selectedId=state.multiSelectedIds.size?Array.from(state.multiSelectedIds).at(-1):null; renderList(); refreshLiveMisWindow(false, { force: true }); } }
-  cv.addEventListener('mouseup',stopDrag); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; stopDrag(); });
+  cv.addEventListener('mouseup', e => {
+    if (state.insertModeActive && state.insertDragStart){
+      const rect = cv.getBoundingClientRect();
+      const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+      const end = screenToTerrain(sx, sy);
+      if (!end){
+        state.insertDragStart = null;
+        state.insertDragStartScreen = null;
+        state.insertHoverPoint = null;
+        state.insertPreviewWorld = null;
+        state.insertPreviewSamples = [];
+        state.insertPreviewPoints = [];
+        insertPreviewLabel.style.display = 'none';
+        requestRender();
+        statusEl.textContent = 'The cursor is not over the terrain.';
+        return;
+      }
+      const startScreen = state.insertDragStartScreen;
+      const moved = startScreen ? Math.hypot(sx - startScreen.sx, sy - startScreen.sy) : 0;
+      state.insertPreviewWorld = end;
+      updateInsertPreviewPoints(state.insertDragStart, end);
+      if (state.insertDropCount > 1 && moved < 4){
+        state.insertDragStart = null;
+        state.insertDragStartScreen = null;
+        state.insertHoverPoint = end;
+        state.insertPreviewSamples = [];
+        state.insertPreviewPoints = [];
+        updateInsertPreviewLabel(sx, sy);
+        requestRender();
+        statusEl.textContent = 'Drag on the map to define the drop area for multiple items.';
+        return;
+      }
+      insertItemsAtPreviewPoints();
+      state.insertDragStart = null;
+      state.insertDragStartScreen = null;
+      state.insertHoverPoint = end;
+      updateInsertPreviewLabel(sx, sy);
+      requestRender();
+      return;
+    }
+    stopDrag();
+  }); cv.addEventListener('mouseleave',()=>{ state.cameraLookActive=false; if(state.insertModeActive){state.insertDragStart=null;state.insertDragStartScreen=null;state.insertHoverPoint=null;state.insertPreviewSamples=[];state.insertPreviewPoints=[];insertPreviewLabel.style.display='none';requestRender();return;} stopDrag(); });
   cv.addEventListener('wheel',(e)=>{ e.preventDefault(); if(topViewLocked){ topViewScale=Math.max(1,Math.min(1000000,topViewScale*Math.exp(e.deltaY*0.001))); } else { const dir=e.deltaY<0?1:-1; renderUiState.speedLevel=Math.max(1,Math.min(8,renderUiState.speedLevel+dir)); renderMenuBar(); } requestRender(); },{passive:false});
 
   document.addEventListener("pointerlockchange", () => {
