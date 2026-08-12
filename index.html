@@ -671,6 +671,7 @@
     .insertItemOption.family{ border-left-color:hsl(var(--family-hue) 62% 48%); background-image:linear-gradient(90deg, hsl(var(--family-hue) 70% 50% / .16), transparent 45%); }
     .insertItemOption.missingGraphic{ color:#d86161; border-color:#a94444; border-left-color:#d86161; background-color:rgba(130,35,35,.13); background-image:repeating-linear-gradient(-45deg, transparent, transparent 6px, rgba(180,55,55,.08) 6px, rgba(180,55,55,.08) 12px); }
     .insertItemOption.missingGraphic .insertItemOptionId{ color:#ba6262; }
+    .insertItemOption.glbUnknown{ border-style:dashed; }
     .insertItemOption:hover{ background:var(--accent-soft); }
     .insertItemOption.selected{ border-color:var(--accent); background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
     .insertItemOptionId{ color:var(--text-subtle); font-size:11px; margin-left:6px; }
@@ -2248,6 +2249,9 @@
     soundGraphicFromOtherItems: "",
     soundGraphicScaleFromOtherItems: 1,
     availableGlbFiles: null,
+    glbAvailability: new Map(),
+    glbCheckQueue: [],
+    glbChecksActive: 0,
 
     itemsVersion: 0,
     filteredItemsCache: null,
@@ -3832,13 +3836,12 @@
   async function loadAndApplyItemCatalogs(){
     const defText = (window.BHD_ITEMS_DEF_TEXT || "").toString();
     const defs = parseItemsDef(defText);
-    const [otherItemsText, availableGlbsText] = await Promise.all([
-      loadTextResource("resources/items_lists/otheritems.js"),
-      loadTextResource("all_items.txt"),
-    ]);
-    state.availableGlbFiles = availableGlbsText
-      ? new Set(availableGlbsText.split(/\r?\n/).map(name => name.trim().toLowerCase()).filter(Boolean))
-      : null;
+    const otherItemsText = await loadTextResource("resources/items_lists/otheritems.js");
+    if (state.isLocalRuntime && state.editorFolderHandle){
+      state.availableGlbFiles = await listGlbFilesFromEditorFolder();
+    } else if (!state.isLocalRuntime){
+      state.availableGlbFiles = null;
+    }
     const soundDef = extractSoundDefinitionFromOtherItems(otherItemsText);
     state.soundGraphicFromOtherItems = soundDef.graphic;
     state.soundGraphicScaleFromOtherItems = soundDef.graphicScale;
@@ -3892,12 +3895,14 @@
   const INSERT_CATEGORIES = [
     ["foliage", "Foliage"], ["decoration", "Decorations"], ["people", "People"],
     ["building", "Buildings"], ["vehicle", "Vehicles"], ["object", "Objects"],
-    ["powerup", "POWERUP"], ["marker", "Markers"], ["med_fly", "Med fly"]
+    ["powerup", "POWERUP"], ["marker", "Markers"], ["med_fly", "Med fly"],
+    ["sound", "Sounds"]
   ];
 
   function insertCategoryForDef(def){
     const type = String(def?.type || "other").toLowerCase();
     const name = String(def?.name || "").toLowerCase();
+    if (name.startsWith("snd:")) return "sound";
     if (type.includes("foliage")) return "foliage";
     if (type.includes("decoration")) return "decoration";
     if (type.includes("person") || type.includes("people")) return "people";
@@ -3960,10 +3965,85 @@
   }
 
   function insertGraphicIsMissing(def){
+    return insertGraphicAvailability(def) === "missing";
+  }
+
+  function insertGraphicFilename(def){
     const graphic = String(def?.graphic || "").trim();
-    if (!graphic) return true;
-    if (!(state.availableGlbFiles instanceof Set)) return false;
-    return !state.availableGlbFiles.has(`${graphic}.glb`.toLowerCase());
+    if (!graphic) return "";
+    return (graphic.toLowerCase().endsWith(".glb") ? graphic : `${graphic}.glb`).toLowerCase();
+  }
+
+  function insertGraphicAvailability(def){
+    const filename = insertGraphicFilename(def);
+    if (!filename) return "missing";
+    if (state.availableGlbFiles instanceof Set){
+      return state.availableGlbFiles.has(filename) ? "available" : "missing";
+    }
+    return state.glbAvailability.get(filename) || "unknown";
+  }
+
+  async function listGlbFilesFromEditorFolder(){
+    if (!state.editorFolderHandle) return null;
+    try{
+      let dir = state.editorFolderHandle;
+      for (const part of ["resources", "3d_items"]) dir = await dir.getDirectoryHandle(part);
+      const files = new Set();
+      for await (const [fileName, handle] of dir.entries()){
+        if (handle.kind === "file" && /\.glb$/i.test(fileName)) files.add(fileName.toLowerCase());
+      }
+      addLog(`[3d_items] folder indexed: ${files.size} GLB files`);
+      return files;
+    } catch (err){
+      addLog(`[3d_items] unable to index folder: ${err?.message || err}`);
+      return null;
+    }
+  }
+
+  function updateInsertGlbOption(def){
+    const option = insertItemList.querySelector(`.insertItemOption[data-def-id="${CSS.escape(String(def.id))}"]`);
+    if (!option) return;
+    const availability = insertGraphicAvailability(def);
+    const usageCount = buildInsertDefinitionUsageCounts().get(String(def.id)) || 0;
+    option.classList.toggle("missingGraphic", availability === "missing");
+    option.classList.toggle("glbUnknown", availability === "unknown" || availability === "checking");
+    const label = availability === "missing" ? "GLB missing" : availability === "available" ? "GLB available" : "Checking GLB";
+    option.title = `${label} · ${usageCount ? `${usageCount} instance${usageCount === 1 ? "" : "s"} in the map` : "Not used in the map"}`;
+  }
+
+  function queueHttpGlbCheck(def){
+    if (state.isLocalRuntime) return;
+    const filename = insertGraphicFilename(def);
+    if (!filename || state.glbAvailability.has(filename)) return;
+    const graphic = String(def?.graphic || "").trim();
+    const requestFilename = graphic.toLowerCase().endsWith(".glb") ? graphic : `${graphic}.glb`;
+    state.glbAvailability.set(filename, "checking");
+    state.glbCheckQueue.push({ filename, requestFilename, def });
+    runHttpGlbChecks();
+  }
+
+  function runHttpGlbChecks(){
+    while (state.glbChecksActive < 4 && state.glbCheckQueue.length){
+      const { filename, requestFilename, def } = state.glbCheckQueue.shift();
+      state.glbChecksActive += 1;
+      (async () => {
+        const url = `resources/3d_items/${requestFilename.split("/").map(encodeURIComponent).join("/")}`;
+        let available = false;
+        try{
+          let response = await fetch(url, { method: "HEAD" });
+          if (response.status === 405 || response.status === 501){
+            response = await fetch(url, { headers: { Range: "bytes=0-0" } });
+          }
+          available = response.ok;
+          response.body?.cancel();
+        } catch (_) { /* A failed request means the resource is unavailable. */ }
+        state.glbAvailability.set(filename, available ? "available" : "missing");
+        updateInsertGlbOption(def);
+      })().finally(() => {
+        state.glbChecksActive -= 1;
+        runHttpGlbChecks();
+      });
+    }
   }
 
   function renderInsertDialog(){
@@ -3998,15 +4078,18 @@
         option.classList.toggle("selected", String(def.id) === state.insertDefinitionId);
         const usageCount = usageCounts.get(String(def.id)) || 0;
         const familyHue = familyHues.get(String(def.id));
-        const missingGraphic = insertGraphicIsMissing(def);
+        const availabilityState = insertGraphicAvailability(def);
+        const missingGraphic = availabilityState === "missing";
         option.classList.toggle("inMap", usageCount > 0);
         option.classList.toggle("family", familyHue !== undefined);
         option.classList.toggle("missingGraphic", missingGraphic);
+        option.classList.toggle("glbUnknown", availabilityState === "unknown" || availabilityState === "checking");
         if (familyHue !== undefined) option.style.setProperty("--family-hue", String(familyHue));
-        const availability = missingGraphic ? "File not found" : `${def.graphic}.glb`;
+        const availability = missingGraphic ? "GLB missing" : availabilityState === "available" ? "GLB available" : "GLB not verified";
         option.title = `${availability} · ${usageCount ? `${usageCount} instance${usageCount === 1 ? "" : "s"} in the map` : "Not used in the map"}`;
         option.innerHTML = `<span>${escapeHtml(def.name)}</span><span class="insertItemOptionId">#${escapeHtml(toMisTypeIdFromDefId(def.id))}</span>${usageCount ? `<span class="insertItemUsageBadge" aria-label="${usageCount} in map">${usageCount}</span>` : ""}`;
         insertItemList.appendChild(option);
+        if (availabilityState === "unknown") queueHttpGlbCheck(def);
       }
     }
     insertRandomFacing.checked = state.insertRandomFacing;
@@ -10455,6 +10538,9 @@
     } catch (err) {
       const placeholder = createMissingGlbPlaceholder(key);
       state.glb.templateByGraphic.set(key, placeholder);
+      state.glbAvailability.set(`${key}.glb`.toLowerCase(), "missing");
+      const failedDef = state.defsSorted.find(def => insertGraphicFilename(def) === `${key}.glb`.toLowerCase());
+      if (failedDef) updateInsertGlbOption(failedDef);
       if (!state.glb.missingGraphics.has(key)){
         state.glb.missingGraphics.add(key);
         addLog(`[3d_items] GLB missing or invalid: ${path}`);
