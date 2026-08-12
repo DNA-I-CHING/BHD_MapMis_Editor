@@ -667,9 +667,11 @@
     .insertItemOption{ display:block; width:100%; border:1px solid var(--line-soft); border-radius:3px; background:var(--surface-subtle); color:inherit; padding:6px 8px; text-align:left; cursor:pointer; }
     .insertItemOption + .insertItemOption{ margin-top:3px; }
     .insertItemOption:nth-child(even){ background:var(--panel-subtle); }
+    .insertItemOption.inMap{ border-color:#4f9b67; background:rgba(52,130,76,.2); }
     .insertItemOption:hover{ background:var(--accent-soft); }
     .insertItemOption.selected{ border-color:var(--accent); background:var(--accent-soft); box-shadow:inset 3px 0 0 var(--accent); }
     .insertItemOptionId{ color:var(--text-subtle); font-size:11px; margin-left:6px; }
+    .insertItemUsageBadge{ float:right; min-width:20px; padding:1px 5px; border-radius:10px; background:#39764c; color:#fff; font-size:11px; text-align:center; }
     .insertItemsEmpty{ color:var(--text-subtle); padding:8px; }
     .insertOptions{ display:grid; align-content:start; gap:10px; }
     .insertOptions label{ display:grid; gap:4px; }
@@ -1858,6 +1860,7 @@
               <div class="insertPreviewPanel">
                 <canvas id="insertGlbPreview" aria-label="Selected item 3D preview"></canvas>
                 <div id="insertGlbPreviewStatus">Select an item to preview.</div>
+                <div id="insertUsageCount" class="hint">In map: 0 instances</div>
               </div>
               <label class="checkRow"><input id="insertRandomFacing" type="checkbox" /> Random Facing</label>
               <label>Drop Count<input id="insertDropCount" type="number" min="1" max="20" value="1" /></label>
@@ -2589,6 +2592,7 @@
   const insertItemList = document.getElementById("insertItemList");
   const insertGlbPreviewCanvas = document.getElementById("insertGlbPreview");
   const insertGlbPreviewStatus = document.getElementById("insertGlbPreviewStatus");
+  const insertUsageCount = document.getElementById("insertUsageCount");
   const insertRandomFacing = document.getElementById("insertRandomFacing");
   const insertDropCount = document.getElementById("insertDropCount");
   const insertPreviewLabel = document.getElementById("insertPreviewLabel");
@@ -3892,6 +3896,26 @@
     return "object";
   }
 
+  function buildInsertDefinitionUsageCounts(){
+    const counts = new Map();
+    for (const item of state.items){
+      const typeId = String(item?.kv?.type_id || "").trim();
+      if (!typeId) continue;
+      const directId = state.defsById.has(typeId) ? typeId : "";
+      const mappedId = toDefIdFromMisTypeId(typeId);
+      const definitionId = directId || (state.defsById.has(mappedId) ? mappedId : "");
+      if (!definitionId) continue;
+      counts.set(definitionId, (counts.get(definitionId) || 0) + 1);
+    }
+    return counts;
+  }
+
+  function updateInsertUsageCount(counts = null){
+    const usageCounts = counts || buildInsertDefinitionUsageCounts();
+    const count = usageCounts.get(String(state.insertDefinitionId)) || 0;
+    insertUsageCount.textContent = `In map: ${count} instance${count === 1 ? "" : "s"}`;
+  }
+
   function renderInsertDialog(){
     insertCategories.innerHTML = "";
     for (const [value, label] of INSERT_CATEGORIES){
@@ -3902,6 +3926,7 @@
       button.addEventListener("click", () => { state.insertCategory = value; renderInsertDialog(); });
       insertCategories.appendChild(button);
     }
+    const usageCounts = buildInsertDefinitionUsageCounts();
     const query = state.insertSearchTerm.trim().toLowerCase();
     const defs = state.defsSorted.filter(def =>
       insertCategoryForDef(def) === state.insertCategory
@@ -3920,13 +3945,17 @@
         option.setAttribute("role", "option");
         option.setAttribute("aria-selected", String(String(def.id) === state.insertDefinitionId));
         option.classList.toggle("selected", String(def.id) === state.insertDefinitionId);
-        option.innerHTML = `<span>${escapeHtml(def.name)}</span><span class="insertItemOptionId">#${escapeHtml(toMisTypeIdFromDefId(def.id))}</span>`;
+        const usageCount = usageCounts.get(String(def.id)) || 0;
+        option.classList.toggle("inMap", usageCount > 0);
+        option.title = usageCount ? `${usageCount} instance${usageCount === 1 ? "" : "s"} in the map` : "Not used in the map";
+        option.innerHTML = `<span>${escapeHtml(def.name)}</span><span class="insertItemOptionId">#${escapeHtml(toMisTypeIdFromDefId(def.id))}</span>${usageCount ? `<span class="insertItemUsageBadge" aria-label="${usageCount} in map">${usageCount}</span>` : ""}`;
         insertItemList.appendChild(option);
       }
     }
     insertRandomFacing.checked = state.insertRandomFacing;
     insertDropCount.value = String(state.insertDropCount);
     document.querySelectorAll('input[name="insertDropArea"]').forEach(input => { input.checked = input.value === state.insertDropArea; });
+    updateInsertUsageCount(usageCounts);
     renderInsertGlbPreview();
   }
 
@@ -3950,6 +3979,7 @@
       option.setAttribute('aria-selected', String(selected));
       if (selected && options.scroll) option.scrollIntoView({ block: 'nearest' });
     });
+    updateInsertUsageCount();
     renderInsertGlbPreview();
   }
 
